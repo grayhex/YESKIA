@@ -6,7 +6,7 @@ use yeskia_core::app::{AppCore, SmokeReport};
 use yeskia_core::device::{Device, DeviceId};
 use yeskia_core::diagnostics::LogEntry;
 use yeskia_core::error::{Error, ErrorInfo};
-use yeskia_core::operations::{OperationRequest, OperationResult};
+use yeskia_core::operations::{OperationRequest, OperationResult, Progress};
 use yeskia_core::storage::{data_dir, JournalEntry, Settings};
 use yeskia_core::system::SystemInfo;
 
@@ -47,13 +47,31 @@ async fn disconnect_device(state: tauri::State<'_, State>, id: String) -> Cmd<()
     blocking(&state, move |c| c.engine.disconnect(&DeviceId::new(id))).await
 }
 
+/// Ставит операцию в очередь устройства и возвращает её id (для отмены и прогресса).
 #[tauri::command]
-async fn run_operation(
+fn start_operation(
     state: tauri::State<'_, State>,
     id: String,
     request: OperationRequest,
+) -> Cmd<String> {
+    state
+        .0
+        .start_operation(&DeviceId::new(id), request)
+        .map_err(|e| e.to_info())
+}
+
+/// Ждёт результата ранее начатой операции (очередь, выполнение, таймаут).
+#[tauri::command]
+async fn await_operation(
+    state: tauri::State<'_, State>,
+    operation_id: String,
 ) -> Cmd<OperationResult> {
-    blocking(&state, move |c| c.engine.run(&DeviceId::new(id), request)).await
+    blocking(&state, move |c| c.await_operation(&operation_id)).await
+}
+
+#[tauri::command]
+fn operation_progress(state: tauri::State<'_, State>, operation_id: String) -> Option<Progress> {
+    state.0.operation_progress(&operation_id)
 }
 
 #[tauri::command]
@@ -123,7 +141,9 @@ pub fn run() {
             list_devices,
             connect_device,
             disconnect_device,
-            run_operation,
+            start_operation,
+            await_operation,
+            operation_progress,
             cancel_operation,
             get_settings,
             save_settings,

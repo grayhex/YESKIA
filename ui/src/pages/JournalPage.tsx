@@ -19,6 +19,7 @@ export function JournalPage({ model }: { model: AppModel }) {
                 <th scope="col">{t("table.operation")}</th>
                 <th scope="col">{t("table.state")}</th>
                 <th scope="col">{t("table.code")}</th>
+                <th scope="col">{t("table.uncertain")}</th>
                 <th scope="col">{t("table.time")}</th>
               </tr>
             </thead>
@@ -29,6 +30,7 @@ export function JournalPage({ model }: { model: AppModel }) {
                   <td>{j.operation}</td>
                   <td>{j.state}</td>
                   <td className="mono">{j.error_code ?? "—"}</td>
+                  <td>{j.uncertain ? t("table.yes") : "—"}</td>
                   <td>{new Date(j.started_at_ms).toLocaleTimeString(lang)}</td>
                 </tr>
               ))}

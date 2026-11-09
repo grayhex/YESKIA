@@ -24,3 +24,7 @@
 | Реальные устройства (WPD/MTP, Mass Storage, PC Suite) | `unsupported` | issue #4–#6 |
 | Desktop UI: навигация, режимы, RU/EN, состояния (issue #2) | `tested-on-mock` | `ui/src/App.test.tsx` (vitest, UI-заглушка) |
 | Рендер в установленном Tauri на Windows 11, DPI 100/150% | `implemented` | скриншоты в `docs/screenshots` сняты в Chromium; ручная проверка на Windows не выполнена |
+| Матрица возможностей на соединении, evidence с fingerprint (issue #3) | `tested-on-mock` | `crates/yeskia-core/tests/engine.rs` |
+| Очередь, отмена, таймаут (в т.ч. залипший драйвер), hot unplug, partial write, несовпадение fingerprint | `tested-on-mock` | там же |
+| Безопасные пути, запрет silent overwrite, read-back SHA-256, `uncertain` | `tested-on-mock` / `tested-on-host` (пути, SQLite) | `paths::tests`, `engine.rs`, `storage::tests` |
+| Реальные адаптеры (WPD/MTP, Mass Storage, PC Suite, OBEX) | `unsupported` | #4–#6, #10; контракт трейтов готов |

@@ -3,21 +3,24 @@
 
 use crate::device::DeviceId;
 use crate::diagnostics::Diagnostics;
-use crate::engine::Engine;
+use crate::engine::{Engine, OperationHandle};
 use crate::error::Result;
 use crate::mock::{MockTransport, MOCK_DEVICE_ID};
-use crate::operations::{OperationRequest, Outcome};
+use crate::operations::{OperationRequest, OperationResult, Outcome, Progress};
 use crate::storage::{Settings, Storage};
 use crate::system::SystemInfo;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub struct AppCore {
     pub engine: Arc<Engine>,
     /// Каталог данных (None — режим в памяти): нужен для переключения файлового лога.
     data_dir: Option<std::path::PathBuf>,
     mock: MockTransport,
+    /// Принятые, но ещё не ожидаемые операции (для пары start/await из UI).
+    handles: Mutex<HashMap<String, OperationHandle>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,7 +62,34 @@ impl AppCore {
             engine,
             data_dir: None,
             mock,
+            handles: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Ставит операцию в очередь и возвращает её id (для отмены/прогресса до завершения).
+    pub fn start_operation(&self, id: &DeviceId, request: OperationRequest) -> Result<String> {
+        let handle = self.engine.submit(id, request)?;
+        let op_id = handle.operation_id().to_string();
+        self.handles
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(op_id.clone(), handle);
+        Ok(op_id)
+    }
+
+    /// Блокирует до результата ранее начатой операции (вызывать из блокирующего потока).
+    pub fn await_operation(&self, operation_id: &str) -> Result<OperationResult> {
+        let handle = self
+            .handles
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(operation_id)
+            .ok_or_else(|| crate::Error::InvalidArgument("неизвестная операция".into()))?;
+        Ok(handle.wait())
+    }
+
+    pub fn operation_progress(&self, operation_id: &str) -> Option<Progress> {
+        self.engine.progress(operation_id)
     }
 
     pub fn system_info(&self) -> SystemInfo {
@@ -92,7 +122,7 @@ impl AppCore {
         self.mock.plug();
         let id = DeviceId::new(MOCK_DEVICE_ID);
         self.engine.connect(&id)?;
-        let r = self.engine.run(&id, OperationRequest::Identify)?;
+        let r = self.engine.run(&id, OperationRequest::IdentityRead)?;
         self.engine.disconnect(&id)?;
         if !was_enabled {
             self.mock.unplug();

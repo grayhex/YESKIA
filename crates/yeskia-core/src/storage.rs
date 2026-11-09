@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Каталог данных: `%APPDATA%\YESKIA` на Windows. `YESKIA_DATA_DIR` переопределяет.
 pub fn data_dir() -> PathBuf {
@@ -89,6 +89,8 @@ pub struct JournalEntry {
     pub operation: String,
     pub state: JournalState,
     pub error_code: Option<String>,
+    /// Для записей: исход на устройстве неизвестен.
+    pub uncertain: bool,
     pub started_at_ms: u64,
     pub finished_at_ms: Option<u64>,
 }
@@ -141,9 +143,18 @@ impl Storage {
                  PRAGMA user_version = 1;",
             )?;
         }
+        if version < 2 {
+            conn.execute_batch(
+                "ALTER TABLE operation_journal ADD COLUMN uncertain INTEGER NOT NULL DEFAULT 0;
+                 PRAGMA user_version = 2;",
+            )?;
+        }
         // Операции, оставшиеся «running» после падения, помечаем interrupted и не повторяем.
         conn.execute(
-            "UPDATE operation_journal SET state='interrupted', finished_at_ms=?1 WHERE state='running'",
+            "UPDATE operation_journal SET state='interrupted', finished_at_ms=?1,
+               uncertain = CASE WHEN operation IN
+                 ('files.write','contacts.write','sms.send','packages.install') THEN 1 ELSE 0 END
+             WHERE state='running'",
             params![crate::now_ms() as i64],
         )?;
         Ok(Self {
@@ -178,6 +189,29 @@ impl Storage {
         Ok(())
     }
 
+    /// Случайная соль установки для fingerprint устройств (создаётся при первом запуске).
+    pub fn install_salt(&self) -> Result<String> {
+        let existing: Option<String> = self
+            .conn()
+            .query_row(
+                "SELECT value FROM settings WHERE key='install_salt'",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(s) = existing {
+            return Ok(s);
+        }
+        let mut buf = [0u8; 16];
+        getrandom::getrandom(&mut buf).map_err(|e| Error::Storage(e.to_string()))?;
+        let salt: String = buf.iter().map(|b| format!("{b:02x}")).collect();
+        self.conn().execute(
+            "INSERT INTO settings(key,value) VALUES('install_salt',?1)",
+            params![salt],
+        )?;
+        Ok(salt)
+    }
+
     pub fn journal_start(&self, op_id: &str, device_id: &str, operation: &str) -> Result<()> {
         self.conn().execute(
             "INSERT INTO operation_journal(operation_id,device_ref,operation,state,started_at_ms)
@@ -197,10 +231,18 @@ impl Storage {
         op_id: &str,
         state: JournalState,
         error_code: Option<&str>,
+        uncertain: bool,
     ) -> Result<()> {
         self.conn().execute(
-            "UPDATE operation_journal SET state=?2, error_code=?3, finished_at_ms=?4 WHERE operation_id=?1",
-            params![op_id, state.as_str(), error_code, crate::now_ms() as i64],
+            "UPDATE operation_journal SET state=?2, error_code=?3, finished_at_ms=?4, uncertain=?5
+             WHERE operation_id=?1",
+            params![
+                op_id,
+                state.as_str(),
+                error_code,
+                crate::now_ms() as i64,
+                uncertain
+            ],
         )?;
         Ok(())
     }
@@ -208,7 +250,7 @@ impl Storage {
     pub fn journal_recent(&self, limit: u32) -> Result<Vec<JournalEntry>> {
         let conn = self.conn();
         let mut stmt = conn.prepare(
-            "SELECT operation_id,device_ref,operation,state,error_code,started_at_ms,finished_at_ms
+            "SELECT operation_id,device_ref,operation,state,error_code,started_at_ms,finished_at_ms,uncertain
              FROM operation_journal ORDER BY started_at_ms DESC, rowid DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit], |r| {
@@ -220,6 +262,7 @@ impl Storage {
                 error_code: r.get(4)?,
                 started_at_ms: r.get::<_, i64>(5)? as u64,
                 finished_at_ms: r.get::<_, Option<i64>>(6)?.map(|v| v as u64),
+                uncertain: r.get::<_, i64>(7)? != 0,
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
@@ -249,11 +292,21 @@ mod tests {
         let s = Storage::open_in_memory().unwrap();
         s.journal_start("op-1", "secret-device-id", "write_file")
             .unwrap();
-        s.journal_finish("op-1", JournalState::Failed, Some("OPERATION_FAILED"))
+        s.journal_finish("op-1", JournalState::Failed, Some("OPERATION_FAILED"), true)
             .unwrap();
         let e = &s.journal_recent(10).unwrap()[0];
         assert_eq!(e.state, JournalState::Failed);
         assert!(!e.device_ref.contains("secret"));
+        assert!(e.uncertain);
+    }
+
+    #[test]
+    fn install_salt_is_random_and_stable() {
+        let a = Storage::open_in_memory().unwrap();
+        let b = Storage::open_in_memory().unwrap();
+        assert_eq!(a.install_salt().unwrap(), a.install_salt().unwrap());
+        assert_ne!(a.install_salt().unwrap(), b.install_salt().unwrap());
+        assert_eq!(a.install_salt().unwrap().len(), 32);
     }
 
     #[test]
@@ -262,7 +315,7 @@ mod tests {
         let path = dir.join("db.sqlite");
         {
             let s = Storage::open(&path).unwrap();
-            s.journal_start("op-9", "d", "write_file").unwrap();
+            s.journal_start("op-9", "d", "files.write").unwrap();
         }
         let s = Storage::open(&path).unwrap();
         assert_eq!(

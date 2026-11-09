@@ -6,6 +6,7 @@ import type {
   JournalEntry,
   OperationRequest,
   OperationResult,
+  Progress,
   Settings,
   SystemInfo,
 } from "./types";
@@ -20,6 +21,11 @@ export function useAppModel(backend: Backend) {
   const [result, setResult] = useState<OperationResult | null>(null);
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [busy, setBusy] = useState(false);
+  const [active, setActive] = useState<{
+    operationId: string;
+    request: OperationRequest;
+    progress: Progress | null;
+  } | null>(null);
   const busyRef = useRef(false);
   const sessionStartMs = useRef(Date.now());
 
@@ -84,8 +90,29 @@ export function useAppModel(backend: Backend) {
     refresh: () => guarded(async () => undefined),
     connect: (id: string) => guarded(async () => void (await backend.connectDevice(id))),
     disconnect: (id: string) => guarded(() => backend.disconnectDevice(id)),
+    /** Операция в работе: id для отмены и последний прогресс. */
+    active,
     run: (id: string, request: OperationRequest) =>
-      guarded(async () => setResult(await backend.runOperation(id, request))),
+      guarded(async () => {
+        const operationId = await backend.startOperation(id, request);
+        setActive({ operationId, request, progress: null });
+        const poll = setInterval(() => {
+          backend
+            .operationProgress(operationId)
+            .then((progress) =>
+              setActive((a) => (a && a.operationId === operationId ? { ...a, progress } : a)),
+            )
+            .catch(() => undefined);
+        }, 150);
+        try {
+          setResult(await backend.awaitOperation(operationId));
+        } finally {
+          clearInterval(poll);
+          setActive(null);
+        }
+      }),
+    cancelActive: () =>
+      active ? backend.cancelOperation(active.operationId) : Promise.resolve(false),
     updateSettings: (patch: Partial<Settings>) =>
       guarded(async () => {
         if (settings) setSettings(await backend.saveSettings({ ...settings, ...patch }));

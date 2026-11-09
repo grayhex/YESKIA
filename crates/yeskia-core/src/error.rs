@@ -12,12 +12,31 @@ pub enum ErrorCode {
     NotConnected,
     OperationCancelled,
     OperationFailed,
-    OperationInProgress,
+    QueueFull,
     CapabilityUnsupported,
+    Timeout,
+    FingerprintMismatch,
+    AlreadyExists,
+    UnsafePath,
+    VerificationFailed,
     TransportError,
     StorageError,
     InvalidArgument,
     Internal,
+}
+
+/// Что предложить пользователю. UI локализует; ядро автоматически ничего не повторяет.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UserAction {
+    None,
+    Reconnect,
+    CheckCable,
+    ChooseAnotherPath,
+    WaitAndRetry,
+    RetryManually,
+    /// Исход записи неизвестен: сначала проверить содержимое устройства.
+    VerifyDeviceContents,
 }
 
 /// Сериализуемое описание ошибки для UI. Сообщение уже очищено от IMEI/серийников.
@@ -25,8 +44,9 @@ pub enum ErrorCode {
 pub struct ErrorInfo {
     pub code: ErrorCode,
     pub message: String,
-    /// Можно ли безопасно повторить вручную. Ядро никогда не повторяет запись само.
+    /// Можно ли повторить вручную. Ядро никогда не повторяет запись само.
     pub retryable: bool,
+    pub action: UserAction,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -43,10 +63,20 @@ pub enum Error {
     Cancelled,
     #[error("операция завершилась ошибкой: {0}")]
     OperationFailed(String),
-    #[error("для устройства уже выполняется операция")]
-    OperationInProgress,
-    #[error("возможность не поддерживается: {0}")]
+    #[error("очередь операций устройства переполнена")]
+    QueueFull,
+    #[error("операция не поддерживается на этом соединении: {0}")]
     CapabilityUnsupported(String),
+    #[error("превышено время ожидания операции")]
+    Timeout,
+    #[error("на соединении другое устройство (fingerprint не совпал)")]
+    FingerprintMismatch,
+    #[error("целевой файл уже существует")]
+    AlreadyExists,
+    #[error("небезопасный путь: {0}")]
+    UnsafePath(String),
+    #[error("запись не подтверждена обратным чтением")]
+    VerificationFailed,
     #[error("ошибка транспорта: {0}")]
     Transport(String),
     #[error("ошибка хранилища: {0}")]
@@ -68,8 +98,13 @@ impl Error {
             Error::NotConnected => ErrorCode::NotConnected,
             Error::Cancelled => ErrorCode::OperationCancelled,
             Error::OperationFailed(_) => ErrorCode::OperationFailed,
-            Error::OperationInProgress => ErrorCode::OperationInProgress,
+            Error::QueueFull => ErrorCode::QueueFull,
             Error::CapabilityUnsupported(_) => ErrorCode::CapabilityUnsupported,
+            Error::Timeout => ErrorCode::Timeout,
+            Error::FingerprintMismatch => ErrorCode::FingerprintMismatch,
+            Error::AlreadyExists => ErrorCode::AlreadyExists,
+            Error::UnsafePath(_) => ErrorCode::UnsafePath,
+            Error::VerificationFailed => ErrorCode::VerificationFailed,
             Error::Transport(_) => ErrorCode::TransportError,
             Error::Storage(_) => ErrorCode::StorageError,
             Error::InvalidArgument(_) => ErrorCode::InvalidArgument,
@@ -83,7 +118,41 @@ impl Error {
             Error::DeviceDisconnected
                 | Error::Cancelled
                 | Error::OperationFailed(_)
+                | Error::QueueFull
+                | Error::Timeout
+                | Error::VerificationFailed
                 | Error::Transport(_)
+        )
+    }
+
+    pub fn user_action(&self) -> UserAction {
+        match self {
+            Error::DeviceNotFound(_) | Error::Transport(_) => UserAction::CheckCable,
+            Error::DeviceDisconnected | Error::NotConnected | Error::FingerprintMismatch => {
+                UserAction::Reconnect
+            }
+            Error::QueueFull => UserAction::WaitAndRetry,
+            Error::AlreadyExists | Error::UnsafePath(_) => UserAction::ChooseAnotherPath,
+            Error::VerificationFailed => UserAction::VerifyDeviceContents,
+            Error::OperationFailed(_) | Error::Timeout | Error::Cancelled => {
+                UserAction::RetryManually
+            }
+            _ => UserAction::None,
+        }
+    }
+
+    /// Ошибки, возникающие до любого обращения к устройству на запись:
+    /// после них содержимое устройства заведомо не менялось.
+    pub fn is_precondition(&self) -> bool {
+        matches!(
+            self,
+            Error::AlreadyExists
+                | Error::UnsafePath(_)
+                | Error::InvalidArgument(_)
+                | Error::CapabilityUnsupported(_)
+                | Error::NotConnected
+                | Error::QueueFull
+                | Error::FingerprintMismatch
         )
     }
 
@@ -93,6 +162,7 @@ impl Error {
             code: self.code(),
             message: crate::diagnostics::redact(&self.to_string()),
             retryable: self.retryable(),
+            action: self.user_action(),
         }
     }
 }
