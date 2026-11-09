@@ -4265,6 +4265,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "yeskia-core",
+ "yeskia-discovery",
 ]
 
 [[package]]
@@ -4277,6 +4278,16 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "yeskia-discovery"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "windows",
+ "yeskia-core",
 ]
 
 [[package]]

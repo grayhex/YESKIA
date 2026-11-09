@@ -4,6 +4,7 @@ import { ErrorMessage } from "./components/Ui";
 import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
 import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
 import { ConnectionPage } from "./pages/ConnectionPage";
+import { DoctorPage } from "./pages/DoctorPage";
 import { HomePage } from "./pages/HomePage";
 import { JournalPage } from "./pages/JournalPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -21,6 +22,7 @@ export function App({ backend }: { backend: Backend }) {
   const nav: NavEntry[] = [
     { id: "home", label: "nav.home" },
     { id: "connection", label: "nav.connection" },
+    { id: "doctor", label: "nav.doctor" },
     ...(developer ? ([{ id: "journal", label: "nav.journal" }] as NavEntry[]) : []),
     { id: "settings", label: "nav.settings" },
   ];
@@ -67,6 +69,7 @@ export function App({ backend }: { backend: Backend }) {
           {model.error && <ErrorMessage error={model.error} />}
           {current === "home" && <HomePage model={model} go={select} />}
           {current === "connection" && <ConnectionPage model={model} developer={developer} />}
+          {current === "doctor" && <DoctorPage model={model} developer={developer} />}
           {current === "journal" && <JournalPage model={model} />}
           {current === "settings" && <SettingsPage model={model} />}
         </main>

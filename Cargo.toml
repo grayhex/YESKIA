@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/yeskia-core", "src-tauri"]
+members = ["crates/yeskia-core", "crates/yeskia-discovery", "src-tauri"]
 # src-tauri требует системных библиотек WebView (Windows: WebView2), поэтому
 # обычные `cargo build/test` собирают только ядро. Оболочку собирает `npm run tauri`.
-default-members = ["crates/yeskia-core"]
+default-members = ["crates/yeskia-core", "crates/yeskia-discovery"]
 
 [workspace.package]
 version = "0.1.0"

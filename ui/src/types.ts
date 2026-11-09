@@ -81,7 +81,7 @@ export interface Device {
   id: string;
   display_name: string;
   origin: "mock" | "real";
-  transport: "mock" | "mass_storage" | "mtp" | "pc_suite" | "bluetooth";
+  transport: "mock" | "usb" | "mass_storage" | "mtp" | "pc_suite" | "bluetooth";
   connection: ConnectionState;
   serial: string | null; // уже замаскирован ядром
   matrix: CapabilityMatrix | null;
@@ -149,4 +149,82 @@ export interface JournalEntry {
   uncertain: boolean;
   started_at_ms: number;
   finished_at_ms: number | null;
+}
+
+export type DoctorState =
+  | "driver_missing"
+  | "driver_error"
+  | "com_busy"
+  | "com_present"
+  | "wpd_only"
+  | "mass_storage"
+  | "unknown_mode";
+
+export type ProtocolStatus = "not_probed" | "mtp_responding" | "mtp_failed";
+
+export type FindingCode =
+  | "no_usb_devices"
+  | "multiple_devices"
+  | "not_nokia_vendor"
+  | "vendor_hint_only"
+  | "driver_missing"
+  | "driver_error"
+  | "com_present"
+  | "com_busy"
+  | "wpd_only"
+  | "mass_storage_only"
+  | "unknown_mode"
+  | "mtp_listing_ok"
+  | "mtp_listing_failed"
+  | "mtp_is_not_pc_suite"
+  | "partial_data";
+
+export interface DoctorDevice {
+  alias: string;
+  vid: string;
+  pid: string;
+  nokia_vendor_hint: boolean;
+  identity_confirmed: boolean;
+  state: DoctorState;
+  protocol: ProtocolStatus;
+  pc_suite: "not_proven";
+  pim: "not_proven";
+  driver: {
+    class: string | null;
+    service: string | null;
+    provider: string | null;
+    version: string | null;
+    problem_code: number;
+  };
+  wpd: {
+    associated_by_instance: boolean;
+    model: string | null;
+    firmware: string | null;
+    storages: number | null;
+    top_level_objects: number | null;
+    error_code: number | null;
+  } | null;
+  com_ports: number;
+  com_busy: number;
+  volumes: number;
+  findings: FindingCode[];
+}
+
+export interface DoctorReport {
+  schema: number;
+  generated_at_ms: number;
+  platform: { os: string; build: string; arch: string };
+  devices: DoctorDevice[];
+  findings: FindingCode[];
+  issues: { stage: string; code: number | null }[];
+  excluded: string[];
+}
+
+export interface DoctorOptions {
+  probe_com_busy: boolean;
+}
+
+export interface ExportedReport {
+  path: string;
+  report: DoctorReport;
 }

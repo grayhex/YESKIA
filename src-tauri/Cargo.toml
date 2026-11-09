@@ -18,3 +18,4 @@ tauri = { version = "2", features = [] }
 serde.workspace = true
 serde_json.workspace = true
 yeskia-core = { path = "../crates/yeskia-core" }
+yeskia-discovery = { path = "../crates/yeskia-discovery" }

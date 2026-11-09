@@ -31,6 +31,8 @@ pub enum DeviceOrigin {
 #[serde(rename_all = "snake_case")]
 pub enum TransportKind {
     Mock,
+    /// USB-устройство, режим работы не определён (до идентификации по протоколу).
+    Usb,
     MassStorage,
     Mtp,
     PcSuite,

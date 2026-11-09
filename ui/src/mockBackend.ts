@@ -3,7 +3,10 @@ import type {
   CapabilityEntry,
   CapabilityMatrix,
   Device,
+  DoctorOptions,
+  DoctorReport,
   ErrorCode,
+  ExportedReport,
   Evidence,
   JournalEntry,
   Operation,
@@ -243,6 +246,52 @@ export class MockBackend implements Backend {
     if (!p) return false;
     p.cancelled = true;
     return true;
+  }
+  async runDoctor(options: DoctorOptions): Promise<DoctorReport> {
+    // UI-заглушка: вымышленная топология, не результат реальной диагностики.
+    return {
+      schema: 1,
+      generated_at_ms: Date.now(),
+      platform: { os: "ui-mock", build: "0", arch: "n/a" },
+      devices: [
+        {
+          alias: "device-1",
+          vid: "0421",
+          pid: "0223",
+          nokia_vendor_hint: true,
+          identity_confirmed: false,
+          state: options.probe_com_busy ? "com_busy" : "wpd_only",
+          protocol: "mtp_responding",
+          pc_suite: "not_proven",
+          pim: "not_proven",
+          driver: {
+            class: "USB",
+            service: "WinUSB",
+            provider: null,
+            version: null,
+            problem_code: 0,
+          },
+          wpd: {
+            associated_by_instance: true,
+            model: null,
+            firmware: null,
+            storages: 1,
+            top_level_objects: 3,
+            error_code: null,
+          },
+          com_ports: options.probe_com_busy ? 1 : 0,
+          com_busy: options.probe_com_busy ? 1 : 0,
+          volumes: 0,
+          findings: ["vendor_hint_only", "wpd_only", "mtp_listing_ok", "mtp_is_not_pc_suite"],
+        },
+      ],
+      findings: [],
+      issues: [],
+      excluded: ["IMEI", "serial numbers", "PnP instance IDs", "MAC addresses"],
+    };
+  }
+  async exportDoctorReport(options: DoctorOptions): Promise<ExportedReport> {
+    return { path: "(ui mock)/doctor.json", report: await this.runDoctor(options) };
   }
   async getSettings() {
     return this.settings;

@@ -834,3 +834,78 @@ fn disconnect_clears_queue_even_with_unawaited_handles() {
         Outcome::Success
     );
 }
+
+/// Транспорт, у которого перечисление может временно ломаться.
+struct Flaky {
+    inner: MockTransport,
+    broken: std::sync::atomic::AtomicBool,
+}
+
+mod flaky_impl {
+    use super::*;
+    use std::sync::atomic::Ordering;
+    use yeskia_core::error::{Error, Result};
+    use yeskia_core::transport::*;
+
+    impl DiscoveryProvider for Flaky {
+        fn kind(&self) -> TransportKind {
+            TransportKind::Usb
+        }
+        fn discover(&self) -> Result<Vec<Device>> {
+            if self.broken.load(Ordering::SeqCst) {
+                return Err(Error::Transport("перечисление не удалось".into()));
+            }
+            self.inner.discover()
+        }
+    }
+    impl DeviceTransport for Flaky {
+        fn connect(&self, id: &DeviceId) -> Result<()> {
+            self.inner.connect(id)
+        }
+        fn disconnect(&self, id: &DeviceId) -> Result<()> {
+            self.inner.disconnect(id)
+        }
+        fn is_present(&self, id: &DeviceId) -> bool {
+            self.inner.is_present(id)
+        }
+        fn maturity(&self, op: Operation) -> SupportStatus {
+            self.inner.maturity(op)
+        }
+        fn probe(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Vec<ProbeOutcome>> {
+            self.inner.probe(id, ctx)
+        }
+        fn identity(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Identity> {
+            self.inner.identity(id, ctx)
+        }
+    }
+}
+
+#[test]
+fn failing_discovery_neither_hides_other_transports_nor_drops_connections() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let flaky = Arc::new(Flaky {
+        inner: MockTransport::new(),
+        broken: AtomicBool::new(false),
+    });
+    let engine = Engine::new(
+        vec![flaky.clone(), Arc::new(MockTransport::new())],
+        Arc::new(Storage::open_in_memory().unwrap()),
+        Arc::new(Diagnostics::new(50, None)),
+    );
+    engine.connect(&id()).unwrap();
+    flaky.broken.store(true, Ordering::SeqCst);
+    // перечисление первого транспорта упало: соединение не объявляется потерянным
+    let _ = engine.list_devices().unwrap();
+    assert!(
+        engine.capability_matrix(&id()).is_some(),
+        "соединение не должно закрываться из-за сбоя перечисления"
+    );
+    flaky.broken.store(false, Ordering::SeqCst);
+    assert_eq!(
+        engine
+            .run(&id(), OperationRequest::IdentityRead)
+            .unwrap()
+            .outcome,
+        Outcome::Success
+    );
+}

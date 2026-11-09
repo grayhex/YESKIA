@@ -9,6 +9,7 @@ use crate::mock::{MockTransport, MOCK_DEVICE_ID};
 use crate::operations::{OperationRequest, OperationResult, Outcome, Progress};
 use crate::storage::{Settings, Storage};
 use crate::system::SystemInfo;
+use crate::transport::DeviceTransport;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -33,13 +34,18 @@ pub struct SmokeReport {
 impl AppCore {
     /// Открывает (создаёт) хранилище в `data_dir` и собирает движок.
     pub fn init(data_dir: &Path) -> Result<Self> {
+        Self::init_with(data_dir, Vec::new())
+    }
+
+    /// То же, но с дополнительными (реальными) транспортами: Windows PnP/WPD и др.
+    pub fn init_with(data_dir: &Path, extra: Vec<Arc<dyn DeviceTransport>>) -> Result<Self> {
         let storage = Arc::new(Storage::open(&data_dir.join("yeskia.sqlite"))?);
         let settings = storage.load_settings()?;
         let log_file = settings
             .log_to_file
             .then(|| data_dir.join("logs").join("yeskia.log"));
         let diag = Arc::new(Diagnostics::new(500, log_file));
-        let mut core = Self::assemble(storage, diag, settings.use_mock_device);
+        let mut core = Self::assemble(storage, diag, settings.use_mock_device, extra);
         core.data_dir = Some(data_dir.to_path_buf());
         Ok(core)
     }
@@ -47,17 +53,29 @@ impl AppCore {
     /// Целиком в памяти (тесты).
     pub fn in_memory() -> Self {
         let storage = Arc::new(Storage::open_in_memory().expect("in-memory sqlite"));
-        Self::assemble(storage, Arc::new(Diagnostics::new(500, None)), true)
+        Self::assemble(
+            storage,
+            Arc::new(Diagnostics::new(500, None)),
+            true,
+            Vec::new(),
+        )
     }
 
-    fn assemble(storage: Arc<Storage>, diag: Arc<Diagnostics>, mock_enabled: bool) -> Self {
+    fn assemble(
+        storage: Arc<Storage>,
+        diag: Arc<Diagnostics>,
+        mock_enabled: bool,
+        extra: Vec<Arc<dyn DeviceTransport>>,
+    ) -> Self {
         let mock = MockTransport::new();
         if !mock_enabled {
             mock.unplug();
         }
         // Реальные транспорты (WPD/MTP, Mass Storage, PC Suite) добавляются здесь
         // в issue #4–#6; mock явно помечен в модели устройства.
-        let engine = Arc::new(Engine::new(vec![Arc::new(mock.clone())], storage, diag));
+        let mut transports: Vec<Arc<dyn DeviceTransport>> = vec![Arc::new(mock.clone())];
+        transports.extend(extra);
+        let engine = Arc::new(Engine::new(transports, storage, diag));
         Self {
             engine,
             data_dir: None,

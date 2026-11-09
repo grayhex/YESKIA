@@ -19,8 +19,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy -p yeskia-core --all-targets -- -D warnings
-      - run: cargo test -p yeskia-core
+      - run: cargo clippy -p yeskia-core -p yeskia-discovery --all-targets -- -D warnings
+      - run: cargo test -p yeskia-core -p yeskia-discovery
 
   ui:
     name: UI (TypeScript)
@@ -63,3 +63,14 @@ jobs:
           echo "$out"
           echo "$out" | grep -q '"mock_identify":"ok"'
           echo "$out" | grep -q '"storage_ok":true'
+      - name: Doctor (read-only, без телефона)
+        shell: bash
+        env:
+          YESKIA_DATA_DIR: ${{ runner.temp }}/yeskia-smoke
+        run: |
+          out=$(./target/release/yeskia-app.exe --doctor)
+          echo "$out"
+          echo "$out" | grep -q '"schema": 1'
+          echo "$out" | grep -q '"os": "Windows'
+          # privacy: в отчёте нет путей/instance id
+          ! echo "$out" | grep -qiE 'usb\\\\vid_|\\\\\\\\\?\\\\'
