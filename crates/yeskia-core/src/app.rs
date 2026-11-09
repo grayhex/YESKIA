@@ -15,6 +15,8 @@ use std::sync::Arc;
 
 pub struct AppCore {
     pub engine: Arc<Engine>,
+    /// Каталог данных (None — режим в памяти): нужен для переключения файлового лога.
+    data_dir: Option<std::path::PathBuf>,
     mock: MockTransport,
 }
 
@@ -34,7 +36,9 @@ impl AppCore {
             .log_to_file
             .then(|| data_dir.join("logs").join("yeskia.log"));
         let diag = Arc::new(Diagnostics::new(500, log_file));
-        Ok(Self::assemble(storage, diag, settings.use_mock_device))
+        let mut core = Self::assemble(storage, diag, settings.use_mock_device);
+        core.data_dir = Some(data_dir.to_path_buf());
+        Ok(core)
     }
 
     /// Целиком в памяти (тесты).
@@ -51,7 +55,11 @@ impl AppCore {
         // Реальные транспорты (WPD/MTP, Mass Storage, PC Suite) добавляются здесь
         // в issue #4–#6; mock явно помечен в модели устройства.
         let engine = Arc::new(Engine::new(vec![Arc::new(mock.clone())], storage, diag));
-        Self { engine, mock }
+        Self {
+            engine,
+            data_dir: None,
+            mock,
+        }
     }
 
     pub fn system_info(&self) -> SystemInfo {
@@ -68,6 +76,10 @@ impl AppCore {
             self.mock.plug();
         } else {
             self.mock.unplug();
+        }
+        if let Some(dir) = &self.data_dir {
+            let file = s.log_to_file.then(|| dir.join("logs").join("yeskia.log"));
+            self.engine.diagnostics().set_file(file);
         }
         Ok(s.clone())
     }
@@ -120,6 +132,38 @@ mod tests {
         })
         .unwrap();
         assert!(app.engine.list_devices().unwrap().is_empty());
+    }
+
+    #[test]
+    fn log_to_file_setting_applies_immediately() {
+        let dir = std::env::temp_dir().join(format!("yeskia-logset-{}", crate::now_ms()));
+        let app = AppCore::init(&dir).unwrap();
+        let log = dir.join("logs").join("yeskia.log");
+        app.save_settings(&Settings {
+            log_to_file: false,
+            ..Settings::default()
+        })
+        .unwrap();
+        app.engine.diagnostics().info("silent");
+        assert!(!log.exists() || !std::fs::read_to_string(&log).unwrap().contains("silent"));
+        app.save_settings(&Settings {
+            log_to_file: true,
+            ..Settings::default()
+        })
+        .unwrap();
+        app.engine.diagnostics().info("loud");
+        assert!(std::fs::read_to_string(&log).unwrap().contains("loud"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn operation_ids_do_not_collide_after_restart() {
+        let dir = std::env::temp_dir().join(format!("yeskia-restart-{}", crate::now_ms()));
+        for _ in 0..2 {
+            let app = AppCore::init(&dir).unwrap();
+            assert_eq!(app.smoke().unwrap().mock_identify, "ok");
+        }
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

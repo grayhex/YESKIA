@@ -80,7 +80,7 @@ pub struct LogEntry {
 pub struct Diagnostics {
     entries: Mutex<VecDeque<LogEntry>>,
     capacity: usize,
-    file: Option<PathBuf>,
+    file: Mutex<Option<PathBuf>>,
 }
 
 impl Diagnostics {
@@ -88,8 +88,13 @@ impl Diagnostics {
         Self {
             entries: Mutex::new(VecDeque::new()),
             capacity: capacity.max(1),
-            file,
+            file: Mutex::new(file),
         }
+    }
+
+    /// Включает/выключает запись в файл на лету (настройка `log_to_file`).
+    pub fn set_file(&self, file: Option<PathBuf>) {
+        *self.file.lock().unwrap_or_else(|e| e.into_inner()) = file;
     }
 
     pub fn log(&self, level: LogLevel, message: &str) {
@@ -98,7 +103,8 @@ impl Diagnostics {
             level,
             message: redact(message),
         };
-        if let Some(path) = &self.file {
+        let file = self.file.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        if let Some(path) = &file {
             if let Some(dir) = path.parent() {
                 let _ = std::fs::create_dir_all(dir);
             }
@@ -164,6 +170,22 @@ mod tests {
             redact("copied 12345 bytes to E:/Images"),
             "copied 12345 bytes to E:/Images"
         );
+    }
+
+    #[test]
+    fn file_logging_can_be_toggled_at_runtime() {
+        let dir = std::env::temp_dir().join(format!("yeskia-log-{}", crate::now_ms()));
+        let path = dir.join("l.log");
+        let d = Diagnostics::new(5, None);
+        d.info("before");
+        assert!(!path.exists());
+        d.set_file(Some(path.clone()));
+        d.info("on");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("on"));
+        d.set_file(None);
+        d.info("off");
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("off"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

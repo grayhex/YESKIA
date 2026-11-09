@@ -68,7 +68,8 @@ impl Engine {
             inner: Mutex::new(Inner::default()),
             storage,
             diag,
-            counter: AtomicU64::new(1),
+            // Старт от текущего времени: id уникальны и между перезапусками (PRIMARY KEY журнала).
+            counter: AtomicU64::new(crate::now_ms()),
         }
     }
 
@@ -151,6 +152,11 @@ impl Engine {
         }
         self.diag.info("устройство отключено");
         Ok(())
+    }
+
+    /// id операции, выполняемой на устройстве сейчас (для отмены из UI и тестов).
+    pub fn running_operation(&self, id: &DeviceId) -> Option<String> {
+        self.lock().running.get(id).map(|r| r.operation_id.clone())
     }
 
     /// Отмена операции по id. Возвращает `false`, если такой нет.

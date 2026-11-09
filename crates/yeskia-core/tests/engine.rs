@@ -138,7 +138,8 @@ fn cancel_stops_write_without_commit() {
         )
     });
     std::thread::sleep(Duration::from_millis(100));
-    assert!(e.cancel("op-1"));
+    let op = e.running_operation(&id()).expect("операция выполняется");
+    assert!(e.cancel(&op));
     let r = h.join().unwrap().unwrap();
     assert_eq!(r.outcome, Outcome::Cancelled);
     assert_eq!(mock.committed_writes(), 0);
@@ -162,7 +163,8 @@ fn second_operation_on_busy_device_is_rejected() {
     std::thread::sleep(Duration::from_millis(100));
     let err = e.run(&id(), OperationRequest::Identify).unwrap_err();
     assert_eq!(err.code(), ErrorCode::OperationInProgress);
-    e.cancel("op-1");
+    let op = e.running_operation(&id()).unwrap();
+    e.cancel(&op);
     h.join().unwrap().unwrap();
 }
 
