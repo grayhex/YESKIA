@@ -36,3 +36,6 @@
 | Файловый менеджер: скачивание/загрузка, коллизии, отмена, Unicode (issue #5) | `tested-on-mock` | `crates/yeskia-core/tests/transfer.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/FileManager.test.tsx` |
 | Mass Storage: том ограничен устройством, read-back SHA-256 | `tested-on-host` | временные папки на реальной ФС; на физической карте `not-tested` |
 | WPD/MTP read-only листинг/скачивание (Windows-бэкенд) | `implemented` | компиляция под Windows; на телефоне `not-tested`, запись не заявляется |
+| Лаборатория NPC: формат отчёта v1, редактор приватных данных, анализатор журналов, scan (issue #6) | `tested-on-mock` | `crates/yeskia-lab/tests/lab.rs` (синтетические фикстуры, реплей-тесты) |
+| Реальный обезличенный кейс «USB enumeration → identify attempt» | `not-tested` | нужен собственный телефон; инструкция в `docs/protocol/OBSERVATIONS.md` |
+| Протоколы PC Suite (NPC) | `unsupported` | ни одна функция не заявляется без адаптера YESKIA, проверенного на телефоне |

@@ -1,0 +1,83 @@
+{
+  "frames": 7,
+  "markers": [
+    "UI: connect",
+    "UI: identify",
+    "UI: list folders"
+  ],
+  "exchanges": [
+    {
+      "marker": "UI: connect",
+      "request_t_ms": 10,
+      "request_ep": "0x02",
+      "request_len": 4,
+      "request_head_hex": "7e 04 01 00",
+      "response_ep": "0x81",
+      "response_len": 8,
+      "response_frames": 1,
+      "latency_ms": 12,
+      "retries": 0,
+      "interrupted_by_reset": false
+    },
+    {
+      "marker": "UI: identify",
+      "request_t_ms": 50,
+      "request_ep": "0x02",
+      "request_len": 6,
+      "request_head_hex": "7e 06 02 00",
+      "response_ep": "0x81",
+      "response_len": 7,
+      "response_frames": 1,
+      "latency_ms": 30,
+      "retries": 0,
+      "interrupted_by_reset": false
+    },
+    {
+      "marker": "UI: list folders",
+      "request_t_ms": 120,
+      "request_ep": "0x02",
+      "request_len": 5,
+      "request_head_hex": "7e 05 03 00",
+      "response_ep": null,
+      "response_len": null,
+      "response_frames": 0,
+      "latency_ms": null,
+      "retries": 0,
+      "interrupted_by_reset": true
+    },
+    {
+      "marker": "UI: list folders",
+      "request_t_ms": 150,
+      "request_ep": "0x02",
+      "request_len": 5,
+      "request_head_hex": "7e 05 03 00",
+      "response_ep": "0x81",
+      "response_len": 9,
+      "response_frames": 1,
+      "latency_ms": 20,
+      "retries": 0,
+      "interrupted_by_reset": false
+    }
+  ],
+  "resets_t_ms": [
+    130
+  ],
+  "framing": {
+    "offset": 1,
+    "size": 1,
+    "endian": "little",
+    "excludes_length_field": false,
+    "matched": 7,
+    "total": 7
+  },
+  "hypotheses": [
+    {
+      "statement": "bulk-кадры, вероятно, начинаются с поля длины: смещение 1, 1 байт, little-endian, вся нагрузка (совпало 7 из 7 кадров)",
+      "evidence": "inferred"
+    },
+    {
+      "statement": "обмен 3: прерван сбросом шины до ответа",
+      "evidence": "inferred"
+    }
+  ]
+}

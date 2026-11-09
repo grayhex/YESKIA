@@ -1,0 +1,67 @@
+{
+  "schema": "yeskia.lab.report/1",
+  "id": "EXP-0001",
+  "title": "СИНТЕТИКА: USB enumeration → identify attempt (демонстрация формата)",
+  "created": "2026-11-09",
+  "synthetic": true,
+  "setup": {
+    "os": "Windows 11 26100 (вымышленный стенд)",
+    "phone_model": "SYNTHETIC-PHONE",
+    "phone_rm": "RM-000",
+    "firmware": "0.00 (вымышленная)",
+    "driver": "WPD / WUDFWpdMtp / 0.0.0.0",
+    "usb_mode": "Media transfer (пример)",
+    "npc_version": null,
+    "usb_vid_pid": "0421:0223",
+    "usb_interface": "0 (пример)"
+  },
+  "test_data": {
+    "separate_test_data": true,
+    "user_data_backed_up": true
+  },
+  "action": "enumerate → identify attempt",
+  "channel": "wpd",
+  "capture": {
+    "tool": "USBPcap + Wireshark (пример; захвата не было)",
+    "filter": "usb.device_address == N",
+    "raw_stored_locally": false,
+    "raw_committed": false,
+    "retention_days": 14
+  },
+  "redaction": {
+    "tool": "yeskia-lab redact-fixture",
+    "categories": [
+      "imei",
+      "serial",
+      "mac",
+      "usb_instance_id"
+    ],
+    "reviewed_by_human": false
+  },
+  "findings": [
+    {
+      "statement": "USB-устройство 0421:0223 видно, режим WPD/MTP (пример формата)",
+      "evidence": "observed",
+      "adapter_ref": null
+    },
+    {
+      "statement": "Чтение свойств через WPD, вероятно, возможно в этом режиме (требует проверки на устройстве)",
+      "evidence": "hypothesis",
+      "adapter_ref": null
+    },
+    {
+      "statement": "Функции PC Suite в этом режиме не доказаны",
+      "evidence": "inferred",
+      "adapter_ref": null
+    }
+  ],
+  "known": [
+    "Отчёт демонстрирует обязательные разделы формата v1",
+    "Синтетические данные не описывают реальный телефон"
+  ],
+  "unknown": [
+    "Реальное поведение телефона",
+    "Состав и framing сообщений PC Suite"
+  ],
+  "next_experiment": "Запустить yeskia-lab inventory на собственном телефоне в режиме Media transfer и заполнить реальный отчёт EXP-0002"
+}

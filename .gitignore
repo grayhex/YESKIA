@@ -5,3 +5,9 @@ src-tauri/gen
 src-tauri/target
 *.log
 .DS_Store
+
+# Лаборатория: сырые захваты и трассы хранятся только локально
+lab-captures/
+*.pcap
+*.pcapng
+*.etl

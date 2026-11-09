@@ -1,0 +1,17 @@
+[package]
+name = "yeskia-lab"
+description = "Лаборатория совместимости Nokia PC Suite: отчёты, редактор приватных данных, анализ протокольных журналов."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "yeskia-lab"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+regex = "1"
+yeskia-discovery = { path = "../yeskia-discovery", default-features = false }
