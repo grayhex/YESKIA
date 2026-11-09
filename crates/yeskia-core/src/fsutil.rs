@@ -21,7 +21,8 @@ const FORBIDDEN: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 pub fn long_path(p: &Path) -> PathBuf {
     #[cfg(windows)]
     {
-        let s = p.to_string_lossy();
+        // Префикс `\\?\` отключает нормализацию Windows: разделители должны быть только `\`.
+        let s = p.to_string_lossy().replace('/', "\\");
         if p.is_absolute() && !s.starts_with("\\\\?\\") {
             return match s.strip_prefix("\\\\") {
                 Some(unc) => PathBuf::from(format!("\\\\?\\UNC\\{unc}")),

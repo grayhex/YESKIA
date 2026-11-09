@@ -843,26 +843,30 @@ pub fn verify(dir: &Path, ctl: &Control) -> Result<VerifyReport> {
         });
     }
     // лишнее: файлы в files/, которых нет в манифесте
-    fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
+    // Относительный путь накапливается по именам, а не берётся из `strip_prefix`: на Windows
+    // `read_dir(\\?\…)` возвращает пути с префиксом, который не совпадает с базой.
+    fn walk(dir: &Path, rel: &str, out: &mut Vec<String>, depth: usize) {
+        if depth > MAX_DEPTH {
+            return;
+        }
         let Ok(rd) = std::fs::read_dir(long_path(dir)) else {
             return;
         };
         for e in rd.flatten() {
-            let p = e.path();
-            if p.is_dir() {
-                walk(base, &p, out);
-            } else if let Ok(r) = p.strip_prefix(base) {
-                out.push(
-                    r.components()
-                        .map(|c| c.as_os_str().to_string_lossy().into_owned())
-                        .collect::<Vec<_>>()
-                        .join("/"),
-                );
+            let name = e.file_name().to_string_lossy().into_owned();
+            let rel_child = if rel.is_empty() {
+                name
+            } else {
+                format!("{rel}/{name}")
+            };
+            match e.file_type() {
+                Ok(ft) if ft.is_dir() => walk(&e.path(), &rel_child, out, depth + 1),
+                _ => out.push(rel_child),
             }
         }
     }
     let mut on_disk = Vec::new();
-    walk(&files_dir, &files_dir, &mut on_disk);
+    walk(&files_dir, "", &mut on_disk, 0);
     rep.extra = on_disk
         .into_iter()
         .filter(|r| !known.contains(r) && !r.contains("yeskia-part"))

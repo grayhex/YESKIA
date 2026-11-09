@@ -121,19 +121,22 @@ fn very_long_paths_are_supported() {
 #[test]
 fn excluded_paths_and_unsafe_names_make_the_backup_incomplete() {
     let (src, root) = (make_source(), tmp("excl"));
-    put(&src, "bad:name.txt", b"x"); // двоеточие допустимо на Linux, но не на Windows-хосте
+    // двоеточие допустимо на Linux, но на Windows такой файл создать нельзя (альтернативный поток)
+    #[cfg(unix)]
+    put(&src, "bad:name.txt", b"x");
     let opts = Options {
         exclude: vec!["Музыка".into()],
         ..Options::default()
     };
     let sum = create_from_folder(&src, &root.join("b"), "e", &opts, &ctl()).unwrap();
-    assert!(!sum.complete && sum.skipped >= 2);
+    assert!(!sum.complete && sum.skipped >= if cfg!(unix) { 2 } else { 1 });
     let m = load_manifest(&root.join("b")).unwrap();
     assert!(!m.complete);
     assert!(m
         .skipped
         .iter()
         .any(|s| s.path == "Музыка" && s.reason == SkipReason::Excluded));
+    #[cfg(unix)]
     assert!(m
         .skipped
         .iter()
