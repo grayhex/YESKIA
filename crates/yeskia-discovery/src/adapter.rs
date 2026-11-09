@@ -14,6 +14,9 @@ use yeskia_core::error::{Error, Result};
 use yeskia_core::operations::{Operation, OperationContext};
 use yeskia_core::transport::*;
 
+/// Этапы сбора, без которых перечисление устройств недостоверно.
+const CRITICAL_STAGES: &[&str] = &["setupapi_enum"];
+
 pub struct PnpTransport {
     source: Arc<dyn SnapshotSource>,
     /// Ключ сессии: id устройства стабилен до перезапуска, но не раскрывает instance id.
@@ -40,6 +43,18 @@ impl PnpTransport {
             .source
             .collect(&CollectOptions::CHEAP)
             .map_err(|e| Error::Transport(format!("сбор PnP: {}", e.stage)))?;
+        // Сбой самого PnP-перечисления — это не «устройств нет», а «не знаем»: ошибка транспорта,
+        // чтобы Engine не закрывал живые соединения. Частичные сбои (WPD, COM) остаются в Doctor.
+        if let Some(e) = snap
+            .errors
+            .iter()
+            .find(|e| CRITICAL_STAGES.contains(&e.stage.as_str()))
+        {
+            return Err(Error::Transport(format!(
+                "PnP-перечисление не удалось: {}",
+                e.stage
+            )));
+        }
         Ok(analyze_with_refs(&snap, 0)
             .1
             .into_iter()

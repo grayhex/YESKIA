@@ -187,3 +187,39 @@ fn multiple_nokia_devices_are_listed_independently() {
     let kinds: Vec<_> = devs.iter().map(|d| d.transport).collect();
     assert!(kinds.contains(&TransportKind::Mtp) && kinds.contains(&TransportKind::PcSuite));
 }
+
+#[test]
+fn pnp_enumeration_failure_is_an_error_not_an_unplug() {
+    let (t, _) = nokia_wpd(SERIAL);
+    let src = Arc::new(FakeSource::new(t));
+    let e = engine(Arc::clone(&src));
+    let id = e.list_devices().unwrap()[0].id.clone();
+    e.connect(&id).unwrap();
+
+    // SetupAPI упал: пустой снимок + ошибка этапа (как делает WindowsSource)
+    src.with(|t| {
+        t.snap.nodes.clear();
+        t.snap.wpd.clear();
+        t.snap.errors.push(CollectError {
+            stage: "setupapi_enum".into(),
+            code: Some(5),
+        });
+    });
+    let _ = e.list_devices().unwrap();
+    assert!(
+        e.capability_matrix(&id).is_some(),
+        "соединение не должно закрываться из-за сбоя перечисления"
+    );
+
+    // частичный сбой WPD не считается сбоем перечисления
+    let (t2, _) = nokia_wpd(SERIAL);
+    let src2 = Arc::new(FakeSource::new(t2));
+    src2.with(|t| {
+        t.snap.errors.push(CollectError {
+            stage: "wpd_enumerate".into(),
+            code: Some(5),
+        })
+    });
+    let e2 = engine(src2);
+    assert_eq!(e2.list_devices().unwrap().len(), 1);
+}

@@ -16,7 +16,9 @@ use windows::Win32::Devices::PortableDevices::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Storage::FileSystem::*;
 use windows::Win32::System::Com::*;
+use windows::Win32::System::Ioctl::*;
 use windows::Win32::System::Registry::*;
+use windows::Win32::System::IO::DeviceIoControl;
 
 pub struct WindowsSource;
 
@@ -287,8 +289,112 @@ fn com_busy(port: &str) -> Option<bool> {
     }
 }
 
+/// Номер физического диска для пути (том `\\.\E:` или интерфейс диска) через IOCTL, без доступа к данным.
+unsafe fn storage_device_number(path: &[u16]) -> Option<u32> {
+    let h = CreateFileW(
+        PCWSTR(path.as_ptr()),
+        0, // доступ «только атрибуты»: чтение данных не запрашивается
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        None,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        None,
+    )
+    .ok()?;
+    let mut sdn = STORAGE_DEVICE_NUMBER::default();
+    let mut returned = 0u32;
+    let ok = DeviceIoControl(
+        h,
+        IOCTL_STORAGE_GET_DEVICE_NUMBER,
+        None,
+        0,
+        Some(&mut sdn as *mut STORAGE_DEVICE_NUMBER as *mut c_void),
+        std::mem::size_of::<STORAGE_DEVICE_NUMBER>() as u32,
+        Some(&mut returned),
+        None,
+    )
+    .is_ok();
+    let _ = CloseHandle(h);
+    ok.then_some(sdn.DeviceNumber)
+}
+
+/// Номер диска → instance id PnP-узла диска (USBSTOR\DISK&… для USB-накопителей).
+fn disk_nodes() -> std::collections::HashMap<u32, String> {
+    let mut map = std::collections::HashMap::new();
+    unsafe {
+        let set = match SetupDiGetClassDevsW(
+            Some(&GUID_DEVINTERFACE_DISK),
+            PCWSTR::null(),
+            None,
+            DIGCF_PRESENT | DIGCF_DEVICEINTERFACE,
+        ) {
+            Ok(s) => s,
+            Err(_) => return map,
+        };
+        let mut index = 0u32;
+        loop {
+            let mut iface = SP_DEVICE_INTERFACE_DATA {
+                cbSize: std::mem::size_of::<SP_DEVICE_INTERFACE_DATA>() as u32,
+                ..Default::default()
+            };
+            if SetupDiEnumDeviceInterfaces(set, None, &GUID_DEVINTERFACE_DISK, index, &mut iface)
+                .is_err()
+            {
+                break;
+            }
+            index += 1;
+
+            // Двухэтапное чтение переменной по длине структуры с путём интерфейса.
+            let mut needed = 0u32;
+            let _ = SetupDiGetDeviceInterfaceDetailW(set, &iface, None, 0, Some(&mut needed), None);
+            if needed == 0 {
+                continue;
+            }
+            // u64-буфер гарантирует выравнивание для SP_DEVICE_INTERFACE_DETAIL_DATA_W.
+            let mut buf = vec![0u64; (needed as usize).div_ceil(8)];
+            let detail = buf.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
+            (*detail).cbSize = std::mem::size_of::<SP_DEVICE_INTERFACE_DETAIL_DATA_W>() as u32;
+            let mut devinfo = SP_DEVINFO_DATA {
+                cbSize: std::mem::size_of::<SP_DEVINFO_DATA>() as u32,
+                ..Default::default()
+            };
+            if SetupDiGetDeviceInterfaceDetailW(
+                set,
+                &iface,
+                Some(detail),
+                needed,
+                None,
+                Some(&mut devinfo),
+            )
+            .is_err()
+            {
+                continue;
+            }
+            let path_ptr = std::ptr::addr_of!((*detail).DevicePath) as *const u16;
+            let mut path: Vec<u16> = Vec::new();
+            let mut k = 0;
+            while *path_ptr.add(k) != 0 {
+                path.push(*path_ptr.add(k));
+                k += 1;
+            }
+            path.push(0);
+            let mut id_buf = [0u16; 512];
+            if CM_Get_Device_IDW(devinfo.DevInst, &mut id_buf, 0) != CR_SUCCESS {
+                continue;
+            }
+            if let Some(n) = storage_device_number(&path) {
+                map.insert(n, from_wide(&id_buf));
+            }
+        }
+        let _ = SetupDiDestroyDeviceInfoList(set);
+    }
+    map
+}
+
+/// Съёмные тома с привязкой к PnP-узлу диска (через номер физического диска).
 fn removable_volumes() -> Vec<Volume> {
     let mut out = Vec::new();
+    let disks = disk_nodes();
     unsafe {
         let mask = GetLogicalDrives();
         for i in 0..26u32 {
@@ -298,10 +404,14 @@ fn removable_volumes() -> Vec<Volume> {
             let letter = (b'A' + i as u8) as char;
             let root = wide(&format!("{letter}:\\"));
             let removable = GetDriveTypeW(PCWSTR(root.as_ptr())) == 2; // DRIVE_REMOVABLE
+                                                                       // Для USB-накопителей Windows часто сообщает DRIVE_FIXED, поэтому связь ищем у всех томов,
+                                                                       // но в отчёт попадают только тома, привязанные к USB-устройству (см. Doctor).
+            let node = storage_device_number(&wide(&format!("\\\\.\\{letter}:")))
+                .and_then(|n| disks.get(&n).cloned());
             out.push(Volume {
                 letter,
-                removable,
-                node_instance_id: None,
+                removable: removable || node.is_some(),
+                node_instance_id: node,
             });
         }
     }

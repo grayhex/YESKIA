@@ -11,7 +11,7 @@
 | PnP-дерево | SetupAPI (`SetupDiGetClassDevsW`) + Configuration Manager (`CM_Get_Parent`, `CM_Get_DevNode_Status`) | instance id, цепочка родителей, класс, сервис, hardware id (VID/PID), код проблемы |
 | COM | SetupAPI, класс `Ports`; имя `COMn` из «(COMn)» | порты потомков USB-устройства; **опционально** `CreateFileW` монопольно (занят/свободен), по умолчанию выключено |
 | WPD/MTP | Windows Portable Devices (`IPortableDeviceManager`, `IPortableDevice` с `GENERIC_READ`) | производитель/модель/прошивка, число хранилищ и объектов верхнего уровня (имена файлов не читаются) |
-| Тома | `GetLogicalDrives`/`GetDriveTypeW` | съёмные тома; связь с USB-родителем — через USBSTOR/DiskDrive в PnP-дереве |
+| Тома | `GetLogicalDrives`/`GetDriveTypeW`, `IOCTL_STORAGE_GET_DEVICE_NUMBER` (без доступа к данным) → интерфейс `GUID_DEVINTERFACE_DISK` → PnP-узел диска | тома, привязанные через номер диска к USB-родителю (USB-накопители часто «фиксированные», поэтому берутся все привязанные) |
 | ОС | реестр `CurrentVersion` | сборка Windows |
 
 Связь WPD ↔ USB-родитель определяется **по instance id** (путь WPD `\\?\usb#vid_…#…#{guid}` →
@@ -52,7 +52,9 @@ PnP instance id, WPD device id, MAC, имена COM-портов, имена и 
 - отключение закрывает соединение; новое подключение — новая матрица; другой телефон — другой
   fingerprint (тесты `disconnect_removes_device_and_reconnect_does_not_inherit_matrix`,
   `a_different_phone_gets_a_different_id_and_fingerprint`);
-- сбой перечисления одного транспорта не закрывает соединений и не скрывает другие транспорты.
+- сбой перечисления одного транспорта не закрывает соединений и не скрывает другие транспорты;
+  сбой самого PnP-перечисления (`setupapi_enum`) — ошибка транспорта, а не «устройств нет»
+  (частичные сбои WPD/COM остаются только в Doctor).
 
 ## Статус и что осталось (приёмка #4)
 
