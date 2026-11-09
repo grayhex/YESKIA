@@ -1,0 +1,35 @@
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  margin: 0;
+  background: #f3f5f8;
+  color: #12202f;
+}
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.banner {
+  background: #fff3cd;
+  border: 1px solid #e0c36a;
+  padding: 8px;
+}
+.error {
+  background: #fde8e8;
+  border: 1px solid #d66;
+  padding: 8px;
+}
+.tag {
+  background: #ffb300;
+  color: #000;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+button {
+  margin: 4px 4px 4px 0;
+}
+.evidence {
+  color: #555;
+  font-style: italic;
+}

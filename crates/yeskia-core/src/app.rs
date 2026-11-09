@@ -1,0 +1,133 @@
+//! `AppCore` — собранное приложение без UI: хранилище, журнал, транспорты, движок.
+//! Tauri-команды — тонкая обёртка над этим типом, поэтому всё тестируется без WebView.
+
+use crate::device::DeviceId;
+use crate::diagnostics::Diagnostics;
+use crate::engine::Engine;
+use crate::error::Result;
+use crate::mock::{MockTransport, MOCK_DEVICE_ID};
+use crate::operations::{OperationRequest, Outcome};
+use crate::storage::{Settings, Storage};
+use crate::system::SystemInfo;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::sync::Arc;
+
+pub struct AppCore {
+    pub engine: Arc<Engine>,
+    mock: MockTransport,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SmokeReport {
+    pub system: SystemInfo,
+    pub storage_ok: bool,
+    pub mock_identify: String,
+}
+
+impl AppCore {
+    /// Открывает (создаёт) хранилище в `data_dir` и собирает движок.
+    pub fn init(data_dir: &Path) -> Result<Self> {
+        let storage = Arc::new(Storage::open(&data_dir.join("yeskia.sqlite"))?);
+        let settings = storage.load_settings()?;
+        let log_file = settings
+            .log_to_file
+            .then(|| data_dir.join("logs").join("yeskia.log"));
+        let diag = Arc::new(Diagnostics::new(500, log_file));
+        Ok(Self::assemble(storage, diag, settings.use_mock_device))
+    }
+
+    /// Целиком в памяти (тесты).
+    pub fn in_memory() -> Self {
+        let storage = Arc::new(Storage::open_in_memory().expect("in-memory sqlite"));
+        Self::assemble(storage, Arc::new(Diagnostics::new(500, None)), true)
+    }
+
+    fn assemble(storage: Arc<Storage>, diag: Arc<Diagnostics>, mock_enabled: bool) -> Self {
+        let mock = MockTransport::new();
+        if !mock_enabled {
+            mock.unplug();
+        }
+        // Реальные транспорты (WPD/MTP, Mass Storage, PC Suite) добавляются здесь
+        // в issue #4–#6; mock явно помечен в модели устройства.
+        let engine = Arc::new(Engine::new(vec![Arc::new(mock.clone())], storage, diag));
+        Self { engine, mock }
+    }
+
+    pub fn system_info(&self) -> SystemInfo {
+        SystemInfo::collect()
+    }
+
+    pub fn get_settings(&self) -> Result<Settings> {
+        self.engine.storage().load_settings()
+    }
+
+    pub fn save_settings(&self, s: &Settings) -> Result<Settings> {
+        self.engine.storage().save_settings(s)?;
+        if s.use_mock_device {
+            self.mock.plug();
+        } else {
+            self.mock.unplug();
+        }
+        Ok(s.clone())
+    }
+
+    /// Старт без окна: проверяет хранилище, системные данные и mock-цепочку.
+    /// Используется как smoke-test сборки (`--smoke-test`).
+    pub fn smoke(&self) -> Result<SmokeReport> {
+        let storage_ok = self.engine.storage().load_settings().is_ok();
+        let was_enabled = self.get_settings()?.use_mock_device;
+        self.mock.plug();
+        let id = DeviceId::new(MOCK_DEVICE_ID);
+        self.engine.connect(&id)?;
+        let r = self.engine.run(&id, OperationRequest::Identify)?;
+        self.engine.disconnect(&id)?;
+        if !was_enabled {
+            self.mock.unplug();
+        }
+        Ok(SmokeReport {
+            system: self.system_info(),
+            storage_ok,
+            mock_identify: if r.outcome == Outcome::Success {
+                "ok".into()
+            } else {
+                "failed".into()
+            },
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn smoke_runs_in_memory() {
+        let app = AppCore::in_memory();
+        let r = app.smoke().unwrap();
+        assert!(r.storage_ok);
+        assert_eq!(r.mock_identify, "ok");
+        assert!(!r.system.network_required);
+    }
+
+    #[test]
+    fn mock_toggle_hides_device() {
+        let app = AppCore::in_memory();
+        assert_eq!(app.engine.list_devices().unwrap().len(), 1);
+        app.save_settings(&Settings {
+            use_mock_device: false,
+            ..Settings::default()
+        })
+        .unwrap();
+        assert!(app.engine.list_devices().unwrap().is_empty());
+    }
+
+    #[test]
+    fn init_creates_files_in_data_dir() {
+        let dir = std::env::temp_dir().join(format!("yeskia-init-{}", crate::now_ms()));
+        let app = AppCore::init(&dir).unwrap();
+        assert!(dir.join("yeskia.sqlite").exists());
+        assert!(app.engine.list_devices().unwrap().is_empty()); // по умолчанию mock выключен
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}

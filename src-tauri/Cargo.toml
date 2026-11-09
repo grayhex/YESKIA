@@ -1,0 +1,20 @@
+[package]
+name = "yeskia-app"
+description = "YESKIA desktop shell (Tauri 2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "yeskia_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+yeskia-core = { path = "../crates/yeskia-core" }
