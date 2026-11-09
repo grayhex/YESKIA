@@ -35,6 +35,8 @@ struct MockState {
     step_delay_ms: u64,
     /// Следующая операция «зависает» на N мс, игнорируя checkpoint (залипший драйвер).
     hang_next_ms: u64,
+    /// Следующий probe «зависает» на N мс.
+    hang_probe_ms: u64,
     maturity: HashMap<Operation, SupportStatus>,
     probe_errors: HashSet<Operation>,
     /// Подменить устройство в момент фиксации записи (смена телефона во время записи).
@@ -72,6 +74,7 @@ impl MockTransport {
             write_steps: 5,
             step_delay_ms: 0,
             hang_next_ms: 0,
+            hang_probe_ms: 0,
             maturity: HashMap::new(),
             probe_errors: HashSet::new(),
             swap_on_commit: None,
@@ -104,6 +107,9 @@ impl MockTransport {
         let mut s = self.st();
         s.write_steps = steps.max(1);
         s.step_delay_ms = step_delay_ms;
+    }
+    pub fn hang_next_probe(&self, ms: u64) {
+        self.st().hang_probe_ms = ms;
     }
     pub fn hang_next_op(&self, ms: u64) {
         self.st().hang_next_ms = ms;
@@ -159,6 +165,7 @@ impl MockTransport {
                 ConnectionState::Disconnected
             },
             serial: Some(Sensitive::new(s.serial.clone())),
+            identified_model: None,
             matrix: None,
         }
     }
@@ -214,6 +221,10 @@ impl DeviceTransport for MockTransport {
     }
 
     fn probe(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Vec<ProbeOutcome>> {
+        let hang = std::mem::take(&mut self.st().hang_probe_ms);
+        if hang > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(hang));
+        }
         ctx.checkpoint()?;
         if !self.is_present(id) {
             return Err(Error::DeviceDisconnected);

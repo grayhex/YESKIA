@@ -344,6 +344,16 @@ dl.facts dd {
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
+.phone img {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 14rem;
+  object-fit: contain;
+}
+.phone-model {
+  width: 7rem;
+}
 .phone svg {
   width: 100%;
   height: auto;

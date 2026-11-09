@@ -8,6 +8,7 @@
 - Reuse из s60modern и лицензии: [docs/REUSE_MATRIX.md](docs/REUSE_MATRIX.md)
 - Device Core (матрица, очередь, запись): [docs/DEVICE_CORE.md](docs/DEVICE_CORE.md)
 - Windows discovery и Doctor: [docs/DISCOVERY.md](docs/DISCOVERY.md)
+- Графика телефонов, происхождение и права: [docs/ASSETS.md](docs/ASSETS.md)
 - Интерфейс и скриншоты: [docs/UI.md](docs/UI.md)
 - Сборка на Windows: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 

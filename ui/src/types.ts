@@ -84,6 +84,8 @@ export interface Device {
   transport: "mock" | "usb" | "mass_storage" | "mtp" | "pc_suite" | "bluetooth";
   connection: ConnectionState;
   serial: string | null; // уже замаскирован ядром
+  /** Модель, подтверждённая идентификацией по протоколу на этом соединении. */
+  identified_model: string | null;
   matrix: CapabilityMatrix | null;
 }
 

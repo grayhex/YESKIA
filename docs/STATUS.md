@@ -32,3 +32,4 @@
 | Windows-сборщик SetupAPI/CM/WPD, read-only | `implemented` | компиляция под Windows + запуск `--doctor` на раннере CI (без телефона) |
 | `PnpTransport` в Device Core: discovery, disconnect, fingerprint | `tested-on-mock` | `crates/yeskia-discovery/tests/adapter.rs` |
 | WPD/MTP листинг и identity на реальной Nokia `0421:0223`, E52/E72 | `not-tested` | нужен физический телефон, см. docs/DISCOVERY.md |
+| Иллюстрации телефонов по подтверждённой модели (перенос из s60modern) | `tested-on-mock` | `ui/src/phones/registry.test.ts`, `App.test.tsx`; права на изображения **не подтверждены**, см. docs/ASSETS.md |

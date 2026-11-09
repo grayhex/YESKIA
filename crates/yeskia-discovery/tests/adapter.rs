@@ -223,3 +223,23 @@ fn pnp_enumeration_failure_is_an_error_not_an_unplug() {
     let e2 = engine(src2);
     assert_eq!(e2.list_devices().unwrap().len(), 1);
 }
+
+#[test]
+fn identified_model_comes_from_wpd_properties_not_from_vid_pid() {
+    let (t, _) = nokia_wpd(SERIAL);
+    let e = engine(Arc::new(FakeSource::new(t)));
+    let d = &e.list_devices().unwrap()[0];
+    assert!(
+        d.identified_model.is_none(),
+        "по VID/PID модель не определяется"
+    );
+    let c = e.connect(&d.id).unwrap();
+    assert_eq!(c.identified_model.as_deref(), Some("Nokia E52"));
+
+    // режим без WPD: идентификации нет → модель не заявляется
+    let mut t = FakeTopology::new();
+    t.usb(0x0421, 0x0223, SERIAL, "WinUSB");
+    let e = engine(Arc::new(FakeSource::new(t)));
+    let id = e.list_devices().unwrap()[0].id.clone();
+    assert!(e.connect(&id).unwrap().identified_model.is_none());
+}
