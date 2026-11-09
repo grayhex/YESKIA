@@ -81,4 +81,4 @@ jobs:
         run: |
           out=$(cargo run -q -p yeskia-lab -- inventory)
           echo "$out" | grep -q '"schema": "yeskia.lab.report/1"'
-          ! echo "$out" | grep -qiE 'usb\\\\\\\\vid_|\\\\\\\\\\\\\\\\\?\\\\\\\\'
+          ! echo "$out" | grep -qiE 'usb\\\\vid_|\\\\\\\\\?\\\\'
