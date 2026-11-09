@@ -21,7 +21,12 @@ const err = (code: import("./types").ErrorCode, message: string) => ({
 export class MockBackend implements Backend {
   readonly isUiMock = true;
   private connected = false;
-  private settings: Settings = { language: "ru", use_mock_device: true, log_to_file: false };
+  private settings: Settings = {
+    language: "ru",
+    developer_mode: false,
+    use_mock_device: true,
+    log_to_file: false,
+  };
   private journal: JournalEntry[] = [];
   private seq = 1;
   /** Тестовый хук: следующая запись завершится ошибкой. */

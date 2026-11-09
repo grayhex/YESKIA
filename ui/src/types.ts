@@ -89,6 +89,7 @@ export interface SystemInfo {
 
 export interface Settings {
   language: string;
+  developer_mode: boolean;
   use_mock_device: boolean;
   log_to_file: boolean;
 }

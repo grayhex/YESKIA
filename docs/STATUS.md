@@ -22,3 +22,5 @@
 | Редактирование IMEI/серийников | `tested-on-host` | `diagnostics::tests` |
 | Tauri-команды Rust → React | `implemented` | проверяется в CI на Windows (smoke-test + сборка); не запускалось на устройстве |
 | Реальные устройства (WPD/MTP, Mass Storage, PC Suite) | `unsupported` | issue #4–#6 |
+| Desktop UI: навигация, режимы, RU/EN, состояния (issue #2) | `tested-on-mock` | `ui/src/App.test.tsx` (vitest, UI-заглушка) |
+| Рендер в установленном Tauri на Windows 11, DPI 100/150% | `implemented` | скриншоты в `docs/screenshots` сняты в Chromium; ручная проверка на Windows не выполнена |
