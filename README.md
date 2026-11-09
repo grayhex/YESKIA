@@ -6,6 +6,7 @@
 - Архитектура: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Статусы функций: [docs/STATUS.md](docs/STATUS.md)
 - Reuse из s60modern и лицензии: [docs/REUSE_MATRIX.md](docs/REUSE_MATRIX.md)
+- Интерфейс и скриншоты: [docs/UI.md](docs/UI.md)
 - Сборка на Windows: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 Структура: `crates/yeskia-core` (ядро), `src-tauri` (оболочка), `ui` (React).

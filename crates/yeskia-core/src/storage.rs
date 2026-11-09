@@ -32,6 +32,8 @@ pub fn data_dir() -> PathBuf {
 #[serde(default)]
 pub struct Settings {
     pub language: String,
+    /// Режим «Разработчик»: журнал операций, матрица возможностей, evidence.
+    pub developer_mode: bool,
     pub use_mock_device: bool,
     pub log_to_file: bool,
 }
@@ -40,6 +42,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: "ru".into(),
+            developer_mode: false,
             use_mock_device: false,
             log_to_file: true,
         }
@@ -233,6 +236,7 @@ mod tests {
         assert_eq!(s.load_settings().unwrap(), Settings::default());
         let new = Settings {
             language: "en".into(),
+            developer_mode: true,
             use_mock_device: true,
             log_to_file: false,
         };

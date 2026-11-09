@@ -1,203 +1,87 @@
-import { useCallback, useEffect, useState } from "react";
-import { toErrorInfo, type Backend } from "./api";
-import type {
-  Device,
-  ErrorInfo,
-  JournalEntry,
-  OperationRequest,
-  OperationResult,
-  Settings,
-  SystemInfo,
-} from "./types";
-
-const REQUESTS: { label: string; request: OperationRequest }[] = [
-  { label: "Идентификация", request: { type: "identify" } },
-  { label: "Список файлов", request: { type: "list_directory", path: "E:/" } },
-  { label: "Тестовая запись", request: { type: "write_file", path: "E:/yeskia.txt", size: 12 } },
-];
+import { useEffect, useRef, useState } from "react";
+import type { Backend } from "./api";
+import { ErrorMessage } from "./components/Ui";
+import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
+import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
+import { ConnectionPage } from "./pages/ConnectionPage";
+import { HomePage } from "./pages/HomePage";
+import { JournalPage } from "./pages/JournalPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { useAppModel } from "./useAppModel";
 
 export function App({ backend }: { backend: Backend }) {
-  const [system, setSystem] = useState<SystemInfo | null>(null);
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [result, setResult] = useState<OperationResult | null>(null);
-  const [error, setError] = useState<ErrorInfo | null>(null);
-  const [journal, setJournal] = useState<JournalEntry[]>([]);
-  const [busy, setBusy] = useState(false);
+  const model = useAppModel(backend);
+  const [page, setPage] = useState<PageId>("home");
+  const mainRef = useRef<HTMLElement>(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      setDevices(await backend.listDevices());
-      setJournal(await backend.recentOperations(10));
-    } catch (e) {
-      setError(toErrorInfo(e));
-    }
-  }, [backend]);
+  const lang = normalizeLang(model.settings?.language);
+  const developer = model.settings?.developer_mode ?? false;
+  const t = makeTranslate(lang);
+
+  const nav: NavEntry[] = [
+    { id: "home", label: "nav.home" },
+    { id: "connection", label: "nav.connection" },
+    ...(developer ? ([{ id: "journal", label: "nav.journal" }] as NavEntry[]) : []),
+    { id: "settings", label: "nav.settings" },
+  ];
+  // Страница журнала доступна только в режиме «Разработчик».
+  const current: PageId = page === "journal" && !developer ? "home" : page;
+  const currentLabel = nav.find((n) => n.id === current)!.label;
 
   useEffect(() => {
-    backend
-      .getSystemInfo()
-      .then(setSystem)
-      .catch((e) => setError(toErrorInfo(e)));
-    backend
-      .getSettings()
-      .then(setSettings)
-      .catch((e) => setError(toErrorInfo(e)));
-    void refresh();
-  }, [backend, refresh]);
+    document.documentElement.lang = lang;
+    document.title = `${t(currentLabel)} — YESKIA`;
+  });
 
-  async function guarded(fn: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-    } catch (e) {
-      setError(toErrorInfo(e));
-    } finally {
-      setBusy(false);
-      await refresh();
-    }
+  function select(id: PageId) {
+    setPage(id);
+    mainRef.current?.focus();
   }
 
-  const toggleMock = (value: boolean) =>
-    guarded(async () => {
-      if (settings)
-        setSettings(await backend.saveSettings({ ...settings, use_mock_device: value }));
-    });
+  const connected = model.devices.find((d) => d.connection === "connected");
 
   return (
-    <main>
-      <h1>YESKIA</h1>
-      {backend.isUiMock && (
-        <p role="alert" className="banner">
-          UI-заглушка: данные не от Rust-ядра (запуск вне Tauri).
-        </p>
-      )}
-
-      <section aria-label="Система">
-        <h2>Система</h2>
-        {system ? (
-          <dl>
-            <dt>Версия</dt>
-            <dd>{system.app_version}</dd>
-            <dt>ОС</dt>
-            <dd data-testid="os">
-              {system.os} / {system.arch}
-            </dd>
-            <dt>Данные</dt>
-            <dd>{system.data_dir}</dd>
-            <dt>Сеть</dt>
-            <dd>{system.network_required ? "требуется" : "не требуется"}</dd>
-          </dl>
-        ) : (
-          <p>Загрузка…</p>
-        )}
-      </section>
-
-      <section aria-label="Настройки">
-        <label>
-          <input
-            type="checkbox"
-            checked={settings?.use_mock_device ?? false}
-            disabled={!settings || busy}
-            onChange={(e) => toggleMock(e.target.checked)}
-          />{" "}
-          Показывать mock-устройство
-        </label>
-      </section>
-
-      <section aria-label="Устройства">
-        <h2>Устройства</h2>
-        <button onClick={() => guarded(async () => void 0)} disabled={busy}>
-          Обновить
-        </button>
-        {devices.length === 0 && <p>Устройства не найдены.</p>}
-        <ul>
-          {devices.map((d) => (
-            <li key={d.id}>
-              <strong>{d.display_name}</strong>{" "}
-              {d.origin === "mock" && <span className="tag">MOCK</span>}{" "}
-              <span>{d.connection === "connected" ? "подключено" : "отключено"}</span>
-              {d.serial && <span> · s/n {d.serial}</span>}
-              <ul>
-                {d.capabilities.map((c) => (
-                  <li key={c.id}>
-                    {c.id}: {c.status}
-                  </li>
-                ))}
-              </ul>
-              {d.connection === "connected" ? (
-                <>
-                  {REQUESTS.map((r) => (
-                    <button
-                      key={r.label}
-                      disabled={busy}
-                      onClick={() =>
-                        guarded(async () => setResult(await backend.runOperation(d.id, r.request)))
-                      }
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                  <button
-                    disabled={busy}
-                    onClick={() => guarded(() => backend.disconnectDevice(d.id))}
-                  >
-                    Отключить
-                  </button>
-                </>
-              ) : (
-                <button
-                  disabled={busy}
-                  onClick={() => guarded(async () => void (await backend.connectDevice(d.id)))}
-                >
-                  Подключить
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {error && (
-        <p role="alert" className="error" data-testid="error">
-          {error.code}: {error.message}
-          {error.retryable ? " (можно повторить вручную)" : ""}
-        </p>
-      )}
-
-      {result && (
-        <section aria-label="Результат">
-          <h2>Последняя операция</h2>
-          <p data-testid="outcome">
-            {result.operation_id} · {result.operation} · {result.outcome}
-            {result.origin === "mock" && " · MOCK"}
-          </p>
-          {result.error && (
-            <p>
-              {result.error.code}: {result.error.message}
+    <I18nProvider lang={lang}>
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => (e.preventDefault(), mainRef.current?.focus())}
+      >
+        {t("skipToContent")}
+      </a>
+      <div className="shell">
+        <Header
+          developer={developer}
+          lang={lang}
+          disabled={!model.settings || model.busy}
+          onMode={(d) => model.updateSettings({ developer_mode: d })}
+          onLang={(l) => model.updateSettings({ language: l })}
+        />
+        <SideNav items={nav} current={current} onSelect={select} />
+        <main id="main" className="content" tabIndex={-1} ref={mainRef}>
+          {model.isUiMock && (
+            <p role="alert" className="banner banner-warn">
+              {t("banner.uiMock")}
             </p>
           )}
-          {result.evidence.map((e, i) => (
-            <p key={i} className="evidence">
-              {e.summary}
-            </p>
-          ))}
-          <pre>{JSON.stringify(result.data, null, 2)}</pre>
-        </section>
-      )}
-
-      <section aria-label="Журнал">
-        <h2>Журнал операций</h2>
-        <ul>
-          {journal.map((j) => (
-            <li key={j.operation_id}>
-              {j.operation_id} {j.operation} — {j.state}
-              {j.error_code ? ` (${j.error_code})` : ""}
-            </li>
-          ))}
-        </ul>
-      </section>
-    </main>
+          {model.error && <ErrorMessage error={model.error} />}
+          {current === "home" && <HomePage model={model} go={select} />}
+          {current === "connection" && <ConnectionPage model={model} developer={developer} />}
+          {current === "journal" && <JournalPage model={model} />}
+          {current === "settings" && <SettingsPage model={model} />}
+        </main>
+        <StatusBar>
+          <span>{t("status.offline")}</span>
+          <span>{t("status.devices", { n: model.devices.length })}</span>
+          <span>
+            {connected
+              ? t("status.connected", { name: connected.display_name })
+              : t("status.noDevice")}
+          </span>
+          {model.settings?.use_mock_device && <span>{t("status.mockOn")}</span>}
+          {model.isUiMock && <span>{t("status.uiMock")}</span>}
+        </StatusBar>
+      </div>
+    </I18nProvider>
   );
 }
