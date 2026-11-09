@@ -88,6 +88,19 @@ impl AppCore {
         Ok(handle.wait())
     }
 
+    /// Отмена по id. Если операция ещё не ожидается (`await_operation` не вызван), её handle
+    /// освобождается сразу и не держит очередь.
+    pub fn cancel_operation(&self, operation_id: &str) -> bool {
+        let cancelled = self.engine.cancel(operation_id);
+        let orphan = self
+            .handles
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(operation_id);
+        drop(orphan);
+        cancelled
+    }
+
     pub fn operation_progress(&self, operation_id: &str) -> Option<Progress> {
         self.engine.progress(operation_id)
     }

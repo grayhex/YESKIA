@@ -142,7 +142,9 @@ impl Error {
     }
 
     /// Ошибки, возникающие до любого обращения к устройству на запись:
-    /// после них содержимое устройства заведомо не менялось.
+    /// после них содержимое устройства заведомо не менялось. `FingerprintMismatch` сюда не
+    /// входит: проверка после записи означает, что запись уже могла произойти; проверка до
+    /// выполнения передаётся в `finish` с `executed = false`.
     pub fn is_precondition(&self) -> bool {
         matches!(
             self,
@@ -152,7 +154,6 @@ impl Error {
                 | Error::CapabilityUnsupported(_)
                 | Error::NotConnected
                 | Error::QueueFull
-                | Error::FingerprintMismatch
         )
     }
 

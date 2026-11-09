@@ -37,6 +37,8 @@ struct MockState {
     hang_next_ms: u64,
     maturity: HashMap<Operation, SupportStatus>,
     probe_errors: HashSet<Operation>,
+    /// Подменить устройство в момент фиксации записи (смена телефона во время записи).
+    swap_on_commit: Option<(String, String)>,
 }
 
 #[derive(Clone)]
@@ -72,6 +74,7 @@ impl MockTransport {
             hang_next_ms: 0,
             maturity: HashMap::new(),
             probe_errors: HashSet::new(),
+            swap_on_commit: None,
         };
         Self {
             state: Arc::new(Mutex::new(state)),
@@ -110,6 +113,9 @@ impl MockTransport {
         let mut s = self.st();
         s.model = model.into();
         s.serial = serial.into();
+    }
+    pub fn swap_device_on_commit(&self, model: &str, serial: &str) {
+        self.st().swap_on_commit = Some((model.into(), serial.into()));
     }
     pub fn set_model(&self, model: &str) {
         self.st().model = model.into();
@@ -366,6 +372,10 @@ impl FileProvider for MockTransport {
         let mut s = self.st();
         s.fs.insert(path.to_string(), stored);
         s.committed_writes += 1;
+        if let Some((model, serial)) = s.swap_on_commit.take() {
+            s.model = model;
+            s.serial = serial;
+        }
         Ok(())
     }
 }

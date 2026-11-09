@@ -747,3 +747,90 @@ fn operation_ids_are_unique() {
         .operation_id;
     assert_ne!(a, b);
 }
+
+#[test]
+fn fingerprint_change_during_write_keeps_uncertainty() {
+    let (e, mock) = connected(EngineConfig::default());
+    mock.swap_device_on_commit("Nokia E52", "999999999999999");
+    let r = e
+        .run(
+            &id(),
+            write_req("E:/swap.bin", b"data", OverwritePolicy::Never),
+        )
+        .unwrap();
+    assert_eq!(r.outcome, Outcome::Failed);
+    let err = r.error.unwrap();
+    assert_eq!(err.code, ErrorCode::FingerprintMismatch);
+    assert!(
+        r.uncertain,
+        "запись уже произошла на неизвестно каком устройстве"
+    );
+    assert_eq!(err.action, UserAction::VerifyDeviceContents);
+    assert!(e.storage().journal_recent(1).unwrap()[0].uncertain);
+    assert!(e.capability_matrix(&id()).is_none());
+}
+
+#[test]
+fn dropped_handle_does_not_block_the_queue() {
+    let (e, mock) = connected(EngineConfig::default());
+    mock.set_write_profile(10, 20);
+    let a = e
+        .submit(&id(), write_req("E:/a.bin", &[1], OverwritePolicy::Never))
+        .unwrap();
+    let b = e.submit(&id(), OperationRequest::IdentityRead).unwrap();
+    let b_id = b.operation_id().to_string();
+    assert_eq!(e.queued_operations(&id()), 2);
+    drop(b); // брошен, wait не вызывался
+    assert_eq!(e.queued_operations(&id()), 1);
+    let c = e
+        .submit(&id(), OperationRequest::FilesList { path: "E:/".into() })
+        .unwrap();
+    let ta = std::thread::spawn(move || a.wait());
+    assert_eq!(c.wait().outcome, Outcome::Success);
+    assert_eq!(ta.join().unwrap().outcome, Outcome::Success);
+    let j = e.storage().journal_recent(10).unwrap();
+    let jb = j.iter().find(|x| x.operation_id == b_id).unwrap();
+    assert_eq!(jb.state, JournalState::Cancelled);
+}
+
+#[test]
+fn cancel_removes_queued_operation_without_its_waiter() {
+    let (e, mock) = connected(EngineConfig::default());
+    mock.set_write_profile(10, 20);
+    let a = e
+        .submit(&id(), write_req("E:/a.bin", &[1], OverwritePolicy::Never))
+        .unwrap();
+    let b = e.submit(&id(), OperationRequest::IdentityRead).unwrap();
+    assert!(e.cancel(b.operation_id()));
+    assert_eq!(
+        e.queued_operations(&id()),
+        1,
+        "очередь освобождена без вызова b.wait()"
+    );
+    let ta = std::thread::spawn(move || a.wait());
+    // b ожидается позже — получает Cancelled без выполнения
+    assert_eq!(b.wait().outcome, Outcome::Cancelled);
+    assert_eq!(ta.join().unwrap().outcome, Outcome::Success);
+}
+
+#[test]
+fn disconnect_clears_queue_even_with_unawaited_handles() {
+    let (e, mock) = connected(EngineConfig::default());
+    mock.set_write_profile(50, 20);
+    let a = e
+        .submit(&id(), write_req("E:/a.bin", &[1], OverwritePolicy::Never))
+        .unwrap();
+    let _b = e.submit(&id(), OperationRequest::IdentityRead).unwrap();
+    let ta = std::thread::spawn(move || a.wait());
+    sleep(60);
+    e.disconnect(&id()).unwrap();
+    assert_eq!(e.queued_operations(&id()), 0);
+    assert_eq!(ta.join().unwrap().outcome, Outcome::Cancelled);
+    e.connect(&id()).unwrap();
+    assert_eq!(
+        e.run(&id(), OperationRequest::IdentityRead)
+            .unwrap()
+            .outcome,
+        Outcome::Success
+    );
+}

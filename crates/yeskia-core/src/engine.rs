@@ -114,6 +114,8 @@ pub struct OperationHandle {
     request: OperationRequest,
     token: CancellationToken,
     progress: Arc<ProgressCell>,
+    /// `wait` вызван: очисткой занимается он; иначе — `Drop` (брошенный handle).
+    consumed: bool,
 }
 
 fn sha256_hex(data: &[u8]) -> String {
@@ -189,6 +191,10 @@ impl Shared {
         st.connections.remove(device);
         for p in st.pending.values().filter(|p| &p.device == device) {
             p.token.cancel();
+        }
+        // Ожидающие операции больше не должны занимать очередь, даже если их waiter не вызван.
+        if let Some(q) = st.queues.get_mut(device) {
+            q.waiting.clear();
         }
     }
 
@@ -482,13 +488,20 @@ impl Engine {
 
     /// Отмена операции по id (в очереди или выполняемой). `false` — такой нет.
     pub fn cancel(&self, operation_id: &str) -> bool {
-        match self.shared.lock().pending.get(operation_id) {
-            Some(p) => {
-                p.token.cancel();
-                true
-            }
-            None => false,
+        let mut st = self.shared.lock();
+        let Some(device) = st.pending.get(operation_id).map(|p| {
+            p.token.cancel();
+            p.device.clone()
+        }) else {
+            return false;
+        };
+        // Ожидающая операция покидает очередь сразу, независимо от того, вызван ли её `wait`.
+        if let Some(q) = st.queues.get_mut(&device) {
+            q.waiting.retain(|o| o != operation_id);
         }
+        drop(st);
+        self.shared.cv.notify_all();
+        true
     }
 
     pub fn progress(&self, operation_id: &str) -> Option<Progress> {
@@ -582,12 +595,42 @@ impl Engine {
             request,
             token,
             progress,
+            consumed: false,
         })
     }
 
     /// Удобная обёртка: `submit` + `wait`.
     pub fn run(&self, id: &DeviceId, request: OperationRequest) -> Result<OperationResult> {
         Ok(self.submit(id, request)?.wait())
+    }
+}
+
+impl Drop for OperationHandle {
+    /// Брошенный (не ожидаемый) handle не должен навсегда занимать очередь устройства.
+    fn drop(&mut self) {
+        if self.consumed {
+            return;
+        }
+        let sh = &self.shared;
+        self.token.cancel();
+        {
+            let mut st = sh.lock();
+            if let Some(q) = st.queues.get_mut(&self.device) {
+                q.waiting.retain(|o| o != &self.operation_id);
+            }
+            st.pending.remove(&self.operation_id);
+        }
+        let _ = sh.storage.journal_finish(
+            &self.operation_id,
+            JournalState::Cancelled,
+            Some("OPERATION_CANCELLED"),
+            false,
+        );
+        sh.diag.info(&format!(
+            "{}: операция отброшена без ожидания",
+            self.operation_id
+        ));
+        sh.cv.notify_all();
     }
 }
 
@@ -600,7 +643,8 @@ impl OperationHandle {
     }
 
     /// Ждёт своей очереди, выполняет операцию, возвращает типизированный результат.
-    pub fn wait(self) -> OperationResult {
+    pub fn wait(mut self) -> OperationResult {
+        self.consumed = true;
         let started = Instant::now();
         let op = self.request.operation();
         let sh = Arc::clone(&self.shared);

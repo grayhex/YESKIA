@@ -76,7 +76,7 @@ fn operation_progress(state: tauri::State<'_, State>, operation_id: String) -> O
 
 #[tauri::command]
 fn cancel_operation(state: tauri::State<'_, State>, operation_id: String) -> bool {
-    state.0.engine.cancel(&operation_id)
+    state.0.cancel_operation(&operation_id)
 }
 
 #[tauri::command]
