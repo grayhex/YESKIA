@@ -140,6 +140,9 @@ pub struct Device {
     pub transport: TransportKind,
     pub connection: ConnectionState,
     pub serial: Option<Sensitive>,
+    /// Модель, **подтверждённая идентификацией по протоколу** на этом соединении (не VID/PID и не
+    /// имя в списке). `None` до подключения или если идентификация недоступна.
+    pub identified_model: Option<String>,
     pub matrix: Option<CapabilityMatrix>,
 }
 

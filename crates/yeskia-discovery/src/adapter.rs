@@ -99,6 +99,7 @@ impl DiscoveryProvider for PnpTransport {
                     transport,
                     connection: ConnectionState::Disconnected,
                     serial: Some(Sensitive::new(r.instance_id)),
+                    identified_model: None,
                     matrix: None,
                 }
             })

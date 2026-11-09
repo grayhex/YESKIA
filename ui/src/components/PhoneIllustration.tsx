@@ -1,8 +1,19 @@
 import { useI18n } from "../i18n";
+import { findPhone } from "../phones/registry";
 
 /** Условная оригинальная иллюстрация. Фото моделей Nokia не используются (права/ТЗ). */
-export function PhoneIllustration() {
+export function PhoneIllustration({ model }: { model?: string | null }) {
   const { t } = useI18n();
+  const phone = findPhone(model);
+  if (phone) {
+    // Модель подтверждена идентификацией по протоколу; иллюстрация — не фото производителя.
+    return (
+      <figure className="phone phone-model" style={{ margin: 0 }}>
+        <img src={phone.image} alt={t("phone.modelAlt", { name: phone.name })} />
+        <figcaption>{t("phone.modelNote", { name: phone.name })}</figcaption>
+      </figure>
+    );
+  }
   return (
     <figure className="phone" style={{ margin: 0 }}>
       <svg viewBox="0 0 80 150" role="img" aria-label={t("phone.alt")}>

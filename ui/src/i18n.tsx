@@ -76,7 +76,7 @@ const ru = {
   "settings.logHint": "Журнал не содержит IMEI и серийных номеров.",
   "settings.about": "О программе",
   "settings.aboutText":
-    "YESKIA — независимый клиент с открытым исходным кодом. Не связан с Nokia, HMD Global и Microsoft и не одобрен ими. Nokia и Symbian — товарные знаки их владельцев; упоминаются только для описания совместимости.",
+    "YESKIA — независимый клиент с открытым исходным кодом. Не связан с Nokia, HMD Global и Microsoft и не одобрен ими. Nokia и Symbian — товарные знаки их владельцев; упоминаются только для описания совместимости. Иллюстрации телефонов — изображения моделей, а не фотографии производителя (происхождение — docs/ASSETS.md).",
   "settings.version": "Версия",
   "settings.dataDir": "Каталог данных",
   "settings.network": "Сеть",
@@ -179,6 +179,8 @@ const ru = {
   "state.saving": "Сохранение…",
   "phone.alt": "Условная иллюстрация телефона",
   "phone.note": "Условная иллюстрация, не фото модели",
+  "phone.modelAlt": "Иллюстрация телефона {name}",
+  "phone.modelNote": "Иллюстрация {name}, не фото производителя",
 } as const;
 
 export type MessageKey = keyof typeof ru;
@@ -257,7 +259,7 @@ const en: Record<MessageKey, string> = {
   "settings.logHint": "The log never contains IMEI or serial numbers.",
   "settings.about": "About",
   "settings.aboutText":
-    "YESKIA is an independent open-source client. It is not affiliated with, or endorsed by, Nokia, HMD Global or Microsoft. Nokia and Symbian are trademarks of their owners and are mentioned only to describe compatibility.",
+    "YESKIA is an independent open-source client. It is not affiliated with, or endorsed by, Nokia, HMD Global or Microsoft. Nokia and Symbian are trademarks of their owners and are mentioned only to describe compatibility. Phone images are illustrations of the models, not manufacturer photographs (provenance: docs/ASSETS.md).",
   "settings.version": "Version",
   "settings.dataDir": "Data folder",
   "settings.network": "Network",
@@ -359,6 +361,8 @@ const en: Record<MessageKey, string> = {
   "state.saving": "Saving…",
   "phone.alt": "Generic phone illustration",
   "phone.note": "Generic illustration, not a photo of the model",
+  "phone.modelAlt": "Illustration of {name}",
+  "phone.modelNote": "Illustration of {name}, not a manufacturer photo",
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { ru, en };

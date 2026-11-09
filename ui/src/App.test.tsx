@@ -250,3 +250,23 @@ describe("Диагностика (Doctor)", () => {
     expect(await screen.findByText(/Отчёт сохранён/)).toBeInTheDocument();
   });
 });
+
+describe("Графика телефонов", () => {
+  it("до подключения — нейтральная иллюстрация без заявления модели", async () => {
+    await open();
+    expect(
+      screen.getAllByRole("img", { name: "Условная иллюстрация телефона" }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("img", { name: /Иллюстрация телефона Nokia/ })).toBeNull();
+  });
+
+  it("после подтверждения модели показывается её иллюстрация, помеченная как не фото производителя", async () => {
+    await open();
+    await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
+    await screen.findByRole("button", { name: "Отключить" });
+    const img = await screen.findAllByRole("img", { name: "Иллюстрация телефона Nokia N95" });
+    expect(img[0]).toHaveAttribute("src");
+    expect(screen.getAllByText(/не фото производителя/).length).toBeGreaterThan(0);
+  });
+});

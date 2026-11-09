@@ -909,3 +909,28 @@ fn failing_discovery_neither_hides_other_transports_nor_drops_connections() {
         Outcome::Success
     );
 }
+
+#[test]
+fn model_is_known_only_after_protocol_identification_on_the_connection() {
+    let (e, _) = setup();
+    assert!(
+        e.list_devices().unwrap()[0].identified_model.is_none(),
+        "до подключения модель не заявляется"
+    );
+    let d = e.connect(&id()).unwrap();
+    assert_eq!(d.identified_model.as_deref(), Some("Nokia N95 (MOCK)"));
+    assert_eq!(
+        e.list_devices().unwrap()[0].identified_model.as_deref(),
+        Some("Nokia N95 (MOCK)")
+    );
+    e.disconnect(&id()).unwrap();
+    assert!(e.list_devices().unwrap()[0].identified_model.is_none());
+}
+
+#[test]
+fn model_is_not_claimed_when_identity_probe_is_unavailable() {
+    let (e, mock) = setup();
+    mock.set_probe_error(Operation::IdentityRead);
+    let d = e.connect(&id()).unwrap();
+    assert!(d.identified_model.is_none());
+}

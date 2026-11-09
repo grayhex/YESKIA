@@ -70,6 +70,8 @@ struct Connection {
     transport: usize,
     fingerprint: String,
     matrix: CapabilityMatrix,
+    /// Модель по результату `identity.read` при подключении.
+    identified_model: Option<String>,
 }
 
 struct Pending {
@@ -424,10 +426,12 @@ impl Engine {
                 Some(c) => {
                     d.connection = ConnectionState::Connected;
                     d.matrix = Some(c.matrix.clone());
+                    d.identified_model = c.identified_model.clone();
                 }
                 None => {
                     d.connection = ConnectionState::Disconnected;
                     d.matrix = None;
+                    d.identified_model = None;
                 }
             }
         }
@@ -469,16 +473,25 @@ impl Engine {
         };
         let fp = fingerprint(&sh.salt, &device);
         let matrix = sh.build_matrix(transport.as_ref(), &device, &fp, probe);
+        // Модель берём только из идентификации по протоколу (read-only), не из VID/PID.
+        let identified_model =
+            if matrix.availability(Operation::IdentityRead) == Availability::Available {
+                transport.identity(id, &probe_ctx).ok().map(|i| i.model)
+            } else {
+                None
+            };
         sh.lock().connections.insert(
             id.clone(),
             Connection {
                 transport: idx,
                 fingerprint: fp,
                 matrix: matrix.clone(),
+                identified_model: identified_model.clone(),
             },
         );
         device.connection = ConnectionState::Connected;
         device.matrix = Some(matrix);
+        device.identified_model = identified_model;
         sh.diag
             .info(&format!("подключено: {}", device.display_name));
         Ok(device)

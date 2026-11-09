@@ -159,6 +159,7 @@ impl MockTransport {
                 ConnectionState::Disconnected
             },
             serial: Some(Sensitive::new(s.serial.clone())),
+            identified_model: None,
             matrix: None,
         }
     }

@@ -85,6 +85,7 @@ export class MockBackend implements Backend {
       transport: "mock",
       connection: this.connected ? "connected" : "disconnected",
       serial: "***09",
+      identified_model: this.connected ? "Nokia N95 (MOCK)" : null,
       matrix: this.connected ? this.matrix : null,
     };
   }
