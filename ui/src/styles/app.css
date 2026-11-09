@@ -436,6 +436,7 @@ pre.result {
   flex: 1;
 }
 .pane-body {
+  min-height: 5rem;
   max-height: 22rem;
   overflow: auto;
   border: 1px solid var(--border);

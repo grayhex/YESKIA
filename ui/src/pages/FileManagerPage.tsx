@@ -12,11 +12,18 @@ import type { AppModel } from "../useAppModel";
 import type { ErrorInfo, HostRoot } from "../types";
 
 type Side = "host" | "device";
+/** Элемент, зафиксированный при копировании: путь не зависит от того, куда потом перешла панель. */
+interface Item {
+  name: string;
+  path: string;
+  is_dir: boolean;
+}
 interface Clip {
   side: Side;
-  dir: string;
-  names: string[];
+  items: Item[];
 }
+
+class PlanLimit extends Error {}
 
 const MAX_PLAN = 5000;
 const MAX_DEPTH = 16;
@@ -136,41 +143,51 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
 
   /* ---------- планирование передач ---------- */
 
-  async function planDownload(names: string[], destDir: string): Promise<PlanItem[]> {
+  async function planDownload(items: Item[], destDir: string): Promise<PlanItem[]> {
     const plan: PlanItem[] = [];
-    async function walk(devDir: string, hostDir: string, entries: PaneEntry[], depth: number) {
-      for (const e of entries) {
-        if (plan.length >= MAX_PLAN) return;
-        const from = joinDevice(devDir, e.name);
+    // Лимиты не обрезают результат молча: при превышении план отвергается целиком.
+    async function walk(list: Item[], hostDir: string, depth: number) {
+      for (const e of list) {
+        if (plan.length >= MAX_PLAN) throw new PlanLimit();
         const to = joinHost(hostDir, e.name);
         if (!e.is_dir) {
-          plan.push({ kind: "download", name: e.name, from, to });
-        } else if (depth < MAX_DEPTH) {
-          plan.push({ kind: "mkdir", name: e.name, from, to });
-          await walk(from, to, await listDevice(from), depth + 1);
+          plan.push({ kind: "download", name: e.name, from: e.path, to });
+        } else {
+          if (depth >= MAX_DEPTH) throw new PlanLimit();
+          plan.push({ kind: "mkdir", name: e.name, from: e.path, to });
+          const children = (await listDevice(e.path)).map((c) => ({
+            name: c.name,
+            path: joinDevice(e.path, c.name),
+            is_dir: c.is_dir,
+          }));
+          await walk(children, to, depth + 1);
         }
       }
     }
-    await walk(
-      devicePath,
-      destDir,
-      dev.entries.filter((e) => names.includes(e.name)),
-      0,
-    );
+    await walk(items, destDir, 0);
     return plan;
   }
 
-  async function download(names: string[], destDir: string | null) {
+  async function download(items: Item[], destDir: string | null) {
     if (!destDir) return;
-    if (names.length === 0) return setNotice(t("fm.nothingSelected"));
+    if (items.length === 0) return setNotice(t("fm.nothingSelected"));
     setNotice(null);
     try {
-      const plan = await planDownload(names, destDir);
+      const plan = await planDownload(items, destDir);
       await transfers.enqueue(plan);
     } catch (e) {
-      setNotice(`${toErrorInfo(e).code}: ${toErrorInfo(e).message}`);
+      setNotice(
+        e instanceof PlanLimit
+          ? t("fm.limitExceeded", { max: MAX_PLAN, depth: MAX_DEPTH })
+          : `${toErrorInfo(e).code}: ${toErrorInfo(e).message}`,
+      );
     }
   }
+
+  const deviceItems = (names: string[]): Item[] =>
+    dev.entries
+      .filter((e) => names.includes(e.name))
+      .map((e) => ({ name: e.name, path: joinDevice(devicePath, e.name), is_dir: e.is_dir }));
 
   async function downloadAs(name: string) {
     const entry = dev.entries.find((e) => e.name === name);
@@ -182,7 +199,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
     ]);
   }
 
-  function upload(sources: { name: string; path: string; is_dir: boolean }[]) {
+  function upload(sources: Item[]) {
     if (!canWrite) return setNotice(t("fm.writeUnavailable"));
     if (sources.length === 0) return setNotice(t("fm.nothingSelected"));
     if (sources.some((s) => s.is_dir)) return setNotice(t("fm.foldersUpload"));
@@ -202,14 +219,10 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
       });
   }
 
-  const hostEntriesByName = (names: string[]) =>
+  const hostItems = (names: string[]): Item[] =>
     host.entries
       .filter((e) => names.includes(e.name))
-      .map((e) => ({
-        name: e.name,
-        path: joinHost(hostPath ?? "", e.name),
-        is_dir: e.is_dir,
-      }));
+      .map((e) => ({ name: e.name, path: joinHost(hostPath ?? "", e.name), is_dir: e.is_dir }));
 
   async function pickAndUpload() {
     const file = await backend.pickFile();
@@ -219,19 +232,16 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
   function paste(target: Side) {
     if (!clip) return setNotice(t("fm.nothingSelected"));
     if (clip.side === target) return setNotice(t("fm.pasteSameSide"));
-    if (target === "host") void download(clip.names, hostPath);
-    else
-      upload(
-        host.entries
-          .filter((e) => clip.names.includes(e.name))
-          .map((e) => ({ name: e.name, path: joinHost(clip.dir, e.name), is_dir: e.is_dir })),
-      );
+    // Источник — то, что было выбрано при копировании, даже если панель с тех пор перешла в другую папку.
+    if (target === "host") void download(clip.items, hostPath);
+    else upload(clip.items);
   }
 
   function copy(side: Side) {
     const names = [...(side === "host" ? hostSel : devSel)];
-    if (names.length === 0) return;
-    setClip({ side, dir: side === "host" ? (hostPath ?? "") : devicePath, names });
+    const items = side === "host" ? hostItems(names) : deviceItems(names);
+    if (items.length === 0) return;
+    setClip({ side, items });
     setNotice(null);
   }
 
@@ -241,7 +251,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
     {
       label: t("fm.upload"),
       disabled: !canWrite || !deviceReady || sel.length === 0,
-      onSelect: () => upload(hostEntriesByName(sel.map((s) => s.name))),
+      onSelect: () => upload(hostItems(sel.map((s) => s.name))),
     },
     {
       label: t("fm.reveal"),
@@ -263,11 +273,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
     {
       label: t("fm.download"),
       disabled: sel.length === 0,
-      onSelect: () =>
-        void download(
-          sel.map((s) => s.name),
-          hostPath,
-        ),
+      onSelect: () => void download(deviceItems(sel.map((s) => s.name)), hostPath),
     },
     {
       label: t("fm.downloadAs"),
@@ -327,7 +333,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
           menuItems={hostMenu}
           onDragStart={() => setDrag("host")}
           onDrop={() => {
-            if (drag === "device") void download([...devSel], hostPath);
+            if (drag === "device") void download(deviceItems([...devSel]), hostPath);
             setDrag(null);
           }}
           acceptDrop={drag === "device"}
@@ -387,7 +393,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
             loading={dev.loading}
             error={dev.error}
             emptyText={t("fm.empty")}
-            canGoUp={parentDevice(devicePath) !== null}
+            canGoUp={parentDevice(devicePath, rootOfDevice) !== null}
             selection={devSel}
             onSelection={setDevSel}
             onOpen={(e) => {
@@ -395,7 +401,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
               setDevSel(new Set());
             }}
             onUp={() => {
-              const p = parentDevice(devicePath);
+              const p = parentDevice(devicePath, rootOfDevice);
               if (p) setDevicePath(p);
               setDevSel(new Set());
             }}
@@ -405,7 +411,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
             menuItems={deviceMenu}
             onDragStart={() => setDrag("device")}
             onDrop={() => {
-              if (drag === "host") upload(hostEntriesByName([...hostSel]));
+              if (drag === "host") upload(hostItems([...hostSel]));
               setDrag(null);
             }}
             acceptDrop={drag === "host" && canWrite}
@@ -414,7 +420,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                 <button
                   className="btn"
                   disabled={devSel.size === 0 || transfers.busy}
-                  onClick={() => void download([...devSel], hostPath)}
+                  onClick={() => void download(deviceItems([...devSel]), hostPath)}
                 >
                   {t("fm.download")}
                 </button>
@@ -430,7 +436,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                     <button
                       className="btn btn-secondary"
                       disabled={hostSel.size === 0 || transfers.busy}
-                      onClick={() => upload(hostEntriesByName([...hostSel]))}
+                      onClick={() => upload(hostItems([...hostSel]))}
                     >
                       {t("fm.upload")}
                     </button>

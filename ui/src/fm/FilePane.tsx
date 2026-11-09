@@ -199,29 +199,30 @@ export function FilePane(p: Props) {
         </div>
       </div>
 
-      {p.error && (
-        <StateMessage kind="error" title={t("state.error")}>
-          <span data-testid={`pane-error-${p.side}`}>
-            {p.error.code}: {p.error.message}
-          </span>
-        </StateMessage>
-      )}
-      {!p.error && p.loading && <p role="status">{t("state.loading")}</p>}
-      {!p.error && !p.loading && rows.length === 0 && (
-        <StateMessage kind="empty" title={p.emptyText} />
-      )}
+      {/* Цель drag & drop всегда в DOM: перетаскивать можно и в пустую папку, и при пустом фильтре. */}
+      <div
+        className={`pane-body${p.acceptDrop ? " drop-ok" : ""}`}
+        onDragOver={(e) => p.acceptDrop && e.preventDefault()}
+        onDrop={(e) => {
+          if (p.acceptDrop) {
+            e.preventDefault();
+            p.onDrop();
+          }
+        }}
+      >
+        {p.error && (
+          <StateMessage kind="error" title={t("state.error")}>
+            <span data-testid={`pane-error-${p.side}`}>
+              {p.error.code}: {p.error.message}
+            </span>
+          </StateMessage>
+        )}
+        {!p.error && p.loading && <p role="status">{t("state.loading")}</p>}
+        {!p.error && !p.loading && rows.length === 0 && (
+          <StateMessage kind="empty" title={p.emptyText} />
+        )}
 
-      {rows.length > 0 && (
-        <div
-          className={`pane-body${p.acceptDrop ? " drop-ok" : ""}`}
-          onDragOver={(e) => p.acceptDrop && e.preventDefault()}
-          onDrop={(e) => {
-            if (p.acceptDrop) {
-              e.preventDefault();
-              p.onDrop();
-            }
-          }}
-        >
+        {rows.length > 0 && (
           <table
             className="data fm-table"
             role="grid"
@@ -276,8 +277,8 @@ export function FilePane(p: Props) {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
       <p className="hint" style={{ marginLeft: 0 }}>
         {t("fm.selected", { n: selectedEntries.length })}
       </p>

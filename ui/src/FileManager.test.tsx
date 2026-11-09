@@ -299,3 +299,51 @@ describe("Файловый менеджер: запись на устройст�
     expect(b.deviceFiles["E:/old.txt"]).toBeUndefined();
   });
 });
+
+describe("Файловый менеджер: источник буфера, пустые папки, лимиты", () => {
+  it("вставка берёт файлы из папки, где было копирование, а не из текущей", async () => {
+    const b = new MockBackend();
+    b.deviceFiles["E:/Images/readme.txt"] = 999; // одноимённый файл в другой папке
+    await openFiles(b);
+    await userEvent.click(row("Телефон", "readme.txt"));
+    await userEvent.keyboard("{Control>}c{/Control}");
+    await userEvent.dblClick(row("Телефон", "Images")); // ушли в другую папку
+    await within(grid("Телефон")).findByText("cat.jpg");
+    row("Компьютер", "old.txt").focus();
+    await userEvent.keyboard("{Control>}v{/Control}");
+    await waitFor(() => expect(b.hostFiles[`${DL}\\readme.txt`]).toBeDefined());
+    expect(b.hostFiles[`${DL}\\readme.txt`]).toBe(12); // из корня, а не 999 из Images
+  });
+
+  it("перетаскивание работает и в пустую папку на компьютере", async () => {
+    const b = new MockBackend();
+    b.hostDirs.add("C:\\Users\\user\\Empty");
+    b.nextFolder = "C:\\Users\\user\\Empty";
+    await openFiles(b);
+    const host = screen.getByRole("region", { name: "Компьютер" });
+    await userEvent.click(within(host).getByRole("button", { name: "Выбрать папку…" }));
+    expect(await within(host).findByText("Папка пуста")).toBeInTheDocument();
+
+    const r = row("Телефон", "readme.txt");
+    await userEvent.click(r);
+    const dt = { setData: () => undefined, effectAllowed: "" };
+    fireEvent.dragStart(r, { dataTransfer: dt });
+    const zone = host.querySelector(".pane-body")!;
+    fireEvent.dragOver(zone, { dataTransfer: dt });
+    fireEvent.drop(zone, { dataTransfer: dt });
+    await waitFor(() => expect(b.hostFiles["C:\\Users\\user\\Empty\\readme.txt"]).toBe(12));
+  });
+
+  it("слишком глубокая папка отвергается целиком, а не скачивается частично", async () => {
+    const b = new MockBackend();
+    const deep = Array.from({ length: 20 }, () => "d").join("/");
+    b.deviceFiles[`E:/${deep}/f.txt`] = 1;
+    await openFiles(b);
+    await userEvent.click(row("Телефон", "^d$"));
+    const phone = screen.getByRole("region", { name: "Телефон" });
+    await userEvent.click(within(phone).getByRole("button", { name: "Скачать" }));
+    expect(await screen.findByText(/Скачивание не начато/)).toBeInTheDocument();
+    expect(b.hostDirs.has(`${DL}\\d`)).toBe(false); // ни одной папки не создано
+    expect(screen.queryByRole("list", { name: "Передача файлов" })).toBeNull();
+  });
+});

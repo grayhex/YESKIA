@@ -210,6 +210,8 @@ const ru = {
   "fm.pasteSameSide": "Копирование внутри одной панели не поддерживается.",
   "fm.nothingSelected": "Сначала выберите файлы.",
   "fm.foldersUpload": "Загрузка папок пока не поддерживается: выберите файлы.",
+  "fm.limitExceeded":
+    "Папка слишком большая или слишком глубоко вложена (лимит: {max} объектов, глубина {depth}). Скачивание не начато, чтобы не получить неполную копию: выбирайте части поменьше.",
   "fm.transfers": "Передача файлов",
   "fm.cancel": "Отмена",
   "fm.clear": "Очистить завершённые",
@@ -452,6 +454,8 @@ const en: Record<MessageKey, string> = {
   "fm.pasteSameSide": "Copying within a single pane is not supported.",
   "fm.nothingSelected": "Select files first.",
   "fm.foldersUpload": "Uploading folders is not supported yet: select files.",
+  "fm.limitExceeded":
+    "The folder is too large or too deeply nested (limit: {max} objects, depth {depth}). The download was not started to avoid an incomplete copy: pick smaller parts.",
   "fm.transfers": "File transfers",
   "fm.cancel": "Cancel",
   "fm.clear": "Clear finished",

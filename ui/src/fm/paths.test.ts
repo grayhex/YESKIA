@@ -22,7 +22,10 @@ describe("пути устройства", () => {
     expect(joinDevice("/Phone memory", "DCIM")).toBe("/Phone memory/DCIM");
     expect(parentDevice("E:/Images/Фото")).toBe("E:/Images");
     expect(parentDevice("E:/Images")).toBe("E:/");
-    expect(parentDevice("E:/")).toBeNull();
+    expect(parentDevice("E:/")).toBe("/"); // при корне «/» — возврат к списку томов
+    expect(parentDevice("E:/", "E:/")).toBeNull(); // корень панели — выше нет
+    expect(joinDevice("/", "F:")).toBe("F:/");
+    expect(joinDevice("/", "Phone memory")).toBe("/Phone memory");
     expect(parentDevice("/Phone memory/DCIM")).toBe("/Phone memory");
     expect(parentDevice("/Phone memory")).toBe("/");
     expect(parentDevice("/")).toBeNull();

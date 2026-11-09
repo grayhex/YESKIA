@@ -24,12 +24,19 @@ export function parentHost(path: string): string | null {
 }
 
 export function joinDevice(base: string, name: string): string {
+  // Несколько томов Mass Storage: запись корня «F:» — это корень диска `F:/`, а не папка `/F:`.
+  if (base === "/" && /^[A-Za-z]:$/.test(name)) return `${name}/`;
   return base.endsWith("/") ? `${base}${name}` : `${base}/${name}`;
 }
 
-/** Родитель на устройстве: `E:/a/b` → `E:/a`, `E:/a` → `E:/`, `/a` → `/`, корень → `null`. */
-export function parentDevice(path: string): string | null {
-  if (path === "/" || /^[A-Za-z]:\/?$/.test(path)) return null;
+/**
+ * Родитель на устройстве: `E:/a/b` → `E:/a`, `E:/a` → `E:/`, `/a` → `/`, корень → `null`.
+ * `root` — корень панели: при `/` (несколько томов) родитель корня диска `F:/` — это `/`.
+ */
+export function parentDevice(path: string, root = "/"): string | null {
+  if (path === root) return null;
+  if (path === "/") return null;
+  if (/^[A-Za-z]:\/?$/.test(path)) return root === "/" ? "/" : null;
   const t = path.endsWith("/") ? path.slice(0, -1) : path;
   const i = t.lastIndexOf("/");
   if (i < 0) return null;
