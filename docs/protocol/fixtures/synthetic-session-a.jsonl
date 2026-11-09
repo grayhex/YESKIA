@@ -1,0 +1,11 @@
+{"schema": "yeskia.lab.fixture/1", "synthetic": true, "channel": "usb_raw", "payload_masked": false, "description": "СИНТЕТИКА: вымышленный «игрушечный» протокол кадров 7E <длина> <команда> … для проверки анализатора; не связан с реальными протоколами Nokia. Сессия A: повтор запроса без ответа."}
+{"t_ms": 0, "marker": "UI: connect"}
+{"t_ms": 10, "dir": "out", "ep": "0x02", "kind": "bulk", "hex": "7e 04 01 00"}
+{"t_ms": 25, "dir": "in", "ep": "0x81", "kind": "bulk", "hex": "7e 08 81 00 a1 b2 c3 d4"}
+{"t_ms": 40, "marker": "UI: identify"}
+{"t_ms": 50, "dir": "out", "ep": "0x02", "kind": "bulk", "hex": "7e 06 02 00 00 01"}
+{"t_ms": 60, "dir": "out", "ep": "0x02", "kind": "bulk", "hex": "7e 06 02 00 00 01"}
+{"t_ms": 95, "dir": "in", "ep": "0x81", "kind": "bulk", "hex": "7e 07 82 00 41 42 43"}
+{"t_ms": 110, "marker": "UI: list folders"}
+{"t_ms": 120, "dir": "out", "ep": "0x02", "kind": "bulk", "hex": "7e 05 03 00 2f"}
+{"t_ms": 140, "dir": "in", "ep": "0x81", "kind": "bulk", "hex": "7e 09 83 00 01 02 03 04 05"}

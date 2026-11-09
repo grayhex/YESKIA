@@ -4377,6 +4377,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "yeskia-lab"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "yeskia-discovery",
+]
+
+[[package]]
 name = "yoke"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
