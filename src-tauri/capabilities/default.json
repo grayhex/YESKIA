@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Основное окно: только базовые разрешения; собственные команды ядра.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "dialog:default"]
 }

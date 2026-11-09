@@ -6,6 +6,7 @@ use yeskia_core::app::{AppCore, SmokeReport};
 use yeskia_core::device::{Device, DeviceId};
 use yeskia_core::diagnostics::LogEntry;
 use yeskia_core::error::{Error, ErrorInfo};
+use yeskia_core::host::{HostEntry, HostRoot};
 use yeskia_core::operations::{OperationRequest, OperationResult, Progress};
 use yeskia_core::storage::{data_dir, JournalEntry, Settings};
 use yeskia_core::system::SystemInfo;
@@ -155,6 +156,55 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .map_err(|e| e.to_info())
 }
 
+/// Диски и быстрые папки пользователя (левая панель файлового менеджера).
+#[tauri::command]
+fn host_roots() -> Vec<HostRoot> {
+    yeskia_core::host::roots()
+}
+
+/// Содержимое папки на компьютере (только чтение).
+#[tauri::command]
+async fn host_list_dir(path: String) -> Cmd<Vec<HostEntry>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        yeskia_core::host::list_dir(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+/// Создаёт папку назначения (существующая папка — не ошибка, существующий файл — `ALREADY_EXISTS`).
+#[tauri::command]
+async fn host_create_dir(path: String) -> Cmd<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        yeskia_core::host::create_dir(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+/// «Показать в проводнике»: выделяет файл/папку в Explorer. Ничего не открывает и не запускает.
+#[tauri::command]
+fn reveal_in_explorer(path: String) -> Cmd<()> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.is_absolute() || path.chars().any(|c| c.is_control()) || !p.exists() {
+        return Err(Error::HostAccess("путь не найден".into()).to_info());
+    }
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg(format!("/select,{}", p.display()))
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| Error::Internal(e.to_string()).to_info())
+    }
+    #[cfg(not(windows))]
+    {
+        Err(Error::HostAccess("доступно только в Windows".into()).to_info())
+    }
+}
+
 fn smoke_test(core: &AppCore) -> yeskia_core::Result<SmokeReport> {
     core.smoke()
 }
@@ -206,6 +256,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(State(core))
         .invoke_handler(tauri::generate_handler![
             get_system_info,
@@ -222,6 +273,10 @@ pub fn run() {
             get_diagnostics,
             run_doctor,
             export_doctor_report,
+            host_roots,
+            host_list_dir,
+            host_create_dir,
+            reveal_in_explorer,
         ])
         .run(tauri::generate_context!())
         .expect("ошибка запуска YESKIA");

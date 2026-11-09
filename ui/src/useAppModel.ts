@@ -119,6 +119,7 @@ export function useAppModel(backend: Backend) {
         setDoctorRunning(false);
       }
     },
+    backend,
     isUiMock: backend.isUiMock,
     refresh: () => guarded(async () => undefined),
     connect: (id: string) => guarded(async () => void (await backend.connectDevice(id))),

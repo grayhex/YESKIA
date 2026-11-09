@@ -13,6 +13,7 @@ export type ErrorCode =
   | "FINGERPRINT_MISMATCH"
   | "ALREADY_EXISTS"
   | "UNSAFE_PATH"
+  | "HOST_ACCESS"
   | "VERIFICATION_FAILED"
   | "TRANSPORT_ERROR"
   | "STORAGE_ERROR"
@@ -96,6 +97,8 @@ export type OperationRequest =
   | { type: "files.list"; path: string }
   | { type: "files.read"; path: string }
   | { type: "files.write"; path: string; data: number[]; overwrite: OverwritePolicy }
+  | { type: "files.download"; path: string; dest: string; overwrite: OverwritePolicy }
+  | { type: "files.upload"; source: string; path: string; overwrite: OverwritePolicy }
   | { type: "contacts.read" }
   | { type: "sms.read" };
 
@@ -104,6 +107,7 @@ export type OperationData =
   | { type: "entries"; entries: { name: string; is_dir: boolean; size: number }[] }
   | { type: "file_read"; bytes: number; sha256: string }
   | { type: "written"; bytes: number; sha256: string; verified: boolean; replaced: boolean }
+  | { type: "downloaded"; bytes: number; sha256: string; verified: boolean; replaced: boolean }
   | { type: "pim_count"; count: number };
 
 export interface OperationResult {
@@ -229,4 +233,19 @@ export interface DoctorOptions {
 export interface ExportedReport {
   path: string;
   report: DoctorReport;
+}
+
+export interface HostEntry {
+  name: string;
+  is_dir: boolean;
+  size: number;
+  modified_ms: number | null;
+  hidden: boolean;
+  lossy: boolean;
+}
+
+export interface HostRoot {
+  label: string;
+  path: string;
+  kind: "drive" | "folder";
 }

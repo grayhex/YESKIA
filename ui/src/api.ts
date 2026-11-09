@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type {
   Device,
   DoctorOptions,
   DoctorReport,
   ErrorInfo,
   ExportedReport,
+  HostEntry,
+  HostRoot,
   JournalEntry,
   OperationRequest,
   OperationResult,
@@ -31,6 +34,17 @@ export interface Backend {
   /** Read-only диагностика USB/PnP/WPD/COM; отчёт без IMEI/серийников/instance id. */
   runDoctor(options: DoctorOptions): Promise<DoctorReport>;
   exportDoctorReport(options: DoctorOptions): Promise<ExportedReport>;
+  /** Диски и быстрые папки компьютера. */
+  hostRoots(): Promise<HostRoot[]>;
+  /** Содержимое папки на компьютере (только чтение). */
+  hostListDir(path: string): Promise<HostEntry[]>;
+  hostCreateDir(path: string): Promise<void>;
+  /** «Показать в проводнике». */
+  revealInExplorer(path: string): Promise<void>;
+  /** Нативные диалоги Windows: выбор папки / файла / пути сохранения. `null` — отмена. */
+  pickFolder(): Promise<string | null>;
+  pickFile(): Promise<string | null>;
+  pickSavePath(defaultName: string): Promise<string | null>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<Settings>;
   recentOperations(limit: number): Promise<JournalEntry[]>;
@@ -60,6 +74,20 @@ export class TauriBackend implements Backend {
   runDoctor = (options: DoctorOptions) => invoke<DoctorReport>("run_doctor", { options });
   exportDoctorReport = (options: DoctorOptions) =>
     invoke<ExportedReport>("export_doctor_report", { options });
+  hostRoots = () => invoke<HostRoot[]>("host_roots");
+  hostListDir = (path: string) => invoke<HostEntry[]>("host_list_dir", { path });
+  hostCreateDir = (path: string) => invoke<void>("host_create_dir", { path });
+  revealInExplorer = (path: string) => invoke<void>("reveal_in_explorer", { path });
+  pickFolder = async () => {
+    const r = await openDialog({ directory: true, multiple: false });
+    return typeof r === "string" ? r : null;
+  };
+  pickFile = async () => {
+    const r = await openDialog({ directory: false, multiple: false });
+    return typeof r === "string" ? r : null;
+  };
+  pickSavePath = async (defaultName: string) =>
+    (await saveDialog({ defaultPath: defaultName })) ?? null;
   getSettings = () => invoke<Settings>("get_settings");
   saveSettings = (settings: Settings) => invoke<Settings>("save_settings", { settings });
   recentOperations = (limit: number) => invoke<JournalEntry[]>("recent_operations", { limit });
