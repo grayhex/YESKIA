@@ -9,6 +9,8 @@ pub mod device;
 pub mod diagnostics;
 pub mod engine;
 pub mod error;
+pub mod fsutil;
+pub mod host;
 pub mod inspector;
 pub mod mock;
 pub mod operations;
@@ -16,6 +18,7 @@ pub mod paths;
 pub mod storage;
 pub mod system;
 pub mod transport;
+pub mod volume;
 
 pub use engine::Engine;
 pub use error::{Error, ErrorCode, ErrorInfo, Result};

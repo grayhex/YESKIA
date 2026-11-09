@@ -33,3 +33,6 @@
 | `PnpTransport` в Device Core: discovery, disconnect, fingerprint | `tested-on-mock` | `crates/yeskia-discovery/tests/adapter.rs` |
 | WPD/MTP листинг и identity на реальной Nokia `0421:0223`, E52/E72 | `not-tested` | нужен физический телефон, см. docs/DISCOVERY.md |
 | Иллюстрации телефонов по подтверждённой модели (перенос из s60modern) | `tested-on-mock` | `ui/src/phones/registry.test.ts`, `App.test.tsx`; права на изображения **не подтверждены**, см. docs/ASSETS.md |
+| Файловый менеджер: скачивание/загрузка, коллизии, отмена, Unicode (issue #5) | `tested-on-mock` | `crates/yeskia-core/tests/transfer.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/FileManager.test.tsx` |
+| Mass Storage: том ограничен устройством, read-back SHA-256 | `tested-on-host` | временные папки на реальной ФС; на физической карте `not-tested` |
+| WPD/MTP read-only листинг/скачивание (Windows-бэкенд) | `implemented` | компиляция под Windows; на телефоне `not-tested`, запись не заявляется |

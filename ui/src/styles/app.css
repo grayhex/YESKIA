@@ -404,3 +404,123 @@ pre.result {
     animation: none !important;
   }
 }
+
+/* Файловый менеджер */
+.fm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+.pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  min-width: 0;
+}
+.pane-head h2 {
+  margin: 0 0 var(--space-1);
+}
+.pane-path {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: var(--space-2);
+}
+.pane-filter {
+  font: inherit;
+  min-width: 0;
+  flex: 1;
+}
+.pane-body {
+  min-height: 5rem;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+}
+.pane-body.drop-ok {
+  outline: 3px dashed var(--nk-blue);
+}
+.fm-table tr[role="row"] {
+  cursor: default;
+}
+.fm-table tbody tr:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.row-selected {
+  background: var(--nk-blue-tint);
+}
+.sort-btn {
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.context-menu {
+  position: fixed;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  min-width: 12rem;
+}
+.context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  font: inherit;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+.context-menu button:hover:not(:disabled),
+.context-menu button:focus {
+  background: var(--nk-blue-tint);
+}
+.context-menu button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+.dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-top: 4px solid var(--nk-blue);
+  padding: var(--space-4);
+  max-width: 32rem;
+  width: calc(100% - 2rem);
+}
+.transfer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.transfer-list li {
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+.transfer-list progress {
+  display: block;
+  width: 100%;
+}
+.error-inline {
+  color: var(--danger);
+}

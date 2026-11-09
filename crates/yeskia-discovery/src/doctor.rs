@@ -142,6 +142,8 @@ pub struct DeviceRef {
     pub pid: u16,
     pub state: DoctorState,
     pub nokia_vendor_hint: bool,
+    /// Буквы томов, привязанных к этому устройству через PnP-цепочку (Mass Storage).
+    pub volumes: Vec<char>,
 }
 
 fn enumerator(instance_id: &str) -> &str {
@@ -287,7 +289,7 @@ pub fn analyze_with_refs(snap: &Snapshot, now_ms: u64) -> (DoctorReport, Vec<Dev
             eq_ci(enumerator(&n.instance_id), "USBSTOR")
                 || n.class.as_deref().is_some_and(|c| eq_ci(c, "DiskDrive"))
         });
-        let vols = snap
+        let mut vol_letters: Vec<char> = snap
             .volumes
             .iter()
             .filter(|v| {
@@ -296,7 +298,11 @@ pub fn analyze_with_refs(snap: &Snapshot, now_ms: u64) -> (DoctorReport, Vec<Dev
                         .as_ref()
                         .is_some_and(|id| desc_ids.contains(&id.to_ascii_lowercase()))
             })
-            .count() as u32;
+            .map(|v| v.letter)
+            .collect();
+        vol_letters.sort_unstable();
+        vol_letters.dedup();
+        let vols = vol_letters.len() as u32;
         let mass = disk_child || vols > 0;
 
         // Состояние (приоритет: драйвер → COM → WPD → диск → неизвестно).
@@ -395,6 +401,7 @@ pub fn analyze_with_refs(snap: &Snapshot, now_ms: u64) -> (DoctorReport, Vec<Dev
             pid: *pid,
             state,
             nokia_vendor_hint: nokia,
+            volumes: vol_letters,
         });
     }
 

@@ -36,3 +36,7 @@ windows = { version = "0.62", features = [
 [[test]]
 name = "adapter"
 required-features = ["engine"]
+
+[[test]]
+name = "files"
+required-features = ["engine"]
