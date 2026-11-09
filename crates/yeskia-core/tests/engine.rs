@@ -934,3 +934,44 @@ fn model_is_not_claimed_when_identity_probe_is_unavailable() {
     let d = e.connect(&id()).unwrap();
     assert!(d.identified_model.is_none());
 }
+
+#[test]
+fn hung_identity_read_does_not_block_connect() {
+    let (e, mock) = setup_with(EngineConfig {
+        identity_timeout: Duration::from_millis(100),
+        cancel_grace: Duration::from_millis(100),
+        ..EngineConfig::default()
+    });
+    mock.hang_next_op(1500); // identity() зависает
+    let t0 = Instant::now();
+    let d = e.connect(&id()).unwrap();
+    assert!(
+        t0.elapsed() < Duration::from_millis(1000),
+        "connect не ждёт залипшую идентификацию"
+    );
+    assert!(
+        d.identified_model.is_none(),
+        "модель не заявляется без идентификации"
+    );
+    assert_eq!(
+        d.matrix.unwrap().availability(Operation::IdentityRead),
+        Availability::Available
+    );
+}
+
+#[test]
+fn hung_probe_times_out_and_does_not_leave_a_connection() {
+    let (e, mock) = setup_with(EngineConfig {
+        probe_timeout: Duration::from_millis(100),
+        cancel_grace: Duration::from_millis(100),
+        ..EngineConfig::default()
+    });
+    mock.hang_next_probe(1500);
+    let t0 = Instant::now();
+    let err = e.connect(&id()).unwrap_err();
+    assert_eq!(err.code(), ErrorCode::Timeout);
+    assert!(t0.elapsed() < Duration::from_millis(1000));
+    assert!(e.capability_matrix(&id()).is_none());
+    // повторное подключение (без зависания) проходит
+    assert!(e.connect(&id()).is_ok());
+}

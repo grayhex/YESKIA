@@ -278,6 +278,31 @@ impl Shared {
     }
 }
 
+/// Выполняет блокирующий вызов транспорта в воркере с ограничением по времени. По таймауту
+/// отменяет токен и возвращает `Timeout`; «залипший» воркер завершится сам и результат отбросится.
+fn run_bounded<T: Send + 'static>(
+    timeout: Duration,
+    token: &CancellationToken,
+    f: impl FnOnce() -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
+            .unwrap_or_else(|_| Err(Error::Internal("паника в транспорте".into())));
+        let _ = tx.send(r);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(r) => r,
+        Err(RecvTimeoutError::Timeout) => {
+            token.cancel();
+            Err(Error::Timeout)
+        }
+        Err(RecvTimeoutError::Disconnected) => {
+            Err(Error::Internal("воркер завершился без результата".into()))
+        }
+    }
+}
+
 fn files(t: &dyn DeviceTransport) -> Result<&dyn crate::transport::FileProvider> {
     t.files()
         .ok_or_else(|| Error::CapabilityUnsupported("files".into()))
@@ -456,15 +481,26 @@ impl Engine {
         let transport = &sh.transports[idx];
         transport.connect(id)?;
 
-        let probe_ctx = sh.make_ctx(
-            idx,
-            id,
-            "probe".into(),
-            CancellationToken::new(),
-            sh.config.probe_timeout,
-            Arc::new(ProgressCell::default()),
-        );
-        let probe = match transport.probe(id, &probe_ctx) {
+        // Probe и идентификация — блокирующие вызовы транспорта (например, COM/WPD), поэтому идут
+        // через ограниченный по времени воркер: подключение не может зависнуть навсегда.
+        let probe = {
+            let token = CancellationToken::new();
+            let ctx = sh.make_ctx(
+                idx,
+                id,
+                "probe".into(),
+                token.clone(),
+                sh.config.probe_timeout,
+                Arc::new(ProgressCell::default()),
+            );
+            let (t, did) = (Arc::clone(transport), id.clone());
+            run_bounded(
+                sh.config.probe_timeout + sh.config.cancel_grace,
+                &token,
+                move || t.probe(&did, &ctx),
+            )
+        };
+        let probe = match probe {
             Ok(p) => p,
             Err(e) => {
                 let _ = transport.disconnect(id);
@@ -474,9 +510,26 @@ impl Engine {
         let fp = fingerprint(&sh.salt, &device);
         let matrix = sh.build_matrix(transport.as_ref(), &device, &fp, probe);
         // Модель берём только из идентификации по протоколу (read-only), не из VID/PID.
+        // Сбой или таймаут идентификации не мешает подключению: просто без модели.
         let identified_model =
             if matrix.availability(Operation::IdentityRead) == Availability::Available {
-                transport.identity(id, &probe_ctx).ok().map(|i| i.model)
+                let token = CancellationToken::new();
+                let ctx = sh.make_ctx(
+                    idx,
+                    id,
+                    "identity".into(),
+                    token.clone(),
+                    sh.config.identity_timeout,
+                    Arc::new(ProgressCell::default()),
+                );
+                let (t, did) = (Arc::clone(transport), id.clone());
+                run_bounded(
+                    sh.config.identity_timeout + sh.config.cancel_grace,
+                    &token,
+                    move || t.identity(&did, &ctx),
+                )
+                .ok()
+                .map(|i| i.model)
             } else {
                 None
             };
