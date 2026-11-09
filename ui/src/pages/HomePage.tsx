@@ -9,7 +9,8 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
   const { devices, sessionJournal, system } = model;
   const selected = devices.find((d) => d.connection === "connected") ?? devices[0];
   const isMock = selected?.origin === "mock";
-  const available = selected?.capabilities.filter((c) => c.status !== "unsupported").length ?? 0;
+  const matrix = selected?.matrix ?? null;
+  const available = matrix?.entries.filter((e) => e.availability === "available").length ?? 0;
   const ok = sessionJournal.filter((j) => j.state === "success").length;
   const bad = sessionJournal.filter(
     (j) => j.state === "failed" || j.state === "interrupted",
@@ -42,8 +43,8 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
           <Metric
             label={t("home.metric.capabilities")}
             value={
-              selected
-                ? t("home.metric.capsValue", { n: available, total: selected.capabilities.length })
+              matrix
+                ? t("home.metric.capsValue", { n: available, total: matrix.entries.length })
                 : "—"
             }
             note={note}

@@ -1,25 +1,76 @@
-//! Абстракция транспорта. UI и сетевые/USB-реализации разделены:
-//! фронтенд знает только `Engine`, реальные адаптеры (WPD/MTP, Mass Storage,
-//! PC Suite) подключаются как отдельные реализации `Transport`.
+//! Абстракции транспорта. UI знает только `Engine`; реальные адаптеры (WPD/MTP,
+//! Mass Storage, Serial/PC Suite, Bluetooth/OBEX) подключаются как независимые реализации.
 
-use crate::device::{Device, DeviceId, TransportKind};
-use crate::error::Result;
-use crate::operations::{OperationContext, OperationData, OperationRequest};
+use crate::device::{Availability, Device, DeviceId, SupportStatus, TransportKind};
+use crate::error::{Error, Result};
+use crate::operations::{FileEntry, Operation, OperationContext, OverwritePolicy};
 
-pub trait Transport: Send + Sync {
+/// Перечисление устройств. Успешное перечисление **не** означает доступность операций.
+pub trait DiscoveryProvider: Send + Sync {
     fn kind(&self) -> TransportKind;
-    /// Перечисляет доступные сейчас устройства (без подключения).
-    fn enumerate(&self) -> Result<Vec<Device>>;
+    fn discover(&self) -> Result<Vec<Device>>;
+}
+
+/// Результат read-only probe для одной операции.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProbeOutcome {
+    pub operation: Operation,
+    pub availability: Availability,
+    pub detail: Option<String>,
+}
+
+/// Транспорт конкретного соединения.
+pub trait DeviceTransport: DiscoveryProvider {
     fn connect(&self, id: &DeviceId) -> Result<()>;
     fn disconnect(&self, id: &DeviceId) -> Result<()>;
-    /// Физически ли устройство ещё на связи.
+    /// Физически ли устройство ещё на связи (быстрая проверка, вызывается часто).
     fn is_present(&self, id: &DeviceId) -> bool;
-    /// Выполняет операцию. Реализация обязана вызывать `ctx.checkpoint()`
-    /// между шагами и фиксировать запись только атомарно в конце.
-    fn execute(
+
+    /// Зрелость реализации операции в **коде** адаптера. `Unsupported` — адаптер не умеет.
+    fn maturity(&self, op: Operation) -> SupportStatus;
+
+    /// **Только чтение.** Probe не имеет права писать на устройство. Операции записи
+    /// не проверяются probe и остаются `NotTested` до явной операции пользователя.
+    fn probe(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Vec<ProbeOutcome>>;
+
+    fn identity(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Identity>;
+
+    fn files(&self) -> Option<&dyn FileProvider> {
+        None
+    }
+    fn pim(&self) -> Option<&dyn PimProvider> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Identity {
+    pub model: String,
+    pub firmware: Option<String>,
+}
+
+/// Файловые операции. Реализация обязана вызывать `ctx.checkpoint()` между шагами
+/// и не выполнять `write` поверх существующего файла без `OverwritePolicy::Replace`.
+pub trait FileProvider: Send + Sync {
+    fn list(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<Vec<FileEntry>>;
+    fn stat(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<Option<FileEntry>>;
+    fn read(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<Vec<u8>>;
+    fn write(
         &self,
         id: &DeviceId,
-        request: &OperationRequest,
+        path: &str,
+        data: &[u8],
+        overwrite: OverwritePolicy,
         ctx: &OperationContext,
-    ) -> Result<OperationData>;
+    ) -> Result<()>;
+}
+
+/// Контакты и SMS. Данные не покидают ядро через журнал; методы по умолчанию — «не поддерживается».
+pub trait PimProvider: Send + Sync {
+    fn contacts_count(&self, _id: &DeviceId, _ctx: &OperationContext) -> Result<u64> {
+        Err(Error::CapabilityUnsupported("contacts.read".into()))
+    }
+    fn sms_count(&self, _id: &DeviceId, _ctx: &OperationContext) -> Result<u64> {
+        Err(Error::CapabilityUnsupported("sms.read".into()))
+    }
 }

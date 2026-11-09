@@ -97,33 +97,71 @@ describe("Подключение", () => {
     await connect(backend);
     await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
     await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("failed"));
-    const writes = (await backend.recentOperations(10)).filter((j) => j.operation === "write_file");
+    const writes = (await backend.recentOperations(10)).filter(
+      (j) => j.operation === "files.write",
+    );
     expect(writes).toHaveLength(1);
   });
 
   it("показывает неподдерживаемую операцию как недоступную, а не кнопкой", async () => {
-    class NoWrite extends MockBackend {
+    class NoList extends MockBackend {
       async listDevices() {
         const devices = await super.listDevices();
         return devices.map((d) => ({
           ...d,
-          capabilities: d.capabilities.map((c) =>
-            c.id === "file_write" ? { ...c, status: "unsupported" as const } : c,
-          ),
+          matrix: d.matrix && {
+            ...d.matrix,
+            entries: d.matrix.entries.map((e) =>
+              e.operation === "files.list" ? { ...e, availability: "unsupported" as const } : e,
+            ),
+          },
         }));
       }
     }
-    await connect(new NoWrite());
+    await connect(new NoList());
     expect(screen.getByText("Недоступно: возможность не поддерживается")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Тестовая запись" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Список файлов" })).toBeNull();
     expect(screen.getByRole("button", { name: "Идентификация" })).toBeInTheDocument();
   });
 
-  it("матрица возможностей видна только разработчику", async () => {
+  it("матрица соединения: запись «не проверено» до первой записи, затем «доступно»", async () => {
     await connect();
-    expect(screen.queryByRole("table")).toBeNull();
+    const row = () => screen.getByText("Запись файла").closest("tr")!;
+    expect(row()).toHaveTextContent("Не проверено");
+    expect(screen.getByText("Чтение контактов").closest("tr")).toHaveTextContent(
+      "Не поддерживается",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
+    await waitFor(() => expect(row()).toHaveTextContent("Доступно"));
+  });
+
+  it("сбой записи: неизвестный исход, подсказка действия, статус «Ошибка» в матрице", async () => {
+    const backend = new MockBackend();
+    backend.failNextWrite = true;
+    await connect(backend);
+    await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
+    expect(await screen.findByText(/Исход записи на устройстве неизвестен/)).toBeInTheDocument();
+    expect(screen.getByText(/Сначала проверьте содержимое устройства/)).toBeInTheDocument();
+    expect(screen.getByText("Запись файла").closest("tr")).toHaveTextContent("Ошибка");
+  });
+
+  it("операцию в работе можно отменить", async () => {
+    const backend = new MockBackend();
+    backend.holdMs = 5000;
+    await connect(backend);
+    await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Отмена" }));
+    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("cancelled"));
+    expect(screen.getByText(/Исход записи на устройстве неизвестен/)).toBeInTheDocument();
+  });
+
+  it("зрелость, evidence и fingerprint видны только разработчику", async () => {
+    await connect();
+    expect(screen.queryByText("Зрелость")).toBeNull();
+    expect(screen.queryByText(/Отпечаток соединения/)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Разработчик" }));
-    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(await screen.findByText("Зрелость")).toBeInTheDocument();
+    expect(screen.getByText(/Отпечаток соединения/)).toBeInTheDocument();
   });
 });
 
@@ -163,6 +201,7 @@ describe("Ошибки и счётчики", () => {
             operation: "identify",
             state: "success" as const,
             error_code: null,
+            uncertain: false,
             started_at_ms: Date.now() - 86_400_000,
             finished_at_ms: null,
           },

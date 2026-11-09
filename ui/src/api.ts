@@ -5,6 +5,7 @@ import type {
   JournalEntry,
   OperationRequest,
   OperationResult,
+  Progress,
   Settings,
   SystemInfo,
 } from "./types";
@@ -18,7 +19,11 @@ export interface Backend {
   listDevices(): Promise<Device[]>;
   connectDevice(id: string): Promise<Device>;
   disconnectDevice(id: string): Promise<void>;
-  runOperation(id: string, request: OperationRequest): Promise<OperationResult>;
+  /** Ставит операцию в очередь устройства; возвращает её id. */
+  startOperation(id: string, request: OperationRequest): Promise<string>;
+  /** Ждёт результата (очередь → выполнение). Ошибки операции приходят внутри результата. */
+  awaitOperation(operationId: string): Promise<OperationResult>;
+  operationProgress(operationId: string): Promise<Progress | null>;
   cancelOperation(operationId: string): Promise<boolean>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<Settings>;
@@ -30,7 +35,7 @@ export function toErrorInfo(e: unknown): ErrorInfo {
   if (typeof e === "object" && e !== null && "code" in e && "message" in e) {
     return e as ErrorInfo;
   }
-  return { code: "INTERNAL", message: String(e), retryable: false };
+  return { code: "INTERNAL", message: String(e), retryable: false, action: "none" };
 }
 
 export class TauriBackend implements Backend {
@@ -39,8 +44,12 @@ export class TauriBackend implements Backend {
   listDevices = () => invoke<Device[]>("list_devices");
   connectDevice = (id: string) => invoke<Device>("connect_device", { id });
   disconnectDevice = (id: string) => invoke<void>("disconnect_device", { id });
-  runOperation = (id: string, request: OperationRequest) =>
-    invoke<OperationResult>("run_operation", { id, request });
+  startOperation = (id: string, request: OperationRequest) =>
+    invoke<string>("start_operation", { id, request });
+  awaitOperation = (operationId: string) =>
+    invoke<OperationResult>("await_operation", { operationId });
+  operationProgress = (operationId: string) =>
+    invoke<Progress | null>("operation_progress", { operationId });
   cancelOperation = (operationId: string) => invoke<boolean>("cancel_operation", { operationId });
   getSettings = () => invoke<Settings>("get_settings");
   saveSettings = (settings: Settings) => invoke<Settings>("save_settings", { settings });

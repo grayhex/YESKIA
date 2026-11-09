@@ -26,15 +26,15 @@ React/TS (ui/)  ──Tauri commands (типизированные, JSON)──�
 | --- | --- |
 | `Device` | Устройство: `origin` (`mock`/`real`), `transport`, `connection`, `capabilities`. Серийник — `Sensitive` (маска в JSON/Debug). |
 | `Connection` | `ConnectionState`: `disconnected → connecting → connected → disconnecting`; ведётся `Engine`. |
-| `Transport` | Trait: `enumerate / connect / disconnect / is_present / execute`. Реальные USB/COM/WPD — отдельные реализации, UI о них не знает. |
-| `Capability` | `id` + `SupportStatus` + `Evidence[]`. Заявленная модель телефона **не** подтверждает функцию. |
+| `DeviceTransport` / `DiscoveryProvider` / `FileProvider` / `PimProvider` | Traits адаптеров (подробно — [DEVICE_CORE.md](DEVICE_CORE.md)). Реальные USB/COM/WPD — отдельные реализации, UI о них не знает. |
+| `CapabilityMatrix` | Матрица **конкретного соединения**: `availability` + `maturity` + `Evidence[]` на операцию. Модель телефона функцию не подтверждает. |
 | `Evidence` | Что подтверждает статус: `mock_test`, `host_test`, `device_run`, `trace`. |
 | `OperationResult` | `operation_id`, `outcome` (`success/failed/cancelled`), `data`, `error: ErrorInfo`, `evidence`, `origin`. |
 | `ErrorCode`/`ErrorInfo` | Стабильные коды (`DEVICE_DISCONNECTED`, `OPERATION_FAILED`, …), `retryable`, текст без IMEI/серийников. |
 
 ## Жизненный цикл и гарантии `Engine`
 
-1. На устройство — не более одной операции одновременно (`OPERATION_IN_PROGRESS`).
+1. На устройство — FIFO-очередь (по одной операции за раз, `QUEUE_FULL` сверх лимита).
 2. **Никаких автоповторов.** Ошибка записи возвращается как `Failed`; повтор — только ручной.
 3. Транспорт обязан вызывать `OperationContext::checkpoint()` между шагами (отмена + присутствие
    устройства) и **фиксировать запись атомарно в конце**. Отключение кабеля → `DEVICE_DISCONNECTED`,
