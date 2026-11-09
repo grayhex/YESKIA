@@ -86,18 +86,16 @@ fn require_absolute(p: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(windows)]
 fn is_hidden(name: &str, meta: &std::fs::Metadata) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        const HIDDEN: u32 = 0x2;
-        return meta.file_attributes() & HIDDEN != 0 || name.starts_with('.');
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = meta;
-        name.starts_with('.')
-    }
+    use std::os::windows::fs::MetadataExt;
+    const HIDDEN: u32 = 0x2; // FILE_ATTRIBUTE_HIDDEN
+    meta.file_attributes() & HIDDEN != 0 || name.starts_with('.')
+}
+
+#[cfg(not(windows))]
+fn is_hidden(name: &str, _meta: &std::fs::Metadata) -> bool {
+    name.starts_with('.')
 }
 
 /// Содержимое папки. Ошибки доступа (permissions) возвращаются структурированно.
