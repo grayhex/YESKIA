@@ -33,10 +33,42 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Сырые трассы где угодно в `root`.
+/// Файлы, которые **есть в репозитории**: отслеживаемые, индексированные и неотслеживаемые, но не
+/// игнорируемые (`git ls-files --cached --others --exclude-standard`). Игнорируемые локальные захваты
+/// (`lab-captures/`) сюда не попадают, а закоммиченные через `git add -f` — попадают.
+fn repository_files(root: &Path) -> Option<Vec<PathBuf>> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args([
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(
+        out.stdout
+            .split(|b| *b == 0)
+            .filter(|n| !n.is_empty())
+            .map(|n| root.join(String::from_utf8_lossy(n).as_ref()))
+            .collect(),
+    )
+}
+
+/// Сырые трассы в репозитории. Вне git-репозитория — обход каталога, пропуская локальный `lab-captures/`.
 pub fn scan_forbidden_files(root: &Path) -> Vec<Problem> {
-    let mut files = Vec::new();
-    walk(root, &mut files);
+    let files = repository_files(root).unwrap_or_else(|| {
+        let mut files = Vec::new();
+        walk(root, &mut files);
+        files.retain(|p| !rel(root, p).starts_with("lab-captures/"));
+        files
+    });
     files
         .into_iter()
         .filter(|p| {

@@ -158,7 +158,11 @@ pub fn analyze(f: &Fixture) -> Analysis {
                 match dir {
                     Dir::Out => {
                         if let Some(open) = exchanges.last_mut().filter(|e| {
-                            e.response_len.is_none() && e.request == data && e.request_ep == *ep
+                            // обмен, прерванный сбросом шины, закрыт: повтор после сброса — новый обмен
+                            e.response_len.is_none()
+                                && !e.interrupted_by_reset
+                                && e.request == data
+                                && e.request_ep == *ep
                         }) {
                             open.retries += 1;
                         } else {
@@ -182,7 +186,7 @@ pub fn analyze(f: &Fixture) -> Analysis {
                         }
                     }
                     Dir::In => {
-                        if let Some(e) = exchanges.last_mut() {
+                        if let Some(e) = exchanges.last_mut().filter(|e| !e.interrupted_by_reset) {
                             if e.response_ep.is_none() {
                                 e.response_ep = Some(ep.clone());
                                 e.latency_ms = Some(t_ms.saturating_sub(e.request_t_ms));

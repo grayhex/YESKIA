@@ -196,6 +196,16 @@ fn analyzer_finds_exchanges_retries_resets_and_framing() {
     let b = load("synthetic-session-b.jsonl");
     assert_eq!(b.resets_t_ms, vec![130]);
     assert!(b.exchanges[2].interrupted_by_reset);
+    // повтор после сброса — новый обмен со своими границами и задержкой, а не «ретрай» старого
+    assert_eq!(b.exchanges.len(), 4);
+    assert_eq!(
+        (b.exchanges[2].retries, b.exchanges[2].response_len),
+        (0, None)
+    );
+    assert_eq!(
+        (b.exchanges[3].retries, b.exchanges[3].latency_ms),
+        (0, Some(20))
+    );
 }
 
 #[test]
@@ -369,4 +379,53 @@ fn inventory_without_a_device_says_so() {
     let r = inventory::skeleton_from_snapshot(&t.snap, "2026-11-09", |_| Err("n/a".into()));
     assert!(r.findings[0].statement.contains("не обнаружено"));
     assert!(r.unknown.len() >= 2);
+}
+
+fn git(dir: &Path, args: &[&str]) -> bool {
+    std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+#[test]
+fn scan_ignores_local_gitignored_captures_but_rejects_tracked_ones() {
+    let root = std::env::temp_dir().join(format!("yeskia-lab-git-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("lab-captures")).unwrap();
+    if !git(&root, &["init", "-q"]) {
+        return; // git недоступен — проверка относится к окружениям с git
+    }
+    std::fs::write(root.join(".gitignore"), "lab-captures/\n*.pcap\n*.pcapng\n").unwrap();
+    std::fs::write(root.join("lab-captures/session.pcapng"), b"raw").unwrap();
+    // документированный рабочий процесс: локальный захват в игнорируемой папке не ломает scan
+    assert_eq!(scan::scan_forbidden_files(&root), vec![]);
+
+    // но захват, который реально попал в репозиторий (git add -f), отвергается
+    std::fs::write(root.join("oops.pcap"), b"raw").unwrap();
+    assert!(git(&root, &["add", "-f", "oops.pcap"]));
+    let p = scan::scan_forbidden_files(&root);
+    assert_eq!(p.len(), 1, "{p:?}");
+    assert_eq!(p[0].file, "oops.pcap");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn scan_without_git_skips_the_local_captures_directory() {
+    let root = std::env::temp_dir().join(format!("yeskia-lab-nogit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("lab-captures")).unwrap();
+    std::fs::write(root.join("lab-captures/a.pcap"), b"raw").unwrap();
+    std::fs::write(root.join("b.etl"), b"raw").unwrap();
+    // каталог во временной папке вне git (если /tmp не внутри репозитория)
+    let p = scan::scan_forbidden_files(&root);
+    assert!(
+        p.iter().all(|x| !x.file.starts_with("lab-captures/")),
+        "{p:?}"
+    );
+    assert!(p.iter().any(|x| x.file == "b.etl"), "{p:?}");
+    let _ = std::fs::remove_dir_all(root);
 }

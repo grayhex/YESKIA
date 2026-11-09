@@ -38,12 +38,25 @@
       "request_ep": "0x02",
       "request_len": 5,
       "request_head_hex": "7e 05 03 00",
+      "response_ep": null,
+      "response_len": null,
+      "response_frames": 0,
+      "latency_ms": null,
+      "retries": 0,
+      "interrupted_by_reset": true
+    },
+    {
+      "marker": "UI: list folders",
+      "request_t_ms": 150,
+      "request_ep": "0x02",
+      "request_len": 5,
+      "request_head_hex": "7e 05 03 00",
       "response_ep": "0x81",
       "response_len": 9,
       "response_frames": 1,
-      "latency_ms": 50,
-      "retries": 1,
-      "interrupted_by_reset": true
+      "latency_ms": 20,
+      "retries": 0,
+      "interrupted_by_reset": false
     }
   ],
   "resets_t_ms": [
@@ -60,10 +73,6 @@
   "hypotheses": [
     {
       "statement": "bulk-кадры, вероятно, начинаются с поля длины: смещение 1, 1 байт, little-endian, вся нагрузка (совпало 7 из 7 кадров)",
-      "evidence": "inferred"
-    },
-    {
-      "statement": "обмен 3: запрос повторён 1 раз без ответа (возможен тайм-аут/повтор на уровне протокола)",
       "evidence": "inferred"
     },
     {
