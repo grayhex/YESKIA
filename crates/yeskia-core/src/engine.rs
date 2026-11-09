@@ -167,8 +167,14 @@ impl Shared {
 
     fn find_device(&self, id: &DeviceId) -> Result<(usize, Device)> {
         for (i, t) in self.transports.iter().enumerate() {
-            if let Some(d) = t.discover()?.into_iter().find(|d| &d.id == id) {
-                return Ok((i, d));
+            // Сбой одного транспорта не должен скрывать устройства других.
+            match t.discover() {
+                Ok(devs) => {
+                    if let Some(d) = devs.into_iter().find(|d| &d.id == id) {
+                        return Ok((i, d));
+                    }
+                }
+                Err(e) => self.diag.warn(&format!("обнаружение: {e}")),
             }
         }
         Err(Error::DeviceNotFound(id.as_str().to_string()))
@@ -390,15 +396,23 @@ impl Engine {
     pub fn list_devices(&self) -> Result<Vec<Device>> {
         let sh = &self.shared;
         let mut all = Vec::new();
-        for t in &sh.transports {
-            all.extend(t.discover()?);
+        let mut failed = std::collections::HashSet::new();
+        for (i, t) in sh.transports.iter().enumerate() {
+            match t.discover() {
+                Ok(devs) => all.extend(devs),
+                Err(e) => {
+                    failed.insert(i);
+                    sh.diag.warn(&format!("обнаружение: {e}"));
+                }
+            }
         }
         let mut st = sh.lock();
         let lost: Vec<DeviceId> = st
             .connections
-            .keys()
-            .filter(|id| !all.iter().any(|d| &d.id == *id))
-            .cloned()
+            .iter()
+            // Если транспорт сейчас не смог перечислить устройства, их пропажу не утверждаем.
+            .filter(|(id, c)| !failed.contains(&c.transport) && !all.iter().any(|d| &d.id == *id))
+            .map(|(id, _)| id.clone())
             .collect();
         for id in lost {
             sh.drop_connection(&mut st, &id);

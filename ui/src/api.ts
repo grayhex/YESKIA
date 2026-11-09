@@ -1,7 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Device,
+  DoctorOptions,
+  DoctorReport,
   ErrorInfo,
+  ExportedReport,
   JournalEntry,
   OperationRequest,
   OperationResult,
@@ -25,6 +28,9 @@ export interface Backend {
   awaitOperation(operationId: string): Promise<OperationResult>;
   operationProgress(operationId: string): Promise<Progress | null>;
   cancelOperation(operationId: string): Promise<boolean>;
+  /** Read-only диагностика USB/PnP/WPD/COM; отчёт без IMEI/серийников/instance id. */
+  runDoctor(options: DoctorOptions): Promise<DoctorReport>;
+  exportDoctorReport(options: DoctorOptions): Promise<ExportedReport>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<Settings>;
   recentOperations(limit: number): Promise<JournalEntry[]>;
@@ -51,6 +57,9 @@ export class TauriBackend implements Backend {
   operationProgress = (operationId: string) =>
     invoke<Progress | null>("operation_progress", { operationId });
   cancelOperation = (operationId: string) => invoke<boolean>("cancel_operation", { operationId });
+  runDoctor = (options: DoctorOptions) => invoke<DoctorReport>("run_doctor", { options });
+  exportDoctorReport = (options: DoctorOptions) =>
+    invoke<ExportedReport>("export_doctor_report", { options });
   getSettings = () => invoke<Settings>("get_settings");
   saveSettings = (settings: Settings) => invoke<Settings>("save_settings", { settings });
   recentOperations = (limit: number) => invoke<JournalEntry[]>("recent_operations", { limit });

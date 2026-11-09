@@ -9,6 +9,7 @@ use yeskia_core::error::{Error, ErrorInfo};
 use yeskia_core::operations::{OperationRequest, OperationResult, Progress};
 use yeskia_core::storage::{data_dir, JournalEntry, Settings};
 use yeskia_core::system::SystemInfo;
+use yeskia_discovery::{CollectOptions, DoctorReport};
 
 type Cmd<T> = Result<T, ErrorInfo>;
 
@@ -104,12 +105,82 @@ fn get_diagnostics(state: tauri::State<'_, State>) -> Vec<LogEntry> {
     state.0.engine.diagnostics().snapshot()
 }
 
+#[derive(serde::Deserialize, Default)]
+struct DoctorOptions {
+    /// Кратковременно открывать COM-порты, чтобы отличить «занят» от «свободен».
+    probe_com_busy: bool,
+}
+
+fn doctor_options(o: &DoctorOptions) -> CollectOptions {
+    CollectOptions {
+        wpd_listing: true,
+        probe_com_busy: o.probe_com_busy,
+    }
+}
+
+/// Doctor: read-only диагностика USB/PnP/WPD/COM, privacy-safe отчёт.
+#[tauri::command]
+async fn run_doctor(options: DoctorOptions) -> Cmd<DoctorReport> {
+    tauri::async_runtime::spawn_blocking(move || {
+        yeskia_discovery::run_doctor(&doctor_options(&options))
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()).to_info())
+}
+
+#[derive(serde::Serialize)]
+struct ExportedReport {
+    path: String,
+    report: DoctorReport,
+}
+
+/// Запускает Doctor и сохраняет отчёт (без IMEI/серийников/instance id) в каталог данных.
+#[tauri::command]
+async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
+    tauri::async_runtime::spawn_blocking(move || -> yeskia_core::Result<ExportedReport> {
+        let report = yeskia_discovery::run_doctor(&doctor_options(&options));
+        let dir = data_dir().join("reports");
+        std::fs::create_dir_all(&dir)?;
+        let path = dir.join(format!("doctor-{}.json", report.generated_at_ms));
+        let json =
+            serde_json::to_string_pretty(&report).map_err(|e| Error::Internal(e.to_string()))?;
+        std::fs::write(&path, json)?;
+        Ok(ExportedReport {
+            path: path.display().to_string(),
+            report,
+        })
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
 fn smoke_test(core: &AppCore) -> yeskia_core::Result<SmokeReport> {
     core.smoke()
 }
 
 pub fn run() {
-    let core = match AppCore::init(&data_dir()) {
+    // `yeskia-app --doctor [--com-busy]`: печатает privacy-safe отчёт JSON и завершается
+    // (без окна; для чистого Windows 11 и для CI). Ничего не устанавливает и не пишет на устройство.
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--doctor") {
+        let options = CollectOptions {
+            wpd_listing: true,
+            probe_com_busy: args.iter().any(|a| a == "--com-busy"),
+        };
+        let report = yeskia_discovery::run_doctor(&options);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report).unwrap_or_default()
+        );
+        return;
+    }
+
+    let source: std::sync::Arc<dyn yeskia_discovery::SnapshotSource> =
+        std::sync::Arc::from(yeskia_discovery::system_source());
+    let pnp: std::sync::Arc<dyn yeskia_core::transport::DeviceTransport> =
+        std::sync::Arc::new(yeskia_discovery::adapter::PnpTransport::new(source));
+    let core = match AppCore::init_with(&data_dir(), vec![pnp]) {
         Ok(c) => Arc::new(c),
         Err(e) => {
             eprintln!(
@@ -149,6 +220,8 @@ pub fn run() {
             save_settings,
             recent_operations,
             get_diagnostics,
+            run_doctor,
+            export_doctor_report,
         ])
         .run(tauri::generate_context!())
         .expect("ошибка запуска YESKIA");

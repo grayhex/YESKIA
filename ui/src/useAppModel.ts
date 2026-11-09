@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo, type Backend } from "./api";
 import type {
   Device,
+  DoctorOptions,
+  DoctorReport,
   ErrorInfo,
   JournalEntry,
   OperationRequest,
@@ -26,6 +28,9 @@ export function useAppModel(backend: Backend) {
     request: OperationRequest;
     progress: Progress | null;
   } | null>(null);
+  const [doctorReport, setDoctorReport] = useState<DoctorReport | null>(null);
+  const [doctorRunning, setDoctorRunning] = useState(false);
+  const [exportedPath, setExportedPath] = useState<string | null>(null);
   const busyRef = useRef(false);
   const sessionStartMs = useRef(Date.now());
 
@@ -86,6 +91,34 @@ export function useAppModel(backend: Backend) {
     busy,
     /** Операции текущего запуска приложения (журнал в SQLite хранит и прошлые). */
     sessionJournal: journal.filter((j) => j.started_at_ms >= sessionStartMs.current),
+    doctorReport,
+    doctorRunning,
+    exportedPath,
+    runDoctor: async (options: DoctorOptions) => {
+      setDoctorRunning(true);
+      setError(null);
+      setExportedPath(null);
+      try {
+        setDoctorReport(await backend.runDoctor(options));
+      } catch (e) {
+        setError(toErrorInfo(e));
+      } finally {
+        setDoctorRunning(false);
+      }
+    },
+    exportReport: async (options: DoctorOptions) => {
+      setDoctorRunning(true);
+      setError(null);
+      try {
+        const r = await backend.exportDoctorReport(options);
+        setDoctorReport(r.report);
+        setExportedPath(r.path);
+      } catch (e) {
+        setError(toErrorInfo(e));
+      } finally {
+        setDoctorRunning(false);
+      }
+    },
     isUiMock: backend.isUiMock,
     refresh: () => guarded(async () => undefined),
     connect: (id: string) => guarded(async () => void (await backend.connectDevice(id))),

@@ -1,0 +1,38 @@
+[package]
+name = "yeskia-discovery"
+description = "Native Windows discovery (USB/PnP, WPD/MTP, COM) и Doctor: read-only диагностика."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["engine"]
+# Адаптер DiscoveryProvider/DeviceTransport для yeskia-core. Без него крейт не тянет
+# SQLite/C-зависимости (удобно для кросс-проверки Windows-кода на Linux).
+engine = ["dep:yeskia-core"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+yeskia-core = { path = "../yeskia-core", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Properties",
+    "Win32_Devices_PortableDevices",
+    "Win32_Security",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Registry",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_System_Variant",
+] }
+
+[[test]]
+name = "adapter"
+required-features = ["engine"]

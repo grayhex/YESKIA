@@ -28,3 +28,7 @@
 | Очередь, отмена, таймаут (в т.ч. залипший драйвер), hot unplug, partial write, несовпадение fingerprint | `tested-on-mock` | там же |
 | Безопасные пути, запрет silent overwrite, read-back SHA-256, `uncertain` | `tested-on-mock` / `tested-on-host` (пути, SQLite) | `paths::tests`, `engine.rs`, `storage::tests` |
 | Реальные адаптеры (WPD/MTP, Mass Storage, PC Suite, OBEX) | `unsupported` | #4–#6, #10; контракт трейтов готов |
+| Doctor: классификация PnP/WPD/COM, privacy-safe отчёт (issue #4) | `tested-on-mock` | `crates/yeskia-discovery/tests/doctor.rs` (поддельная топология) |
+| Windows-сборщик SetupAPI/CM/WPD, read-only | `implemented` | компиляция под Windows + запуск `--doctor` на раннере CI (без телефона) |
+| `PnpTransport` в Device Core: discovery, disconnect, fingerprint | `tested-on-mock` | `crates/yeskia-discovery/tests/adapter.rs` |
+| WPD/MTP листинг и identity на реальной Nokia `0421:0223`, E52/E72 | `not-tested` | нужен физический телефон, см. docs/DISCOVERY.md |
