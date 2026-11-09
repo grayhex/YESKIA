@@ -366,6 +366,18 @@ fn execute_request(
             path,
             overwrite,
         } => upload(t, id, std::path::Path::new(source), path, *overwrite, ctx),
+        OperationRequest::BackupCreate {
+            path,
+            dest,
+            label,
+            exclude,
+        } => backup_create(t, id, path, dest, label, exclude, ctx),
+        OperationRequest::BackupRestore {
+            backup,
+            path,
+            only,
+            apply,
+        } => backup_restore(t, id, backup, path, only.as_deref(), *apply, ctx),
         OperationRequest::ContactsRead => {
             let p = t
                 .pim()
@@ -382,6 +394,95 @@ fn execute_request(
                 count: p.sms_count(id, ctx)?,
             })
         }
+    }
+}
+
+const PLAN_ITEMS_LIMIT: usize = 500;
+
+fn backup_ctl<'a>(
+    ctx: &'a OperationContext,
+    check: &'a dyn Fn() -> Result<()>,
+    progress: &'a dyn Fn(crate::backup::BackupProgress),
+) -> crate::backup::Control<'a> {
+    let _ = ctx;
+    crate::backup::Control { check, progress }
+}
+
+/// Файловая копия папки устройства в каталог на компьютере (только чтение устройства).
+fn backup_create(
+    t: &dyn DeviceTransport,
+    id: &DeviceId,
+    path: &str,
+    dest: &str,
+    label: &str,
+    exclude: &[String],
+    ctx: &OperationContext,
+) -> Result<OperationData> {
+    let f = files(t)?;
+    let store = crate::backup::DeviceStore {
+        provider: f,
+        id,
+        ctx,
+        root: path.to_string(),
+    };
+    let check = || ctx.checkpoint();
+    let progress =
+        |p: crate::backup::BackupProgress| ctx.report_progress(p.files_done, p.files_total);
+    let ctl = backup_ctl(ctx, &check, &progress);
+    let opts = crate::backup::Options {
+        exclude: exclude.to_vec(),
+        ..Default::default()
+    };
+    let s = crate::backup::create(&store, std::path::Path::new(dest), label, &opts, &ctl)?;
+    Ok(OperationData::BackupCreated {
+        files: s.files,
+        bytes: s.bytes,
+        skipped: s.skipped,
+        complete: s.complete,
+        verified: s.verified,
+    })
+}
+
+/// План или применение восстановления на устройство (только новые файлы).
+fn backup_restore(
+    t: &dyn DeviceTransport,
+    id: &DeviceId,
+    backup: &str,
+    path: &str,
+    only: Option<&str>,
+    apply: bool,
+    ctx: &OperationContext,
+) -> Result<OperationData> {
+    let f = files(t)?;
+    let store = crate::backup::DeviceStore {
+        provider: f,
+        id,
+        ctx,
+        root: path.to_string(),
+    };
+    let check = || ctx.checkpoint();
+    let progress =
+        |p: crate::backup::BackupProgress| ctx.report_progress(p.files_done, p.files_total);
+    let ctl = backup_ctl(ctx, &check, &progress);
+    let dir = std::path::Path::new(backup);
+    if apply {
+        let r = crate::backup::restore_apply(dir, &store, only, &ctl)?;
+        Ok(OperationData::BackupApplied {
+            written: r.written,
+            identical: r.identical,
+            conflicts: r.conflicts,
+            blocked: r.blocked,
+            raced: r.raced,
+            bytes: r.bytes,
+        })
+    } else {
+        let plan = crate::backup::restore_plan(dir, &store, only, &ctl)?;
+        let truncated = plan.items.len() > PLAN_ITEMS_LIMIT;
+        Ok(OperationData::BackupPlan {
+            counts: plan.counts,
+            items: plan.items.into_iter().take(PLAN_ITEMS_LIMIT).collect(),
+            truncated,
+        })
     }
 }
 
@@ -737,10 +838,34 @@ impl Engine {
             | OperationRequest::FilesRead { path }
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
-            | OperationRequest::FilesUpload { path, .. } => *path = validate_device_path(path)?,
+            | OperationRequest::FilesUpload { path, .. }
+            | OperationRequest::BackupCreate { path, .. }
+            | OperationRequest::BackupRestore { path, .. } => *path = validate_device_path(path)?,
             _ => {}
         }
         match &request {
+            OperationRequest::BackupCreate { dest, .. } => {
+                let p = std::path::Path::new(dest);
+                if !p.is_absolute()
+                    || p.components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir))
+                {
+                    return Err(Error::UnsafePath(
+                        "каталог копии должен быть абсолютным путём".into(),
+                    ));
+                }
+            }
+            OperationRequest::BackupRestore { backup, .. } => {
+                let p = std::path::Path::new(backup);
+                if !p.is_absolute()
+                    || p.components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir))
+                {
+                    return Err(Error::UnsafePath(
+                        "каталог копии должен быть абсолютным путём".into(),
+                    ));
+                }
+            }
             OperationRequest::FilesDownload { dest, .. } => {
                 validate_host_path(std::path::Path::new(dest))?
             }

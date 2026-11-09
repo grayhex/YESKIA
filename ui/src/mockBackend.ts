@@ -2,6 +2,7 @@ import type { Backend } from "./api";
 import type {
   CapabilityEntry,
   CapabilityMatrix,
+  BackupInfo,
   Device,
   DoctorOptions,
   DoctorReport,
@@ -9,7 +10,11 @@ import type {
   ExportedReport,
   Evidence,
   HostEntry,
+  HostJobData,
+  HostJobRequest,
+  HostJobResult,
   HostRoot,
+  PlanItem,
   JournalEntry,
   Operation,
   OperationRequest,
@@ -52,9 +57,12 @@ function evidence(source: string, summary: string): Evidence {
 }
 
 /** Операция матрицы для запроса (скачивание — это `files.read`, загрузка — `files.write`). */
-function matrixOperation(type: string): Operation {
+function matrixOperation(type: string, apply = false): Operation {
+  if (type === "backup.restore") return apply ? "files.write" : "files.read";
   if (type === "files.download") return "files.read";
   if (type === "files.upload") return "files.write";
+  if (type === "backup.create") return "files.read";
+  if (type === "backup.restore") return "files.read"; // с apply = true — files.write (см. ниже)
   return type as Operation;
 }
 
@@ -80,6 +88,7 @@ export class MockBackend implements Backend {
     developer_mode: false,
     use_mock_device: true,
     log_to_file: false,
+    backup_root: null,
   };
   private journal: JournalEntry[] = [];
   private seq = 1;
@@ -110,6 +119,13 @@ export class MockBackend implements Backend {
   nextFile: string | null = "C:\\Users\\user\\Documents\\отчёт.docx";
   nextSavePath: string | null = null;
   revealed: string[] = [];
+  /** Резервные копии «хранилища»: список и содержимое (путь внутри копии → размер). */
+  backups: BackupInfo[] = [];
+  backupFiles: Record<string, Record<string, number>> = {};
+  /** Копии, которые verify считает повреждёнными (тестовый хук). */
+  corruptBackups = new Set<string>();
+  private jobs = new Map<string, { request: HostJobRequest; cancelled: boolean }>();
+  private jobSeq = 1;
 
   private device(): Device {
     return {
@@ -175,7 +191,7 @@ export class MockBackend implements Backend {
 
   async startOperation(_id: string, request: OperationRequest): Promise<string> {
     if (!this.connected || !this.matrix) throw err("NOT_CONNECTED", "устройство не подключено");
-    const op = matrixOperation(request.type);
+    const op = matrixOperation(request.type, request.type === "backup.restore" && request.apply);
     const entry = this.matrix.entries.find((e) => e.operation === op);
     if (!entry || entry.availability === "unsupported")
       throw err("CAPABILITY_UNSUPPORTED", `операция не поддерживается: ${op}`);
@@ -192,8 +208,12 @@ export class MockBackend implements Backend {
       await new Promise((r) => setTimeout(r, 10));
     }
     this.pending.delete(operationId);
-    const op = matrixOperation(p.request.type);
-    const isWrite = p.request.type === "files.write" || p.request.type === "files.upload";
+    const req = p.request;
+    const op = matrixOperation(req.type, req.type === "backup.restore" && req.apply);
+    const isWrite =
+      req.type === "files.write" ||
+      req.type === "files.upload" ||
+      (req.type === "backup.restore" && req.apply);
     const cancelled = p.cancelled;
     // Сбой записи имитируем до применения эффектов: на «устройстве» ничего не появляется.
     const fail = isWrite && this.failNextWrite && !cancelled;
@@ -312,6 +332,50 @@ export class MockBackend implements Backend {
         },
       };
     }
+    if (request.type === "backup.create") {
+      const prefix = request.path.endsWith("/") ? request.path : `${request.path}/`;
+      const files: Record<string, number> = {};
+      for (const [p, size] of Object.entries(this.deviceFiles)) {
+        if (p.startsWith(prefix)) files[p.slice(prefix.length)] = size;
+      }
+      this.newBackup(request.label, files, "device");
+      return {
+        data: {
+          type: "backup_created",
+          files: Object.keys(files).length,
+          bytes: Object.values(files).reduce((a, b) => a + b, 0),
+          skipped: 0,
+          complete: true,
+          verified: true,
+        },
+      };
+    }
+    if (request.type === "backup.restore") {
+      if (!this.backupFiles[request.backup]) return fail("BACKUP_INVALID", "копия не найдена");
+      const prefix = request.path.endsWith("/") ? request.path : `${request.path}/`;
+      const plan = this.plan(
+        request.backup,
+        request.only,
+        (rel) => this.deviceFiles[`${prefix}${rel}`],
+      );
+      if (!request.apply)
+        return {
+          data: { type: "backup_plan", counts: plan.counts, items: plan.items, truncated: false },
+        };
+      for (const it of plan.items.filter((i) => i.status === "new"))
+        this.deviceFiles[`${prefix}${it.path}`] = it.size;
+      return {
+        data: {
+          type: "backup_applied",
+          written: plan.counts.new,
+          identical: plan.counts.identical,
+          conflicts: plan.counts.conflict,
+          blocked: plan.counts.blocked,
+          raced: 0,
+          bytes: 0,
+        },
+      };
+    }
     if (request.type === "files.download") {
       const size = this.deviceFiles[request.path];
       if (size === undefined) return fail("OPERATION_FAILED", "файл на устройстве не найден");
@@ -349,6 +413,176 @@ export class MockBackend implements Backend {
       };
     }
     return null;
+  }
+
+  /** Тестовый хук: добавляет копию в «хранилище». */
+  newBackupForTest(label: string, files: Record<string, number>): string {
+    return this.newBackup(label, files, "folder");
+  }
+
+  private newBackup(label: string, files: Record<string, number>, kind: string): string {
+    const name = `20261109-120000${label ? `-${label.replace(/[^\p{L}\p{N}_-]+/gu, "-")}` : ""}-${this.backups.length + 1}`;
+    const total = Object.values(files).reduce((a, b) => a + b, 0);
+    this.backups.unshift({
+      name,
+      label,
+      created_at_ms: 1_700_000_000_000 + this.backups.length,
+      total_files: Object.keys(files).length,
+      total_bytes: total,
+      complete: true,
+      interrupted: false,
+      source_kind: kind,
+      manifest_ok: true,
+    });
+    this.backupFiles[name] = files;
+    return name;
+  }
+
+  private plan(
+    name: string,
+    only: string | null,
+    existing: (rel: string) => number | undefined,
+  ): {
+    items: PlanItem[];
+    counts: { new: number; identical: number; conflict: number; blocked: number };
+  } {
+    const counts = { new: 0, identical: 0, conflict: 0, blocked: 0 };
+    const items: PlanItem[] = [];
+    for (const [path, size] of Object.entries(this.backupFiles[name] ?? {})) {
+      if (only && path !== only && !path.startsWith(`${only}/`)) continue;
+      const have = existing(path);
+      const status = have === undefined ? "new" : have === size ? "identical" : "conflict";
+      counts[status]++;
+      items.push({
+        path,
+        size,
+        status,
+        reason: status === "conflict" ? "содержимое отличается" : null,
+      });
+    }
+    return { items, counts };
+  }
+
+  async backupList() {
+    return this.backups.map((b) => ({ ...b }));
+  }
+
+  async startHostJob(request: HostJobRequest) {
+    if (request.type !== "backup.create_local" && !this.backupFiles[request.name])
+      throw err("UNSAFE_PATH", "недопустимое имя копии");
+    const id = `job-${this.jobSeq++}`;
+    this.jobs.set(id, { request, cancelled: false });
+    return id;
+  }
+
+  async awaitHostJob(jobId: string): Promise<HostJobResult> {
+    const job = this.jobs.get(jobId);
+    if (!job) throw err("INVALID_ARGUMENT", "неизвестное задание");
+    const started = Date.now();
+    while (Date.now() - started < this.holdMs && !job.cancelled) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    this.jobs.delete(jobId);
+    if (job.cancelled)
+      return {
+        job_id: jobId,
+        outcome: "cancelled",
+        data: null,
+        error: {
+          code: "OPERATION_CANCELLED",
+          message: "операция отменена",
+          retryable: true,
+          action: "retry_manually",
+        },
+      };
+    const r = job.request;
+    let data: HostJobData;
+    if (r.type === "backup.create_local") {
+      const prefix = r.source.endsWith(HOST_SEP) ? r.source : `${r.source}${HOST_SEP}`;
+      const files: Record<string, number> = {};
+      for (const [p, size] of Object.entries(this.hostFiles)) {
+        if (p.startsWith(prefix)) files[p.slice(prefix.length).split(HOST_SEP).join("/")] = size;
+      }
+      const name = this.newBackup(r.label, files, "folder");
+      data = {
+        type: "backup_created",
+        name,
+        files: Object.keys(files).length,
+        bytes: Object.values(files).reduce((a, b) => a + b, 0),
+        skipped: 0,
+        complete: true,
+        verified: true,
+      };
+    } else if (r.type === "backup.verify") {
+      const bad = this.corruptBackups.has(r.name);
+      const first = Object.keys(this.backupFiles[r.name] ?? {})[0];
+      data = {
+        type: "backup_verified",
+        report: {
+          ok: !bad,
+          manifest_ok: true,
+          files_checked: Object.keys(this.backupFiles[r.name] ?? {}).length,
+          missing: [],
+          corrupt: bad && first ? [first] : [],
+          extra: [],
+          unsafe_paths: [],
+        },
+      };
+    } else {
+      const prefix = r.target.endsWith(HOST_SEP) ? r.target : `${r.target}${HOST_SEP}`;
+      const hostPath = (rel: string) => `${prefix}${rel.split("/").join(HOST_SEP)}`;
+      const plan = this.plan(r.name, r.only, (rel) => this.hostFiles[hostPath(rel)]);
+      if (r.apply) {
+        if (this.corruptBackups.has(r.name))
+          return {
+            job_id: jobId,
+            outcome: "failed",
+            data: null,
+            error: {
+              code: "BACKUP_INVALID",
+              message: "копия не прошла проверку; восстановление отменено",
+              retryable: false,
+              action: "none",
+            },
+          };
+        let written = 0;
+        for (const it of plan.items.filter((i) => i.status === "new")) {
+          this.hostFiles[hostPath(it.path)] = it.size;
+          written++;
+        }
+        data = {
+          type: "backup_applied",
+          report: {
+            written,
+            identical: plan.counts.identical,
+            conflicts: plan.counts.conflict,
+            blocked: plan.counts.blocked,
+            raced: 0,
+            bytes: 0,
+          },
+        };
+      } else {
+        data = { type: "backup_plan", counts: plan.counts, items: plan.items, truncated: false };
+      }
+    }
+    return { job_id: jobId, outcome: "success", data, error: null };
+  }
+
+  async hostJobProgress(jobId: string): Promise<Progress | null> {
+    return this.jobs.has(jobId) ? { done: 1, total: 4 } : null;
+  }
+
+  async cancelHostJob(jobId: string) {
+    const j = this.jobs.get(jobId);
+    if (!j) return false;
+    j.cancelled = true;
+    return true;
+  }
+
+  savedReports: { name: string; json: string }[] = [];
+  async saveReport(name: string, json: string) {
+    this.savedReports.push({ name, json });
+    return `C:\\Users\\user\\AppData\\Roaming\\YESKIA\\reports\\${name}.json`;
   }
 
   async hostRoots(): Promise<HostRoot[]> {

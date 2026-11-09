@@ -111,6 +111,16 @@ impl FileProvider for VolumeFileProvider {
         entry_of(&p, name).map(Some)
     }
 
+    fn create_dir(&self, _id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<()> {
+        ctx.checkpoint()?;
+        let dir = self.resolve(path)?;
+        match std::fs::create_dir(&dir) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && dir.is_dir() => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     fn read(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<Vec<u8>> {
         let mut v = Vec::new();
         self.read_to(id, path, &mut v, ctx)?;

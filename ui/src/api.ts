@@ -1,12 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type {
+  BackupInfo,
   Device,
   DoctorOptions,
   DoctorReport,
   ErrorInfo,
   ExportedReport,
   HostEntry,
+  HostJobRequest,
+  HostJobResult,
   HostRoot,
   JournalEntry,
   OperationRequest,
@@ -45,6 +48,15 @@ export interface Backend {
   pickFolder(): Promise<string | null>;
   pickFile(): Promise<string | null>;
   pickSavePath(defaultName: string): Promise<string | null>;
+  /** Резервные копии в хранилище. */
+  backupList(): Promise<BackupInfo[]>;
+  /** Задания без устройства: копия папки компьютера, проверка, восстановление в папку. */
+  startHostJob(request: HostJobRequest): Promise<string>;
+  awaitHostJob(jobId: string): Promise<HostJobResult>;
+  hostJobProgress(jobId: string): Promise<Progress | null>;
+  cancelHostJob(jobId: string): Promise<boolean>;
+  /** Сохраняет JSON-отчёт в каталог данных приложения; возвращает путь. */
+  saveReport(name: string, json: string): Promise<string>;
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<Settings>;
   recentOperations(limit: number): Promise<JournalEntry[]>;
@@ -88,6 +100,12 @@ export class TauriBackend implements Backend {
   };
   pickSavePath = async (defaultName: string) =>
     (await saveDialog({ defaultPath: defaultName })) ?? null;
+  backupList = () => invoke<BackupInfo[]>("backup_list");
+  startHostJob = (request: HostJobRequest) => invoke<string>("start_host_job", { request });
+  awaitHostJob = (jobId: string) => invoke<HostJobResult>("await_host_job", { jobId });
+  hostJobProgress = (jobId: string) => invoke<Progress | null>("host_job_progress", { jobId });
+  cancelHostJob = (jobId: string) => invoke<boolean>("cancel_host_job", { jobId });
+  saveReport = (name: string, json: string) => invoke<string>("save_report", { name, json });
   getSettings = () => invoke<Settings>("get_settings");
   saveSettings = (settings: Settings) => invoke<Settings>("save_settings", { settings });
   recentOperations = (limit: number) => invoke<JournalEntry[]>("recent_operations", { limit });

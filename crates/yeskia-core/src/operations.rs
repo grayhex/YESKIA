@@ -114,6 +114,27 @@ pub enum OperationRequest {
         #[serde(default)]
         overwrite: OverwritePolicy,
     },
+    /// Резервная копия папки устройства в новый/пустой каталог на компьютере (`dest`).
+    /// Это **файловая** копия, не полный backup телефона. Чтение устройства, записи на него нет.
+    #[serde(rename = "backup.create")]
+    BackupCreate {
+        path: String,
+        dest: String,
+        label: String,
+        #[serde(default)]
+        exclude: Vec<String>,
+    },
+    /// Восстановление копии (`backup` — каталог на компьютере) в папку устройства `path`.
+    /// `apply = false` — только план (чтение); `true` — запись **только новых** файлов.
+    #[serde(rename = "backup.restore")]
+    BackupRestore {
+        backup: String,
+        path: String,
+        #[serde(default)]
+        only: Option<String>,
+        #[serde(default)]
+        apply: bool,
+    },
     #[serde(rename = "contacts.read")]
     ContactsRead,
     #[serde(rename = "sms.read")]
@@ -129,7 +150,16 @@ impl OperationRequest {
             OperationRequest::FilesWrite { .. } | OperationRequest::FilesUpload { .. } => {
                 Operation::FilesWrite
             }
-            OperationRequest::FilesDownload { .. } => Operation::FilesRead,
+            OperationRequest::FilesDownload { .. } | OperationRequest::BackupCreate { .. } => {
+                Operation::FilesRead
+            }
+            OperationRequest::BackupRestore { apply, .. } => {
+                if *apply {
+                    Operation::FilesWrite
+                } else {
+                    Operation::FilesRead
+                }
+            }
             OperationRequest::ContactsRead => Operation::ContactsRead,
             OperationRequest::SmsRead => Operation::SmsRead,
         }
@@ -140,7 +170,9 @@ impl OperationRequest {
             | OperationRequest::FilesRead { path }
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
-            | OperationRequest::FilesUpload { path, .. } => Some(path),
+            | OperationRequest::FilesUpload { path, .. }
+            | OperationRequest::BackupCreate { path, .. }
+            | OperationRequest::BackupRestore { path, .. } => Some(path),
             _ => None,
         }
     }
@@ -173,6 +205,27 @@ pub enum OperationData {
         sha256: String,
         verified: bool,
         replaced: bool,
+    },
+    BackupCreated {
+        files: u64,
+        bytes: u64,
+        skipped: u64,
+        complete: bool,
+        verified: bool,
+    },
+    /// План восстановления (первые записи; полный счёт — в `counts`).
+    BackupPlan {
+        counts: crate::backup::PlanCounts,
+        items: Vec<crate::backup::PlanItem>,
+        truncated: bool,
+    },
+    BackupApplied {
+        written: u64,
+        identical: u64,
+        conflicts: u64,
+        blocked: u64,
+        raced: u64,
+        bytes: u64,
     },
     /// Файл скачан на компьютер: размер совпал с устройством, хеш подтверждён чтением с диска.
     Downloaded {

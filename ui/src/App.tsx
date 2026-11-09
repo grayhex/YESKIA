@@ -3,6 +3,7 @@ import type { Backend } from "./api";
 import { ErrorMessage } from "./components/Ui";
 import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
 import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
+import { BackupsPage } from "./pages/BackupsPage";
 import { ConnectionPage } from "./pages/ConnectionPage";
 import { DoctorPage } from "./pages/DoctorPage";
 import { FileManagerPage } from "./pages/FileManagerPage";
@@ -24,6 +25,7 @@ export function App({ backend }: { backend: Backend }) {
     { id: "home", label: "nav.home" },
     { id: "connection", label: "nav.connection" },
     { id: "files", label: "nav.files" },
+    { id: "backups", label: "nav.backups" },
     { id: "doctor", label: "nav.doctor" },
     ...(developer ? ([{ id: "journal", label: "nav.journal" }] as NavEntry[]) : []),
     { id: "settings", label: "nav.settings" },
@@ -72,6 +74,7 @@ export function App({ backend }: { backend: Backend }) {
           {current === "home" && <HomePage model={model} go={select} />}
           {current === "connection" && <ConnectionPage model={model} developer={developer} />}
           {current === "files" && <FileManagerPage model={model} go={select} />}
+          {current === "backups" && <BackupsPage model={model} />}
           {current === "doctor" && <DoctorPage model={model} developer={developer} />}
           {current === "journal" && <JournalPage model={model} />}
           {current === "settings" && <SettingsPage model={model} />}

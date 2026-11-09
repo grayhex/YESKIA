@@ -39,3 +39,5 @@
 | Лаборатория NPC: формат отчёта v1, редактор приватных данных, анализатор журналов, scan (issue #6) | `tested-on-mock` | `crates/yeskia-lab/tests/lab.rs` (синтетические фикстуры, реплей-тесты) |
 | Реальный обезличенный кейс «USB enumeration → identify attempt» | `not-tested` | нужен собственный телефон; инструкция в `docs/protocol/OBSERVATIONS.md` |
 | Протоколы PC Suite (NPC) | `unsupported` | ни одна функция не заявляется без адаптера YESKIA, проверенного на телефоне |
+| Файловые резервные копии: create/verify/restore-plan/apply только новых (issue #7) | `tested-on-host` / `tested-on-mock` | `crates/yeskia-core/tests/backup*.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/Backups.test.tsx` |
+| Резервная копия с реального телефона/карты | `not-tested` | нужен физический телефон; это файловая копия, не полный backup (docs/BACKUPS.md) |

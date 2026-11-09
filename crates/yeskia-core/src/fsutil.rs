@@ -16,6 +16,22 @@ const RESERVED: &[&str] = &[
 ];
 const FORBIDDEN: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
+/// Путь для файловых операций: на Windows добавляет префикс `\\?\` (пути длиннее 260 символов);
+/// на остальных ОС — без изменений. Только для абсолютных путей.
+pub fn long_path(p: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let s = p.to_string_lossy();
+        if p.is_absolute() && !s.starts_with("\\\\?\\") {
+            return match s.strip_prefix("\\\\") {
+                Some(unc) => PathBuf::from(format!("\\\\?\\UNC\\{unc}")),
+                None => PathBuf::from(format!("\\\\?\\{s}")),
+            };
+        }
+    }
+    p.to_path_buf()
+}
+
 pub fn sha256_hex(data: &[u8]) -> String {
     hex(&Sha256::digest(data))
 }

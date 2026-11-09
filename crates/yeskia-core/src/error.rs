@@ -20,6 +20,9 @@ pub enum ErrorCode {
     UnsafePath,
     HostAccess,
     VerificationFailed,
+    BackupInvalid,
+    LimitExceeded,
+    InsufficientSpace,
     TransportError,
     StorageError,
     InvalidArgument,
@@ -80,6 +83,14 @@ pub enum Error {
     HostAccess(String),
     #[error("запись не подтверждена обратным чтением")]
     VerificationFailed,
+    #[error("резервная копия повреждена или небезопасна: {0}")]
+    BackupInvalid(String),
+    #[error("файл исчез на источнике")]
+    NotFoundOnSource,
+    #[error("превышен лимит: {0}")]
+    LimitExceeded(String),
+    #[error("недостаточно свободного места")]
+    InsufficientSpace,
     #[error("ошибка транспорта: {0}")]
     Transport(String),
     #[error("ошибка хранилища: {0}")]
@@ -109,6 +120,10 @@ impl Error {
             Error::UnsafePath(_) => ErrorCode::UnsafePath,
             Error::HostAccess(_) => ErrorCode::HostAccess,
             Error::VerificationFailed => ErrorCode::VerificationFailed,
+            Error::BackupInvalid(_) => ErrorCode::BackupInvalid,
+            Error::LimitExceeded(_) => ErrorCode::LimitExceeded,
+            Error::NotFoundOnSource => ErrorCode::OperationFailed,
+            Error::InsufficientSpace => ErrorCode::InsufficientSpace,
             Error::Transport(_) => ErrorCode::TransportError,
             Error::Storage(_) => ErrorCode::StorageError,
             Error::InvalidArgument(_) => ErrorCode::InvalidArgument,
@@ -140,6 +155,7 @@ impl Error {
                 UserAction::ChooseAnotherPath
             }
             Error::VerificationFailed => UserAction::VerifyDeviceContents,
+            Error::InsufficientSpace | Error::LimitExceeded(_) => UserAction::ChooseAnotherPath,
             Error::OperationFailed(_) | Error::Timeout | Error::Cancelled => {
                 UserAction::RetryManually
             }
@@ -158,6 +174,9 @@ impl Error {
                 | Error::UnsafePath(_)
                 | Error::HostAccess(_)
                 | Error::InvalidArgument(_)
+                | Error::BackupInvalid(_)
+                | Error::LimitExceeded(_)
+                | Error::InsufficientSpace
                 | Error::CapabilityUnsupported(_)
                 | Error::NotConnected
                 | Error::QueueFull
