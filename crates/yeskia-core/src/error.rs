@@ -18,6 +18,7 @@ pub enum ErrorCode {
     FingerprintMismatch,
     AlreadyExists,
     UnsafePath,
+    HostAccess,
     VerificationFailed,
     TransportError,
     StorageError,
@@ -75,6 +76,8 @@ pub enum Error {
     AlreadyExists,
     #[error("небезопасный путь: {0}")]
     UnsafePath(String),
+    #[error("{0}")]
+    HostAccess(String),
     #[error("запись не подтверждена обратным чтением")]
     VerificationFailed,
     #[error("ошибка транспорта: {0}")]
@@ -104,6 +107,7 @@ impl Error {
             Error::FingerprintMismatch => ErrorCode::FingerprintMismatch,
             Error::AlreadyExists => ErrorCode::AlreadyExists,
             Error::UnsafePath(_) => ErrorCode::UnsafePath,
+            Error::HostAccess(_) => ErrorCode::HostAccess,
             Error::VerificationFailed => ErrorCode::VerificationFailed,
             Error::Transport(_) => ErrorCode::TransportError,
             Error::Storage(_) => ErrorCode::StorageError,
@@ -132,7 +136,9 @@ impl Error {
                 UserAction::Reconnect
             }
             Error::QueueFull => UserAction::WaitAndRetry,
-            Error::AlreadyExists | Error::UnsafePath(_) => UserAction::ChooseAnotherPath,
+            Error::AlreadyExists | Error::UnsafePath(_) | Error::HostAccess(_) => {
+                UserAction::ChooseAnotherPath
+            }
             Error::VerificationFailed => UserAction::VerifyDeviceContents,
             Error::OperationFailed(_) | Error::Timeout | Error::Cancelled => {
                 UserAction::RetryManually
@@ -150,6 +156,7 @@ impl Error {
             self,
             Error::AlreadyExists
                 | Error::UnsafePath(_)
+                | Error::HostAccess(_)
                 | Error::InvalidArgument(_)
                 | Error::CapabilityUnsupported(_)
                 | Error::NotConnected

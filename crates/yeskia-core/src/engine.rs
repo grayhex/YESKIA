@@ -12,11 +12,13 @@
 use crate::device::*;
 use crate::diagnostics::Diagnostics;
 use crate::error::{Error, Result};
+use crate::fsutil::{
+    hash_file, place_file, sha256_hex, temp_path_for, validate_host_path, HashReader, HashWriter,
+};
 use crate::operations::*;
 use crate::paths::validate_device_path;
 use crate::storage::{JournalState, Storage};
 use crate::transport::{DeviceTransport, ProbeOutcome};
-use sha2::{Digest, Sha256};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -118,13 +120,6 @@ pub struct OperationHandle {
     progress: Arc<ProgressCell>,
     /// `wait` вызван: очисткой занимается он; иначе — `Drop` (брошенный handle).
     consumed: bool,
-}
-
-fn sha256_hex(data: &[u8]) -> String {
-    Sha256::digest(data)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
 }
 
 fn evidence(origin: DeviceOrigin, source: &str, summary: &str, fp: &str) -> Evidence {
@@ -240,12 +235,14 @@ impl Shared {
         let entries = Operation::ALL
             .iter()
             .map(|&op| {
-                let maturity = transport.maturity(op);
+                let maturity = transport.maturity_for(&device.id, op);
                 let outcome = probe.iter().find(|p| p.operation == op);
                 let (availability, detail) = match (maturity, outcome) {
-                    (SupportStatus::Unsupported, _) => (
+                    // Причину «не поддерживается» берём у probe (режим USB и т. п.), если он её назвал.
+                    (SupportStatus::Unsupported, o) => (
                         Availability::Unsupported,
-                        Some("адаптер не реализует операцию".to_string()),
+                        o.and_then(|o| o.detail.clone())
+                            .or(Some("адаптер не реализует операцию".to_string())),
                     ),
                     (_, Some(o)) => (o.availability, o.detail.clone()),
                     (_, None) => (Availability::NotTested, None),
@@ -359,6 +356,16 @@ fn execute_request(
                 replaced: existing.is_some(),
             })
         }
+        OperationRequest::FilesDownload {
+            path,
+            dest,
+            overwrite,
+        } => download(t, id, path, std::path::Path::new(dest), *overwrite, ctx),
+        OperationRequest::FilesUpload {
+            source,
+            path,
+            overwrite,
+        } => upload(t, id, std::path::Path::new(source), path, *overwrite, ctx),
         OperationRequest::ContactsRead => {
             let p = t
                 .pim()
@@ -376,6 +383,114 @@ fn execute_request(
             })
         }
     }
+}
+
+/// Скачивание на компьютер: временный файл → проверка размера → атомарное размещение без
+/// перезаписи → чтение с диска и сверка SHA-256. При любом сбое/отмене временный файл удаляется,
+/// под настоящим именем частичного файла не остаётся.
+fn download(
+    t: &dyn DeviceTransport,
+    id: &DeviceId,
+    path: &str,
+    dest: &std::path::Path,
+    overwrite: OverwritePolicy,
+    ctx: &OperationContext,
+) -> Result<OperationData> {
+    let f = files(t)?;
+    let st = f
+        .stat(id, path, ctx)?
+        .ok_or_else(|| Error::OperationFailed("файл на устройстве не найден".into()))?;
+    if st.is_dir {
+        return Err(Error::InvalidArgument("это папка, а не файл".into()));
+    }
+    let existed = dest.exists();
+    if existed && overwrite == OverwritePolicy::Never {
+        return Err(Error::AlreadyExists);
+    }
+    let tmp = temp_path_for(dest);
+    let cleanup = |e: Error| {
+        let _ = std::fs::remove_file(&tmp);
+        e
+    };
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::PermissionDenied => {
+                Error::HostAccess("нет прав на запись в папку назначения".into())
+            }
+            std::io::ErrorKind::NotFound => Error::HostAccess("папка назначения не найдена".into()),
+            _ => Error::from(e),
+        })?;
+    let mut hw = HashWriter::new(std::io::BufWriter::new(file), st.size, Some(ctx));
+    let read = f.read_to(id, path, &mut hw, ctx).map_err(cleanup)?;
+    let (bytes, sha, writer) = hw.finish().map_err(|e| cleanup(e.into()))?;
+    let file = writer
+        .into_inner()
+        .map_err(|e| cleanup(e.into_error().into()))?;
+    file.sync_all().map_err(|e| cleanup(e.into()))?;
+    drop(file);
+    if read != bytes || bytes != st.size {
+        return Err(cleanup(Error::VerificationFailed));
+    }
+    ctx.checkpoint().map_err(cleanup)?;
+    place_file(&tmp, dest, overwrite).map_err(cleanup)?;
+    // Подтверждение: читаем результат с диска и сверяем с тем, что пришло с устройства.
+    let (b2, sha2) = hash_file(dest, Some(ctx))?;
+    if b2 != bytes || sha2 != sha {
+        return Err(Error::VerificationFailed);
+    }
+    Ok(OperationData::Downloaded {
+        bytes,
+        sha256: sha,
+        verified: true,
+        replaced: existed,
+    })
+}
+
+/// Загрузка файла с компьютера на устройство с подтверждением обратным чтением (SHA-256).
+fn upload(
+    t: &dyn DeviceTransport,
+    id: &DeviceId,
+    source: &std::path::Path,
+    path: &str,
+    overwrite: OverwritePolicy,
+    ctx: &OperationContext,
+) -> Result<OperationData> {
+    let f = files(t)?;
+    let meta = std::fs::metadata(source).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => Error::HostAccess("исходный файл не найден".into()),
+        std::io::ErrorKind::PermissionDenied => {
+            Error::HostAccess("нет прав на чтение файла".into())
+        }
+        _ => Error::from(e),
+    })?;
+    if !meta.is_file() {
+        return Err(Error::InvalidArgument(
+            "загружать можно только файлы".into(),
+        ));
+    }
+    let existing = f.stat(id, path, ctx)?;
+    if existing.is_some() && overwrite == OverwritePolicy::Never {
+        return Err(Error::AlreadyExists);
+    }
+    let mut reader = HashReader::new(std::fs::File::open(source)?);
+    f.write_from(id, path, &mut reader, meta.len(), overwrite, ctx)?;
+    let (bytes, want) = reader.finish();
+    ctx.checkpoint()?;
+    let mut hw = HashWriter::new(std::io::sink(), bytes, None);
+    f.read_to(id, path, &mut hw, ctx)?;
+    let (back_bytes, back_sha, _) = hw.finish()?;
+    if back_bytes != bytes || back_sha != want {
+        return Err(Error::VerificationFailed);
+    }
+    Ok(OperationData::Written {
+        bytes,
+        sha256: want,
+        verified: true,
+        replaced: existing.is_some(),
+    })
 }
 
 impl Engine {
@@ -620,7 +735,26 @@ impl Engine {
         match &mut request {
             OperationRequest::FilesList { path }
             | OperationRequest::FilesRead { path }
-            | OperationRequest::FilesWrite { path, .. } => *path = validate_device_path(path)?,
+            | OperationRequest::FilesWrite { path, .. }
+            | OperationRequest::FilesDownload { path, .. }
+            | OperationRequest::FilesUpload { path, .. } => *path = validate_device_path(path)?,
+            _ => {}
+        }
+        match &request {
+            OperationRequest::FilesDownload { dest, .. } => {
+                validate_host_path(std::path::Path::new(dest))?
+            }
+            OperationRequest::FilesUpload { source, .. } => {
+                let p = std::path::Path::new(source);
+                if !p.is_absolute()
+                    || p.components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir))
+                {
+                    return Err(Error::UnsafePath(
+                        "исходный путь должен быть абсолютным".into(),
+                    ));
+                }
+            }
             _ => {}
         }
         if let OperationRequest::FilesWrite { data, .. } = &request {

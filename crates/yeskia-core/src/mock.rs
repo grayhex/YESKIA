@@ -37,6 +37,8 @@ struct MockState {
     hang_next_ms: u64,
     /// Следующий probe «зависает» на N мс.
     hang_probe_ms: u64,
+    /// Пауза между блоками потокового чтения (проверка отмены/отключения при скачивании).
+    read_chunk_delay_ms: u64,
     maturity: HashMap<Operation, SupportStatus>,
     probe_errors: HashSet<Operation>,
     /// Подменить устройство в момент фиксации записи (смена телефона во время записи).
@@ -75,6 +77,7 @@ impl MockTransport {
             step_delay_ms: 0,
             hang_next_ms: 0,
             hang_probe_ms: 0,
+            read_chunk_delay_ms: 0,
             maturity: HashMap::new(),
             probe_errors: HashSet::new(),
             swap_on_commit: None,
@@ -107,6 +110,9 @@ impl MockTransport {
         let mut s = self.st();
         s.write_steps = steps.max(1);
         s.step_delay_ms = step_delay_ms;
+    }
+    pub fn set_read_delay(&self, ms: u64) {
+        self.st().read_chunk_delay_ms = ms;
     }
     pub fn hang_next_probe(&self, ms: u64) {
         self.st().hang_probe_ms = ms;
@@ -334,6 +340,30 @@ impl FileProvider for MockTransport {
             .get(path)
             .cloned()
             .ok_or_else(|| Error::OperationFailed("файл не найден".into()))
+    }
+
+    fn read_to(
+        &self,
+        id: &DeviceId,
+        path: &str,
+        sink: &mut dyn std::io::Write,
+        ctx: &OperationContext,
+    ) -> Result<u64> {
+        let data = self.read(id, path, ctx)?;
+        let delay = self.st().read_chunk_delay_ms;
+        let chunk = (data.len() / 10).max(1);
+        let total = data.len() as u64;
+        let mut done = 0u64;
+        for part in data.chunks(chunk) {
+            ctx.checkpoint()?;
+            if delay > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+            }
+            sink.write_all(part)?;
+            done += part.len() as u64;
+            ctx.report_progress(done, total);
+        }
+        Ok(done)
     }
 
     fn write(

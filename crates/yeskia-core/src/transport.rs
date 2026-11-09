@@ -4,6 +4,7 @@
 use crate::device::{Availability, Device, DeviceId, SupportStatus, TransportKind};
 use crate::error::{Error, Result};
 use crate::operations::{FileEntry, Operation, OperationContext, OverwritePolicy};
+use std::io::{Read, Write};
 
 /// Перечисление устройств. Успешное перечисление **не** означает доступность операций.
 pub trait DiscoveryProvider: Send + Sync {
@@ -28,6 +29,12 @@ pub trait DeviceTransport: DiscoveryProvider {
 
     /// Зрелость реализации операции в **коде** адаптера. `Unsupported` — адаптер не умеет.
     fn maturity(&self, op: Operation) -> SupportStatus;
+
+    /// Зрелость операции для конкретного устройства (режим USB определяет доступный сервис).
+    /// По умолчанию совпадает с `maturity`.
+    fn maturity_for(&self, _id: &DeviceId, op: Operation) -> SupportStatus {
+        self.maturity(op)
+    }
 
     /// **Только чтение.** Probe не имеет права писать на устройство. Операции записи
     /// не проверяются probe и остаются `NotTested` до явной операции пользователя.
@@ -63,6 +70,35 @@ pub trait FileProvider: Send + Sync {
         overwrite: OverwritePolicy,
         ctx: &OperationContext,
     ) -> Result<()>;
+
+    /// Потоковое чтение в `sink`. Реализация между блоками вызывает `ctx.checkpoint()` и
+    /// `ctx.report_progress()`. По умолчанию читает файл целиком (годится для малых файлов).
+    fn read_to(
+        &self,
+        id: &DeviceId,
+        path: &str,
+        sink: &mut dyn Write,
+        ctx: &OperationContext,
+    ) -> Result<u64> {
+        let data = self.read(id, path, ctx)?;
+        sink.write_all(&data)?;
+        Ok(data.len() as u64)
+    }
+
+    /// Потоковая запись из `source` (`len` — ожидаемый размер). По умолчанию через память.
+    fn write_from(
+        &self,
+        id: &DeviceId,
+        path: &str,
+        source: &mut dyn Read,
+        _len: u64,
+        overwrite: OverwritePolicy,
+        ctx: &OperationContext,
+    ) -> Result<()> {
+        let mut buf = Vec::new();
+        source.read_to_end(&mut buf)?;
+        self.write(id, path, &buf, overwrite, ctx)
+    }
 }
 
 /// Контакты и SMS. Данные не покидают ядро через журнал; методы по умолчанию — «не поддерживается».

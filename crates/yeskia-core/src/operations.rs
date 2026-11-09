@@ -97,6 +97,23 @@ pub enum OperationRequest {
         #[serde(default)]
         overwrite: OverwritePolicy,
     },
+    /// Скачать файл с устройства в `dest` (абсолютный путь файла на компьютере).
+    /// Пишется во временный файл, затем размещается без перезаписи (если не `Replace`).
+    #[serde(rename = "files.download")]
+    FilesDownload {
+        path: String,
+        dest: String,
+        #[serde(default)]
+        overwrite: OverwritePolicy,
+    },
+    /// Загрузить файл с компьютера (`source`) на устройство. Записью считается `files.write`.
+    #[serde(rename = "files.upload")]
+    FilesUpload {
+        source: String,
+        path: String,
+        #[serde(default)]
+        overwrite: OverwritePolicy,
+    },
     #[serde(rename = "contacts.read")]
     ContactsRead,
     #[serde(rename = "sms.read")]
@@ -109,7 +126,10 @@ impl OperationRequest {
             OperationRequest::IdentityRead => Operation::IdentityRead,
             OperationRequest::FilesList { .. } => Operation::FilesList,
             OperationRequest::FilesRead { .. } => Operation::FilesRead,
-            OperationRequest::FilesWrite { .. } => Operation::FilesWrite,
+            OperationRequest::FilesWrite { .. } | OperationRequest::FilesUpload { .. } => {
+                Operation::FilesWrite
+            }
+            OperationRequest::FilesDownload { .. } => Operation::FilesRead,
             OperationRequest::ContactsRead => Operation::ContactsRead,
             OperationRequest::SmsRead => Operation::SmsRead,
         }
@@ -118,7 +138,9 @@ impl OperationRequest {
         match self {
             OperationRequest::FilesList { path }
             | OperationRequest::FilesRead { path }
-            | OperationRequest::FilesWrite { path, .. } => Some(path),
+            | OperationRequest::FilesWrite { path, .. }
+            | OperationRequest::FilesDownload { path, .. }
+            | OperationRequest::FilesUpload { path, .. } => Some(path),
             _ => None,
         }
     }
@@ -147,6 +169,13 @@ pub enum OperationData {
         sha256: String,
     },
     Written {
+        bytes: u64,
+        sha256: String,
+        verified: bool,
+        replaced: bool,
+    },
+    /// Файл скачан на компьютер: размер совпал с устройством, хеш подтверждён чтением с диска.
+    Downloaded {
         bytes: u64,
         sha256: String,
         verified: bool,

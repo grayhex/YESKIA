@@ -7,6 +7,10 @@ use std::sync::Mutex;
 pub struct FakeTopology {
     pub snap: Snapshot,
     counter: u32,
+    /// (usb instance id, путь «Хранилище/папка/файл», содержимое) — дерево файлов WPD.
+    pub wpd_files: Vec<(String, String, Vec<u8>)>,
+    /// Пауза между блоками чтения WPD (проверка отмены/отключения).
+    pub read_delay_ms: u64,
 }
 
 impl FakeTopology {
@@ -84,6 +88,15 @@ impl FakeTopology {
             firmware: Some("1.0".into()),
             listing,
         });
+    }
+
+    /// Файл в дереве WPD устройства: `path` — «Phone memory/DCIM/img.jpg».
+    pub fn wpd_file(&mut self, usb_instance_id: &str, path: &str, data: &[u8]) {
+        self.wpd_files.push((
+            usb_instance_id.to_ascii_lowercase(),
+            path.to_string(),
+            data.to_vec(),
+        ));
     }
 
     pub fn com(&mut self, usb_instance_id: &str, name: &str, busy: Option<bool>) {
@@ -191,5 +204,80 @@ impl SnapshotSource for FakeSource {
                 stage: "wpd_identity".into(),
                 code: Some(0x8007_0490),
             })
+    }
+
+    fn wpd_list(
+        &self,
+        wpd_device_id: &str,
+        path: &[String],
+    ) -> Result<Vec<WpdEntry>, CollectError> {
+        let t = self.topology.lock().unwrap();
+        let usb = wpd_id_to_instance(wpd_device_id).ok_or(CollectError {
+            stage: "wpd_list".into(),
+            code: Some(0x8007_0490),
+        })?;
+        let mut out: Vec<WpdEntry> = Vec::new();
+        for (u, p, data) in &t.wpd_files {
+            if *u != usb {
+                continue;
+            }
+            let comps: Vec<&str> = p.split('/').collect();
+            if comps.len() <= path.len() || !comps.iter().zip(path).all(|(a, b)| *a == b.as_str()) {
+                continue;
+            }
+            let name = comps[path.len()].to_string();
+            let is_dir = comps.len() > path.len() + 1;
+            if !out.iter().any(|e| e.name == name) {
+                out.push(WpdEntry {
+                    name,
+                    is_dir,
+                    size: if is_dir { 0 } else { data.len() as u64 },
+                });
+            }
+        }
+        if out.is_empty() && !path.is_empty() {
+            return Err(CollectError {
+                stage: "wpd_list_not_found".into(),
+                code: Some(0x8007_0002),
+            });
+        }
+        Ok(out)
+    }
+
+    fn wpd_read(
+        &self,
+        wpd_device_id: &str,
+        path: &[String],
+        sink: &mut dyn FnMut(&[u8]) -> Result<(), ()>,
+    ) -> Result<(), CollectError> {
+        let (data, delay) = {
+            let t = self.topology.lock().unwrap();
+            let usb = wpd_id_to_instance(wpd_device_id).ok_or(CollectError {
+                stage: "wpd_read".into(),
+                code: Some(0x8007_0490),
+            })?;
+            let want = path.join("/");
+            let data = t
+                .wpd_files
+                .iter()
+                .find(|(u, p, _)| *u == usb && *p == want)
+                .map(|(_, _, d)| d.clone())
+                .ok_or(CollectError {
+                    stage: "wpd_read_not_found".into(),
+                    code: Some(0x8007_0002),
+                })?;
+            (data, t.read_delay_ms)
+        };
+        let chunk = (data.len() / 10).max(1);
+        for part in data.chunks(chunk) {
+            if delay > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+            }
+            sink(part).map_err(|_| CollectError {
+                stage: "aborted".into(),
+                code: None,
+            })?;
+        }
+        Ok(())
     }
 }

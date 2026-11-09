@@ -564,6 +564,150 @@ fn enumerate_wpd(listing: bool, errors: &mut Vec<CollectError>) -> Vec<WpdDevice
     out
 }
 
+/// Имя объекта WPD: исходное имя файла, иначе отображаемое имя.
+unsafe fn object_info(
+    props: &IPortableDeviceProperties,
+    id: PCWSTR,
+) -> windows::core::Result<(String, bool, u64)> {
+    let keys: IPortableDeviceKeyCollection =
+        CoCreateInstance(&PortableDeviceKeyCollection, None, CLSCTX_INPROC_SERVER)?;
+    keys.Add(&WPD_OBJECT_ORIGINAL_FILE_NAME)?;
+    keys.Add(&WPD_OBJECT_NAME)?;
+    keys.Add(&WPD_OBJECT_CONTENT_TYPE)?;
+    keys.Add(&WPD_OBJECT_SIZE)?;
+    let v = props.GetValues(id, &keys)?;
+    let name = v
+        .GetStringValue(&WPD_OBJECT_ORIGINAL_FILE_NAME)
+        .ok()
+        .map(|p| take_pwstr(p))
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            v.GetStringValue(&WPD_OBJECT_NAME)
+                .ok()
+                .map(|p| take_pwstr(p))
+        })
+        .unwrap_or_default();
+    let ctype = v.GetGuidValue(&WPD_OBJECT_CONTENT_TYPE).unwrap_or_default();
+    // Хранилища — функциональные объекты, папки — WPD_CONTENT_TYPE_FOLDER.
+    let is_dir = ctype == WPD_CONTENT_TYPE_FOLDER || ctype == WPD_CONTENT_TYPE_FUNCTIONAL_OBJECT;
+    let size = v
+        .GetUnsignedLargeIntegerValue(&WPD_OBJECT_SIZE)
+        .unwrap_or(0);
+    Ok((name, is_dir, size))
+}
+
+/// Идёт по компонентам пути (`[Хранилище, Папка, …]`) и возвращает id объекта (`"DEVICE"` для корня).
+unsafe fn resolve_object(
+    content: &IPortableDeviceContent,
+    path: &[String],
+) -> windows::core::Result<Option<Vec<u16>>> {
+    let props = content.Properties()?;
+    let mut current = wide("DEVICE");
+    for comp in path {
+        let mut found = None;
+        for child in child_ids(content, PCWSTR(current.as_ptr()))? {
+            let w = wide(&child);
+            let (name, _, _) = object_info(&props, PCWSTR(w.as_ptr()))?;
+            if name.to_lowercase() == comp.to_lowercase() {
+                found = Some(w);
+                break;
+            }
+        }
+        match found {
+            Some(w) => current = w,
+            None => return Ok(None),
+        }
+    }
+    Ok(Some(current))
+}
+
+const HR_NOT_FOUND: u32 = 0x8007_0002;
+
+fn wpd_list_impl(device_id: &str, path: &[String]) -> Result<Vec<WpdEntry>, CollectError> {
+    let w = wide(device_id);
+    unsafe {
+        let dev = open_wpd(&w).map_err(|e| err("wpd_open", hr_code(&e)))?;
+        let r = (|| -> windows::core::Result<Option<Vec<WpdEntry>>> {
+            let content = dev.Content()?;
+            let Some(obj) = resolve_object(&content, path)? else {
+                return Ok(None);
+            };
+            let props = content.Properties()?;
+            let mut out = Vec::new();
+            for child in child_ids(&content, PCWSTR(obj.as_ptr()))? {
+                let cw = wide(&child);
+                let (name, is_dir, size) = object_info(&props, PCWSTR(cw.as_ptr()))?;
+                if !name.is_empty() {
+                    out.push(WpdEntry {
+                        name,
+                        is_dir,
+                        size: if is_dir { 0 } else { size },
+                    });
+                }
+            }
+            Ok(Some(out))
+        })();
+        let _ = dev.Close();
+        match r {
+            Ok(Some(v)) => Ok(v),
+            Ok(None) => Err(err("wpd_list_not_found", HR_NOT_FOUND)),
+            Err(e) => Err(err("wpd_list", hr_code(&e))),
+        }
+    }
+}
+
+fn wpd_read_impl(
+    device_id: &str,
+    path: &[String],
+    sink: &mut dyn FnMut(&[u8]) -> Result<(), ()>,
+) -> Result<(), CollectError> {
+    let w = wide(device_id);
+    unsafe {
+        let dev = open_wpd(&w).map_err(|e| err("wpd_open", hr_code(&e)))?;
+        let r = (|| -> windows::core::Result<Result<(), CollectError>> {
+            let content = dev.Content()?;
+            let Some(obj) = resolve_object(&content, path)? else {
+                return Ok(Err(err("wpd_read_not_found", HR_NOT_FOUND)));
+            };
+            let resources = content.Transfer()?;
+            let mut optimal = 0u32;
+            let mut stream: Option<IStream> = None;
+            resources.GetStream(
+                PCWSTR(obj.as_ptr()),
+                &WPD_RESOURCE_DEFAULT,
+                STGM_READ.0,
+                &mut optimal,
+                &mut stream,
+            )?;
+            let stream = stream.ok_or_else(|| windows::core::Error::from(E_FAIL))?;
+            let mut buf = vec![0u8; (optimal as usize).clamp(64 * 1024, 1024 * 1024)];
+            loop {
+                let mut read = 0u32;
+                let hr = stream.Read(
+                    buf.as_mut_ptr() as *mut c_void,
+                    buf.len() as u32,
+                    Some(&mut read),
+                );
+                if hr.is_err() {
+                    return Err(windows::core::Error::from(hr));
+                }
+                if read == 0 {
+                    break;
+                }
+                if sink(&buf[..read as usize]).is_err() {
+                    return Ok(Err(err("aborted", 0)));
+                }
+            }
+            Ok(Ok(()))
+        })();
+        let _ = dev.Close();
+        match r {
+            Ok(inner) => inner,
+            Err(e) => Err(err("wpd_read", hr_code(&e))),
+        }
+    }
+}
+
 impl SnapshotSource for WindowsSource {
     fn collect(&self, options: &CollectOptions) -> Result<Snapshot, CollectError> {
         let _com = ComGuard::new();
@@ -590,5 +734,24 @@ impl SnapshotSource for WindowsSource {
             let _ = d.Close();
             r
         }
+    }
+
+    fn wpd_list(
+        &self,
+        wpd_device_id: &str,
+        path: &[String],
+    ) -> Result<Vec<WpdEntry>, CollectError> {
+        let _com = ComGuard::new();
+        wpd_list_impl(wpd_device_id, path)
+    }
+
+    fn wpd_read(
+        &self,
+        wpd_device_id: &str,
+        path: &[String],
+        sink: &mut dyn FnMut(&[u8]) -> Result<(), ()>,
+    ) -> Result<(), CollectError> {
+        let _com = ComGuard::new();
+        wpd_read_impl(wpd_device_id, path, sink)
     }
 }

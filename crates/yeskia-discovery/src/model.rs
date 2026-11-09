@@ -113,6 +113,39 @@ pub trait SnapshotSource: Send + Sync {
 
     /// Read-only чтение свойств WPD-устройства (производитель/модель/прошивка).
     fn wpd_identity(&self, wpd_device_id: &str) -> Result<WpdIdentity, CollectError>;
+
+    /// Read-only листинг WPD: `path` — компоненты от корня (`[]` — хранилища устройства).
+    fn wpd_list(
+        &self,
+        _wpd_device_id: &str,
+        _path: &[String],
+    ) -> Result<Vec<WpdEntry>, CollectError> {
+        Err(CollectError {
+            stage: "wpd_list_unsupported".into(),
+            code: None,
+        })
+    }
+
+    /// Read-only чтение файла WPD блоками. `sink` возвращает `Err(())`, чтобы прервать чтение
+    /// (отмена, таймаут, ошибка записи на хосте) — причину знает вызывающий.
+    fn wpd_read(
+        &self,
+        _wpd_device_id: &str,
+        _path: &[String],
+        _sink: &mut dyn FnMut(&[u8]) -> Result<(), ()>,
+    ) -> Result<(), CollectError> {
+        Err(CollectError {
+            stage: "wpd_read_unsupported".into(),
+            code: None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WpdEntry {
+    pub name: String,
+    pub is_dir: bool,
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -77,12 +77,19 @@ fn connect_builds_matrix_from_wpd_identity_probe_only() {
         m.entry(Operation::IdentityRead).unwrap().maturity,
         SupportStatus::Implemented
     );
-    // read-only прототип: файлы, PIM и запись не заявляются
+    // WPD read-only: листинг подтверждён probe, чтение — не проверено, запись/PIM не заявляются
+    assert_eq!(
+        m.availability(Operation::FilesList),
+        Availability::Available
+    );
+    assert_eq!(
+        m.availability(Operation::FilesRead),
+        Availability::NotTested
+    );
     for op in [
-        Operation::FilesList,
-        Operation::FilesRead,
         Operation::FilesWrite,
         Operation::ContactsRead,
+        Operation::SmsRead,
     ] {
         assert_eq!(m.availability(op), Availability::Unsupported, "{op:?}");
     }
@@ -93,7 +100,14 @@ fn connect_builds_matrix_from_wpd_identity_probe_only() {
         other => panic!("{other:?}"),
     }
     let err = e
-        .submit(&id, OperationRequest::FilesList { path: "E:/".into() })
+        .submit(
+            &id,
+            OperationRequest::FilesWrite {
+                path: "/x.txt".into(),
+                data: vec![1],
+                overwrite: OverwritePolicy::Never,
+            },
+        )
         .err()
         .unwrap();
     assert_eq!(err.code(), ErrorCode::CapabilityUnsupported);
