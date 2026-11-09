@@ -6,12 +6,14 @@ import type { PageId } from "../components/Shell";
 
 export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => void }) {
   const { t } = useI18n();
-  const { devices, journal, system } = model;
+  const { devices, sessionJournal, system } = model;
   const selected = devices.find((d) => d.connection === "connected") ?? devices[0];
   const isMock = selected?.origin === "mock";
   const available = selected?.capabilities.filter((c) => c.status !== "unsupported").length ?? 0;
-  const ok = journal.filter((j) => j.state === "success").length;
-  const bad = journal.filter((j) => j.state === "failed" || j.state === "interrupted").length;
+  const ok = sessionJournal.filter((j) => j.state === "success").length;
+  const bad = sessionJournal.filter(
+    (j) => j.state === "failed" || j.state === "interrupted",
+  ).length;
   const note = isMock ? <span className="tag tag-mock">{t("home.metric.mockNote")}</span> : null;
 
   return (

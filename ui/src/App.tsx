@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Backend } from "./api";
+import { ErrorMessage } from "./components/Ui";
 import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
 import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
 import { ConnectionPage } from "./pages/ConnectionPage";
@@ -63,6 +64,7 @@ export function App({ backend }: { backend: Backend }) {
               {t("banner.uiMock")}
             </p>
           )}
+          {model.error && <ErrorMessage error={model.error} />}
           {current === "home" && <HomePage model={model} go={select} />}
           {current === "connection" && <ConnectionPage model={model} developer={developer} />}
           {current === "journal" && <JournalPage model={model} />}

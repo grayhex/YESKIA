@@ -21,11 +21,12 @@ export function useAppModel(backend: Backend) {
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const sessionStartMs = useRef(Date.now());
 
   const refresh = useCallback(async () => {
     try {
       setDevices(await backend.listDevices());
-      setJournal(await backend.recentOperations(50));
+      setJournal(await backend.recentOperations(200));
     } catch (e) {
       setError(toErrorInfo(e));
     }
@@ -77,6 +78,8 @@ export function useAppModel(backend: Backend) {
     result,
     error,
     busy,
+    /** Операции текущего запуска приложения (журнал в SQLite хранит и прошлые). */
+    sessionJournal: journal.filter((j) => j.started_at_ms >= sessionStartMs.current),
     isUiMock: backend.isUiMock,
     refresh: () => guarded(async () => undefined),
     connect: (id: string) => guarded(async () => void (await backend.connectDevice(id))),

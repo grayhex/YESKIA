@@ -1,5 +1,5 @@
 import { DeviceCard } from "../components/DeviceCard";
-import { ErrorMessage, Panel, StateMessage } from "../components/Ui";
+import { Panel, StateMessage } from "../components/Ui";
 import { useI18n, type MessageKey } from "../i18n";
 import type { AppModel } from "../useAppModel";
 import type { CapabilityId, Device, OperationRequest } from "../types";
@@ -41,7 +41,7 @@ function Capabilities({ device }: { device: Device }) {
 
 export function ConnectionPage({ model, developer }: { model: AppModel; developer: boolean }) {
   const { t } = useI18n();
-  const { devices, busy, result, error } = model;
+  const { devices, busy, result } = model;
 
   return (
     <>
@@ -51,8 +51,6 @@ export function ConnectionPage({ model, developer }: { model: AppModel; develope
           {t("conn.refresh")}
         </button>
       </div>
-
-      {error && <ErrorMessage error={error} />}
 
       {devices.length === 0 && (
         <StateMessage kind="empty" title={t("conn.empty")}>

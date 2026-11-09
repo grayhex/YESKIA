@@ -141,3 +141,35 @@ describe("Настройки", () => {
     await waitFor(() => expect(screen.getByText("Устройств: 0")).toBeInTheDocument());
   });
 });
+
+describe("Ошибки и счётчики", () => {
+  it("показывает ошибку бэкенда на главной странице", async () => {
+    class Broken extends MockBackend {
+      async listDevices(): Promise<never> {
+        throw { code: "TRANSPORT_ERROR", message: "usb недоступен", retryable: true };
+      }
+    }
+    render(<App backend={new Broken()} />);
+    expect(await screen.findByTestId("error")).toHaveTextContent("TRANSPORT_ERROR: usb недоступен");
+  });
+
+  it("не считает операции прошлых запусков операциями сессии", async () => {
+    class WithHistory extends MockBackend {
+      async recentOperations() {
+        return [
+          {
+            operation_id: "old-1",
+            device_ref: "dev-x",
+            operation: "identify",
+            state: "success" as const,
+            error_code: null,
+            started_at_ms: Date.now() - 86_400_000,
+            finished_at_ms: null,
+          },
+        ];
+      }
+    }
+    await open(new WithHistory());
+    expect(screen.getByText("0 успешно · 0 с ошибкой")).toBeInTheDocument();
+  });
+});

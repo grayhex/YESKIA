@@ -1,14 +1,13 @@
-import { ErrorMessage, Panel } from "../components/Ui";
+import { Panel } from "../components/Ui";
 import { useI18n } from "../i18n";
 import type { AppModel } from "../useAppModel";
 
 export function SettingsPage({ model }: { model: AppModel }) {
   const { t } = useI18n();
-  const { settings, system, busy, error } = model;
+  const { settings, system, busy } = model;
   return (
     <>
       <h1>{t("settings.title")}</h1>
-      {error && <ErrorMessage error={error} />}
       <Panel>
         {settings ? (
           <>
