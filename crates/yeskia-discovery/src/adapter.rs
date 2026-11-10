@@ -122,7 +122,7 @@ impl PnpTransport {
     fn service(&self, r: &DeviceRef) -> Service {
         if r.state == DoctorState::MassStorage && !r.volumes.is_empty() {
             Service::MassStorage(r.volumes.clone())
-        } else if let (DoctorState::WpdOnly, Some(w)) = (r.state, &r.wpd_device_id) {
+        } else if let Some(w) = &r.wpd_device_id {
             Service::Wpd(w.clone())
         } else if let (DoctorState::ComPresent, Some(port), Some(_)) =
             (r.state, &r.com_port, &self.serial)
@@ -166,6 +166,9 @@ enum Service {
 const AT_TIMEOUT: Duration = Duration::from_secs(4);
 
 fn kind_and_label(r: &DeviceRef) -> (TransportKind, &'static str) {
+    if r.state != DoctorState::MassStorage && r.wpd_device_id.is_some() {
+        return (TransportKind::Mtp, "WPD/MTP");
+    }
     match r.state {
         DoctorState::WpdOnly => (TransportKind::Mtp, "WPD/MTP"),
         DoctorState::ComPresent | DoctorState::ComBusy => (TransportKind::PcSuite, "COM"),

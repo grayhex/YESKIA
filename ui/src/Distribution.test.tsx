@@ -2,7 +2,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 import { MockBackend } from "./mockBackend";
-import type { UpdateCheck } from "./types";
 
 const nav = () => within(screen.getByRole("navigation"));
 
@@ -74,88 +73,12 @@ describe("Первый запуск", () => {
   });
 });
 
-const unsigned: UpdateCheck = {
-  current: "0.1.0",
-  version: "0.2.0",
-  notes: "Исправления",
-  installer: "YESKIA_0.2.0_x64-setup.exe",
-  size: 12_345_678,
-  sha256: "a".repeat(64),
-  trust: "unsigned-source",
-  limitations: ["Приложение ничего не скачивает: установщик получен вами самостоятельно."],
-};
-
-async function settings(b: MockBackend) {
-  render(<App backend={b} />);
+it("открывает страницу последнего выпуска", async () => {
+  const backend = new MockBackend();
+  const open = vi.spyOn(backend, "openLatestRelease");
+  render(<App backend={backend} />);
   await screen.findByText("Nokia N95 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Настройки" }));
-  await screen.findByRole("heading", { name: "Обновление приложения" });
-}
-
-async function pickAndVerify(b: MockBackend) {
-  b.nextMediaFile = "C:\\Users\\user\\Downloads\\YESKIA_0.2.0_x64-setup.exe";
-  await userEvent.click(screen.getByRole("button", { name: "Выбрать установщик…" }));
-  b.nextMediaFile = "C:\\Users\\user\\Downloads\\update.json";
-  await userEvent.click(screen.getByRole("button", { name: "Выбрать манифест…" }));
-  await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
-}
-
-describe("Обновление из файла", () => {
-  it("режим и каталог данных видны; обновление объясняет, что ничего не скачивается", async () => {
-    await settings(new MockBackend());
-    expect(screen.getByTestId("settings-mode")).toHaveTextContent("Установленный");
-    expect(screen.getByText(/ничего не скачивает/, { selector: "p.banner" })).toBeInTheDocument();
-    expect(screen.getByText(/подпись издателя пока не настроена/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Проверить" })).toBeDisabled();
-  });
-
-  it("неподписанный источник: ограничения видны, запуск требует отдельного согласия", async () => {
-    const b = new MockBackend();
-    b.updateSample = unsigned;
-    await settings(b);
-    await pickAndVerify(b);
-    expect(await screen.findByTestId("up-result")).toHaveTextContent("Версия 0.2.0 (сейчас 0.1.0)");
-    expect(screen.getByTestId("up-trust")).toHaveTextContent("Подпись издателя не проверена");
-    await userEvent.click(screen.getByRole("button", { name: "Запустить установщик…" }));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Запустить" }));
-    expect(b.launched).toEqual([]);
-    await userEvent.click(within(dialog).getByRole("checkbox"));
-    await userEvent.click(within(dialog).getByRole("button", { name: "Запустить" }));
-    await waitFor(() => expect(b.launched).toHaveLength(1));
-    expect(screen.getByText(/Установщик запущен/)).toBeInTheDocument();
-  });
-
-  it("подписанный источник запускается без согласия на неподписанное", async () => {
-    const b = new MockBackend();
-    b.updateSample = { ...unsigned, trust: "signed" };
-    await settings(b);
-    await pickAndVerify(b);
-    expect(await screen.findByTestId("up-trust")).toHaveTextContent("проверена доверенным ключом");
-    await userEvent.click(screen.getByRole("button", { name: "Запустить установщик…" }));
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Запустить" }));
-    await waitFor(() => expect(b.launched).toHaveLength(1));
-  });
-
-  it("при записи на телефон обновление откладывается", async () => {
-    const b = new MockBackend();
-    b.updateSample = unsigned;
-    b.updateBlockedBy = ["device-operation"];
-    await settings(b);
-    await pickAndVerify(b);
-    expect(await screen.findByTestId("up-blocked")).toHaveTextContent("отложено");
-    expect(screen.getByRole("button", { name: "Запустить установщик…" })).toBeDisabled();
-    expect(b.launched).toEqual([]);
-  });
-
-  it("ошибка проверки (подмена файла) показывается и запуск недоступен", async () => {
-    const b = new MockBackend();
-    b.updateSample = null;
-    await settings(b);
-    await pickAndVerify(b);
-    expect(await screen.findByTestId("error")).toHaveTextContent("VERIFICATION_FAILED");
-    expect(screen.queryByRole("button", { name: "Запустить установщик…" })).not.toBeInTheDocument();
-  });
+  await userEvent.click(await screen.findByRole("button", { name: "Последний выпуск" }));
+  expect(open).toHaveBeenCalledOnce();
 });

@@ -13,11 +13,7 @@ export function Panel({ title, children }: { title?: string; children: ReactNode
 
 export function MockTag({ origin }: { origin: "mock" | "real" }) {
   const { t } = useI18n();
-  return origin === "mock" ? (
-    <span className="tag tag-mock">{t("tag.mock")}</span>
-  ) : (
-    <span className="tag tag-real">{t("tag.real")}</span>
-  );
+  return origin === "mock" ? <span className="tag tag-mock">{t("tag.mock")}</span> : null;
 }
 
 export function ConnectionTag({ state }: { state: ConnectionState }) {

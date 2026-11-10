@@ -50,7 +50,14 @@ export interface Backend {
   cancelOperation(operationId: string): Promise<boolean>;
   /** Read-only диагностика USB/PnP/WPD/COM; отчёт без IMEI/серийников/instance id. */
   runDoctor(options: DoctorOptions): Promise<DoctorReport>;
-  exportDoctorReport(options: DoctorOptions): Promise<ExportedReport>;
+  openLatestRelease(): Promise<void>;
+  exportPersonalData(
+    executable: string,
+    config: string,
+    destination: string,
+    kind: "contacts" | "calendar",
+  ): Promise<void>;
+  exportDoctorReport(options: DoctorOptions, path: string): Promise<ExportedReport>;
   /** Диски и быстрые папки компьютера. */
   hostRoots(): Promise<HostRoot[]>;
   /** Содержимое папки на компьютере (только чтение). */
@@ -133,8 +140,15 @@ export class TauriBackend implements Backend {
     invoke<Progress | null>("operation_progress", { operationId });
   cancelOperation = (operationId: string) => invoke<boolean>("cancel_operation", { operationId });
   runDoctor = (options: DoctorOptions) => invoke<DoctorReport>("run_doctor", { options });
-  exportDoctorReport = (options: DoctorOptions) =>
-    invoke<ExportedReport>("export_doctor_report", { options });
+  openLatestRelease = () => invoke<void>("open_latest_release");
+  exportPersonalData = (
+    executable: string,
+    config: string,
+    destination: string,
+    kind: "contacts" | "calendar",
+  ) => invoke<void>("export_personal_data", { executable, config, destination, kind });
+  exportDoctorReport = (options: DoctorOptions, path: string) =>
+    invoke<ExportedReport>("export_doctor_report", { options, path });
   hostRoots = () => invoke<HostRoot[]>("host_roots");
   hostListDir = (path: string) => invoke<HostEntry[]>("host_list_dir", { path });
   hostCreateDir = (path: string) => invoke<void>("host_create_dir", { path });

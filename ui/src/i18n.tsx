@@ -3,6 +3,18 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Lang = "ru" | "en";
 
 const ru = {
+  "personal.title": "Контакты и календарь",
+  "personal.intro":
+    "Для чтения подключите телефон с помощью Gammu и выберите его настройки. Данные сохраняются только в выбранный файл.",
+  "personal.program": "Выбрать Gammu",
+  "personal.config": "Выбрать настройки Gammu",
+  "personal.contacts": "Сохранить контакты",
+  "personal.calendar": "Сохранить календарь",
+  "personal.done": "Файл сохранён: {path}",
+  "personal.busy": "Чтение телефона…",
+
+  "up.currentVersion": "Текущая версия: {version}",
+  "up.latest": "Последний выпуск",
   "hero.label": "ВАША NOKIA. НОВЫЕ ВОЗМОЖНОСТИ.",
   "hero.title": "Всё для вашего телефона",
   "hero.text":
@@ -602,6 +614,18 @@ const ru = {
 export type MessageKey = keyof typeof ru;
 
 const en: Record<MessageKey, string> = {
+  "personal.title": "Contacts and calendar",
+  "personal.intro":
+    "Connect your phone using Gammu and select its configuration. Data is saved only to the chosen file.",
+  "personal.program": "Choose Gammu",
+  "personal.config": "Choose Gammu configuration",
+  "personal.contacts": "Save contacts",
+  "personal.calendar": "Save calendar",
+  "personal.done": "Saved: {path}",
+  "personal.busy": "Reading phone…",
+
+  "up.currentVersion": "Current version: {version}",
+  "up.latest": "Latest release",
   "hero.label": "YOUR NOKIA. NEW POSSIBILITIES.",
   "hero.title": "A home for your phone",
   "hero.text":

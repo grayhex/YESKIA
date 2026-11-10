@@ -110,7 +110,9 @@ export function useAppModel(backend: Backend) {
       setDoctorRunning(true);
       setError(null);
       try {
-        const r = await backend.exportDoctorReport(options);
+        const path = await backend.pickSavePath(`doctor-${Date.now()}.json`);
+        if (!path) return;
+        const r = await backend.exportDoctorReport(options, path);
         setDoctorReport(r.report);
         setExportedPath(r.path);
       } catch (e) {

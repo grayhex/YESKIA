@@ -225,3 +225,25 @@ fn the_core_never_requires_a_network() {
     let s = yeskia_core::system::SystemInfo::collect();
     assert!(!s.network_required);
 }
+
+#[test]
+fn e72_with_com_and_wpd_uses_wpd_for_identity_and_files() {
+    let mut t = FakeTopology::new();
+    let usb = t.usb(0x0421, 0x0223, "E72REGRESSION", "nmwcd");
+    t.com(&usb, "COM9", None);
+    t.wpd(&usb, "E72-1", WpdListing::NotProbed);
+    t.wpd_file(&usb, "Phone memory/test.txt", b"hello");
+    let e = engine(Arc::new(FakeSource::new(t)));
+    let d = e.connect(&e.list_devices().unwrap()[0].id).unwrap();
+    assert_eq!(d.transport, TransportKind::Mtp);
+    assert_eq!(d.identified_model.as_deref(), Some("E72-1"));
+    let m = d.matrix.unwrap();
+    assert_eq!(
+        m.availability(Operation::IdentityRead),
+        Availability::Available
+    );
+    assert_eq!(
+        m.availability(Operation::FilesList),
+        Availability::Available
+    );
+}

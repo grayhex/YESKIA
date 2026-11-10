@@ -969,7 +969,7 @@ export class MockBackend implements Backend {
   async pickFile() {
     return this.nextFile;
   }
-  async pickSavePath(defaultName: string) {
+  async pickSavePath(defaultName: string): Promise<string | null> {
     return this.nextSavePath ?? `C:\\Users\\user\\Downloads\\${defaultName}`;
   }
 
@@ -1025,8 +1025,12 @@ export class MockBackend implements Backend {
       excluded: ["IMEI", "serial numbers", "PnP instance IDs", "MAC addresses"],
     };
   }
-  async exportDoctorReport(options: DoctorOptions): Promise<ExportedReport> {
-    return { path: "(ui mock)/doctor.json", report: await this.runDoctor(options) };
+  async openLatestRelease() {}
+  async exportPersonalData(): Promise<void> {
+    throw err("TOOL_MISSING", "Gammu недоступен в демо-режиме");
+  }
+  async exportDoctorReport(options: DoctorOptions, path: string): Promise<ExportedReport> {
+    return { path, report: await this.runDoctor(options) };
   }
   async getSettings() {
     return this.settings;
