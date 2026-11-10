@@ -8,7 +8,11 @@ use yeskia_core::media::RingtoneOptions;
 use yeskia_core::operations::Outcome;
 
 fn tmp(tag: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("yeskia-mj-{tag}-{}-{:?}", std::process::id(), std::thread::current().id()));
+    let d = std::env::temp_dir().join(format!(
+        "yeskia-mj-{tag}-{}-{:?}",
+        std::process::id(),
+        std::thread::current().id()
+    ));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d
@@ -30,7 +34,15 @@ fn have_ffmpeg() -> bool {
 fn make_tone(dir: &std::path::Path, secs: u32) -> String {
     let p = dir.join("tone.wav");
     let ok = std::process::Command::new("ffmpeg")
-        .args(["-v", "error", "-y", "-f", "lavfi", "-i", &format!("sine=frequency=440:duration={secs}")])
+        .args([
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            &format!("sine=frequency=440:duration={secs}"),
+        ])
         .arg(&p)
         .status()
         .map(|s| s.success())
@@ -40,7 +52,17 @@ fn make_tone(dir: &std::path::Path, secs: u32) -> String {
 }
 
 fn opts() -> RingtoneOptions {
-    RingtoneOptions { start: 0.0, end: 2.0, fade_in: 0.1, fade_out: 0.2, mono: true, normalize: true, lufs: -16.0, bitrate: 128, sample_rate: 44100 }
+    RingtoneOptions {
+        start: 0.0,
+        end: 2.0,
+        fade_in: 0.1,
+        fade_out: 0.2,
+        mono: true,
+        normalize: true,
+        lufs: -16.0,
+        bitrate: 128,
+        sample_rate: 44100,
+    }
 }
 
 #[test]
@@ -53,10 +75,18 @@ fn ringtone_job_runs_reports_progress_and_never_overwrites() {
     let src = make_tone(&d, 4);
     let dest = d.join("r.mp3").display().to_string();
     let id = core
-        .start_host_job(HostJobRequest::MediaRingtone { source: src.clone(), dest: dest.clone(), options: opts() })
+        .start_host_job(HostJobRequest::MediaRingtone {
+            source: src.clone(),
+            dest: dest.clone(),
+            options: opts(),
+        })
         .unwrap();
     // пока идёт, второе задание не принимается
-    let second = core.start_host_job(HostJobRequest::MediaRingtone { source: src.clone(), dest: d.join("r2.mp3").display().to_string(), options: opts() });
+    let second = core.start_host_job(HostJobRequest::MediaRingtone {
+        source: src.clone(),
+        dest: d.join("r2.mp3").display().to_string(),
+        options: opts(),
+    });
     let r = core.await_host_job(&id).unwrap();
     assert_eq!(r.outcome, Outcome::Success, "{:?}", r.error);
     match r.data.unwrap() {
@@ -71,7 +101,13 @@ fn ringtone_job_runs_reports_progress_and_never_overwrites() {
         let _ = core.await_host_job(&id2);
     }
     // тот же файл — отказ без перезаписи
-    let id = core.start_host_job(HostJobRequest::MediaRingtone { source: src, dest, options: opts() }).unwrap();
+    let id = core
+        .start_host_job(HostJobRequest::MediaRingtone {
+            source: src,
+            dest,
+            options: opts(),
+        })
+        .unwrap();
     let r = core.await_host_job(&id).unwrap();
     assert_eq!(r.outcome, Outcome::Failed);
     assert_eq!(r.error.unwrap().code, ErrorCode::AlreadyExists);
@@ -90,7 +126,10 @@ fn media_job_can_be_cancelled_without_leaving_files() {
         .start_host_job(HostJobRequest::MediaRingtone {
             source: src,
             dest: dest.clone(),
-            options: RingtoneOptions { end: 30.0, ..opts() },
+            options: RingtoneOptions {
+                end: 30.0,
+                ..opts()
+            },
         })
         .unwrap();
     assert!(core.cancel_host_job(&id));
@@ -132,16 +171,49 @@ fn theme_inspection_from_library_and_path() {
     let core = AppCore::in_memory();
     let fx = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/theme");
     let raw = std::fs::read(fx.join("e52clearlight.sis")).unwrap();
-    let it = core.library().import("e52clearlight.sis", &raw, Provenance::default()).unwrap();
-    let r = core.theme_inspect(&ThemeSource::Library { id: it.id.clone() }, Some("nokia-e52")).unwrap();
+    let it = core
+        .library()
+        .import("e52clearlight.sis", &raw, Provenance::default())
+        .unwrap();
+    let r = core
+        .theme_inspect(
+            &ThemeSource::Library { id: it.id.clone() },
+            Some("nokia-e52"),
+        )
+        .unwrap();
     assert_eq!(r.structure, "consistent");
     assert_eq!(r.package.source, "sis");
-    let p = core.theme_preview(&ThemeSource::Library { id: it.id }, 4).unwrap();
+    let p = core
+        .theme_preview(&ThemeSource::Library { id: it.id }, 4)
+        .unwrap();
     assert_eq!(p.len(), 4);
-    let r = core.theme_inspect(&ThemeSource::Path { path: fx.join("dark").display().to_string() }, None).unwrap();
+    let r = core
+        .theme_inspect(
+            &ThemeSource::Path {
+                path: fx.join("dark").display().to_string(),
+            },
+            None,
+        )
+        .unwrap();
     assert_eq!(r.package.uid, Some(0xE0E5_2C02));
-    let r = core.theme_inspect(&ThemeSource::Path { path: fx.join("e52clearlight.sis").display().to_string() }, None).unwrap();
+    let r = core
+        .theme_inspect(
+            &ThemeSource::Path {
+                path: fx.join("e52clearlight.sis").display().to_string(),
+            },
+            None,
+        )
+        .unwrap();
     assert_eq!(r.package.source, "sis");
-    assert!(core.theme_inspect(&ThemeSource::Library { id: "0".repeat(64) }, None).is_err());
-    assert!(core.theme_inspect(&ThemeSource::Path { path: "relative".into() }, None).is_err());
+    assert!(core
+        .theme_inspect(&ThemeSource::Library { id: "0".repeat(64) }, None)
+        .is_err());
+    assert!(core
+        .theme_inspect(
+            &ThemeSource::Path {
+                path: "relative".into()
+            },
+            None
+        )
+        .is_err());
 }

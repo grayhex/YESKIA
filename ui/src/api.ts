@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import type {
+  AudioPreview,
   BackupInfo,
+  BitmapPreview,
   Device,
   DoctorOptions,
   DoctorReport,
@@ -17,6 +19,7 @@ import type {
   JournalEntry,
   LibraryItem,
   LibraryQuery,
+  MediaInfo,
   PackageSet,
   Provenance,
   OperationRequest,
@@ -24,6 +27,9 @@ import type {
   Progress,
   Settings,
   SystemInfo,
+  ThemeReport,
+  ThemeSource,
+  ToolInfo,
 } from "./types";
 import { MockBackend } from "./mockBackend";
 
@@ -62,6 +68,15 @@ export interface Backend {
   awaitHostJob(jobId: string): Promise<HostJobResult>;
   hostJobProgress(jobId: string): Promise<Progress | null>;
   cancelHostJob(jobId: string): Promise<boolean>;
+  /** Выбор любого локального файла (аудио, видео, картинка, тема) нативным диалогом. */
+  pickMediaFile(): Promise<string | null>;
+  /** FFmpeg: версия и лицензия; без инструмента — ошибка TOOL_MISSING. */
+  mediaToolInfo(): Promise<ToolInfo>;
+  mediaProbe(path: string): Promise<MediaInfo>;
+  mediaWaveform(path: string, buckets: number): Promise<number[]>;
+  mediaPreview(path: string): Promise<AudioPreview>;
+  themeInspect(source: ThemeSource, model: string | null): Promise<ThemeReport>;
+  themePreview(source: ThemeSource, limit: number): Promise<BitmapPreview[]>;
   /** Выбор файлов пакетов (SIS/SISX/JAR/JAD) нативным диалогом. */
   pickPackageFiles(): Promise<string[]>;
   /** Библиотека пакетов: локальная, офлайн. */
@@ -127,6 +142,19 @@ export class TauriBackend implements Backend {
   awaitHostJob = (jobId: string) => invoke<HostJobResult>("await_host_job", { jobId });
   hostJobProgress = (jobId: string) => invoke<Progress | null>("host_job_progress", { jobId });
   cancelHostJob = (jobId: string) => invoke<boolean>("cancel_host_job", { jobId });
+  pickMediaFile = async () => {
+    const r = await openDialog({ directory: false, multiple: false });
+    return typeof r === "string" ? r : null;
+  };
+  mediaToolInfo = () => invoke<ToolInfo>("media_tool_info");
+  mediaProbe = (path: string) => invoke<MediaInfo>("media_probe", { path });
+  mediaWaveform = (path: string, buckets: number) =>
+    invoke<number[]>("media_waveform", { path, buckets });
+  mediaPreview = (path: string) => invoke<AudioPreview>("media_preview", { path });
+  themeInspect = (source: ThemeSource, model: string | null) =>
+    invoke<ThemeReport>("theme_inspect", { source, model });
+  themePreview = (source: ThemeSource, limit: number) =>
+    invoke<BitmapPreview[]>("theme_preview", { source, limit });
   pickPackageFiles = async () => {
     const r = await openDialog({
       directory: false,

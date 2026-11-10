@@ -7,8 +7,8 @@ use crate::diagnostics::Diagnostics;
 use crate::engine::{Engine, OperationHandle};
 use crate::error::Result;
 use crate::error::{Error, ErrorInfo};
-use crate::media::{self, MediaInfo, Toolchain};
 use crate::library::{Item, Library, PackageSet, Provenance, Query};
+use crate::media::{self, MediaInfo, Toolchain};
 use crate::mock::{MockTransport, MOCK_DEVICE_ID};
 use crate::operations::{
     CancellationToken, OperationRequest, OperationResult, Outcome, Progress, ProgressCell,
@@ -23,6 +23,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AudioPreview {
+    pub mime: String,
+    pub base64: String,
+}
 
 /// Откуда взять тему для анализа.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -267,7 +273,10 @@ impl AppCore {
 
     /// FFmpeg: настроенная папка → рядом с приложением → PATH. Кэшируется по настройке.
     pub fn toolchain(&self) -> Result<Arc<Toolchain>> {
-        let dir = self.get_settings()?.ffmpeg_dir.filter(|d| !d.trim().is_empty());
+        let dir = self
+            .get_settings()?
+            .ffmpeg_dir
+            .filter(|d| !d.trim().is_empty());
         let mut cache = self.tools.lock().unwrap_or_else(|e| e.into_inner());
         if let Some((key, t)) = cache.as_ref() {
             if *key == dir {
@@ -293,6 +302,39 @@ impl AppCore {
         self.toolchain()?.waveform(&p, buckets, &|| Ok(()))
     }
 
+    /// Небольшой аудиофайл для предпросмотра в окне (до 8 МиБ; mp3, m4a, aac, wav) как base64.
+    pub fn media_preview(&self, path: &str) -> Result<AudioPreview> {
+        let p = std::path::Path::new(path);
+        crate::fsutil::validate_host_path(p)?;
+        let ext = p
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let mime = match ext.as_str() {
+            "mp3" => "audio/mpeg",
+            "m4a" | "aac" => "audio/mp4",
+            "wav" => "audio/wav",
+            _ => {
+                return Err(Error::InvalidArgument(
+                    "предпросмотр: mp3, m4a, aac или wav".into(),
+                ))
+            }
+        };
+        let lp = crate::fsutil::long_path(p);
+        let meta =
+            std::fs::metadata(&lp).map_err(|_| Error::HostAccess("файл недоступен".into()))?;
+        if !meta.is_file() || meta.len() == 0 || meta.len() > 8 * 1024 * 1024 {
+            return Err(Error::LimitExceeded(
+                "для предпросмотра нужен файл до 8 МиБ".into(),
+            ));
+        }
+        Ok(AudioPreview {
+            mime: mime.into(),
+            base64: crate::theme::base64(&std::fs::read(lp)?),
+        })
+    }
+
     /// Анализ темы: файл/папка на компьютере или SIS из библиотеки пакетов.
     pub fn theme_load(&self, source: &ThemeSource) -> Result<crate::theme::Theme> {
         match source {
@@ -303,8 +345,13 @@ impl AppCore {
                     crate::fsutil::validate_host_path(p)?;
                     let meta = std::fs::metadata(crate::fsutil::long_path(p))
                         .map_err(|_| Error::HostAccess("файл недоступен".into()))?;
-                    if !meta.is_file() || meta.len() == 0 || meta.len() > crate::pkg::jar::MAX_PACKAGE as u64 {
-                        return Err(Error::InvalidArgument("пакет должен быть файлом до 32 МиБ".into()));
+                    if !meta.is_file()
+                        || meta.len() == 0
+                        || meta.len() > crate::pkg::jar::MAX_PACKAGE as u64
+                    {
+                        return Err(Error::InvalidArgument(
+                            "пакет должен быть файлом до 32 МиБ".into(),
+                        ));
                     }
                     crate::theme::load_sis(&std::fs::read(crate::fsutil::long_path(p))?)
                 } else {

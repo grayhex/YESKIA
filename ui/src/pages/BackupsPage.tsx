@@ -50,6 +50,8 @@ function fromHost(d: HostJobData | null): Data | null {
       return { kind: "plan", counts: d.counts, items: d.items, truncated: d.truncated };
     case "backup_applied":
       return { kind: "applied", report: d.report };
+    case "media_generated":
+      return null;
   }
 }
 

@@ -16,6 +16,7 @@ export type ErrorCode =
   | "HOST_ACCESS"
   | "BACKUP_INVALID"
   | "LIMIT_EXCEEDED"
+  | "TOOL_MISSING"
   | "INSUFFICIENT_SPACE"
   | "VERIFICATION_FAILED"
   | "TRANSPORT_ERROR"
@@ -171,6 +172,8 @@ export interface Settings {
   log_to_file: boolean;
   /** Папка хранилища резервных копий; `null` — по умолчанию в каталоге данных. */
   backup_root: string | null;
+  /** Папка с ffmpeg и ffprobe; null — искать рядом с приложением и в PATH. */
+  ffmpeg_dir: string | null;
 }
 
 export interface JournalEntry {
@@ -333,7 +336,9 @@ export type HostJobRequest =
       target: string;
       only: string | null;
       apply: boolean;
-    };
+    }
+  | { type: "media.ringtone"; source: string; dest: string; options: RingtoneOptions }
+  | { type: "media.prepare"; source: string; dest: string; preset: string; model: string };
 
 export type HostJobData =
   | {
@@ -347,7 +352,8 @@ export type HostJobData =
     }
   | { type: "backup_verified"; report: VerifyReport }
   | { type: "backup_plan"; counts: PlanCounts; items: PlanItem[]; truncated: boolean }
-  | { type: "backup_applied"; report: ApplyReport };
+  | { type: "backup_applied"; report: ApplyReport }
+  | { type: "media_generated"; result: Generated };
 
 export interface HostJobResult {
   job_id: string;
@@ -481,4 +487,102 @@ export interface InspectReport {
   physical_device: string;
   limitations: string[];
   recommendations: InspectRecommendation[];
+}
+
+// ---------- медиа и темы (issue #9) ----------
+
+export interface ToolInfo {
+  ffmpeg_path: string;
+  ffprobe_path: string;
+  version: string;
+  license: "lgpl" | "lgpl-v3" | "gpl" | "gpl-v3" | "nonfree" | "unknown";
+  redistributable: boolean;
+  encoders: string[];
+}
+
+export interface StreamInfo {
+  codec: string | null;
+  width: number | null;
+  height: number | null;
+  sample_rate: number | null;
+  channels: number | null;
+}
+
+export interface MediaInfo {
+  kind: "audio" | "video" | "image";
+  duration: number;
+  container: string | null;
+  video: StreamInfo | null;
+  audio: StreamInfo | null;
+  size: number;
+}
+
+export interface RingtoneOptions {
+  start: number;
+  end: number;
+  fade_in: number;
+  fade_out: number;
+  mono: boolean;
+  normalize: boolean;
+  lufs: number;
+  bitrate: number;
+  sample_rate: number;
+}
+
+/** Файл создан на компьютере и перечитан. Передача, установка и проверка на телефоне — отдельные шаги. */
+export interface Generated {
+  path: string;
+  bytes: number;
+  sha256: string;
+  duration: number;
+  description: string;
+  hardware: "not-tested";
+}
+
+export interface AudioPreview {
+  mime: string;
+  base64: string;
+}
+
+export type ThemeSource = { kind: "path"; path: string } | { kind: "library"; id: string };
+
+export interface ThemeCheck {
+  id: string;
+  status: "pass" | "fail" | "warn" | "unknown" | "skip";
+  detail: string;
+}
+
+export interface ThemeReport {
+  schema: string;
+  name: string;
+  bitmaps: { width: number; height: number; bpp: number; compression: number }[];
+  icons: number;
+  skn_pid1: number | null;
+  package: {
+    source: "pkg" | "sis" | "none";
+    name: string;
+    uid: number | null;
+    vendor: string;
+    platform_deps: number[];
+    package_deps: number[];
+    targets: string[];
+  };
+  signed: boolean | null;
+  uid_class: string | null;
+  checks: ThemeCheck[];
+  structure: "consistent" | "broken";
+  firmware_acceptance: "unknown";
+  installation: "not-tested";
+  physical_device: "not-tested";
+  palette: { hex: string; share: number; contrast_on_white: number; contrast_on_black: number }[];
+  limitations: string[];
+}
+
+export interface BitmapPreview {
+  index: number;
+  width: number;
+  height: number;
+  bpp: number;
+  png_base64: string;
+  masked: boolean;
 }

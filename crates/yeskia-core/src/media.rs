@@ -772,7 +772,7 @@ impl Toolchain {
             os("-f"),
             os("mp3"),
             os("-y"),
-            os(crate::fsutil::long_path(&tmp)),
+            os(&tmp),
         ]);
         let run = capture_with(&self.ffmpeg, &a, AUDIO_TIMEOUT, 1024, check);
         let finish = || -> Result<Generated> {
@@ -828,7 +828,8 @@ impl Toolchain {
         kind: &str,
         check: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
-        // temp-имя без расширения: ffprobe определяет формат по содержимому
+        // temp-имя без расширения: ffprobe определяет формат по содержимому. FFmpeg получает обычный
+        // путь (не `\\?\`): пути длиннее 260 символов он на Windows не откроет — это ограничение инструмента.
         let info = self
             .probe(&crate::fsutil::long_path(tmp), check)
             .map_err(|e| match e {
@@ -1120,12 +1121,7 @@ impl Toolchain {
         };
         stage(1, 3);
         let tmp = temp_path_for(&dest_path);
-        a.extend([
-            os("-fs"),
-            os(MAX_OUTPUT.to_string()),
-            os("-y"),
-            os(crate::fsutil::long_path(&tmp)),
-        ]);
+        a.extend([os("-fs"), os(MAX_OUTPUT.to_string()), os("-y"), os(&tmp)]);
         let run = capture_with(&self.ffmpeg, &a, timeout, 1024, check);
         let finish = || -> Result<Generated> {
             run?;
