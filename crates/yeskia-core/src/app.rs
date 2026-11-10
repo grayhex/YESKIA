@@ -7,10 +7,12 @@ use crate::diagnostics::Diagnostics;
 use crate::engine::{Engine, OperationHandle};
 use crate::error::Result;
 use crate::error::{Error, ErrorInfo};
+use crate::library::{Item, Library, PackageSet, Provenance, Query};
 use crate::mock::{MockTransport, MOCK_DEVICE_ID};
 use crate::operations::{
     CancellationToken, OperationRequest, OperationResult, Outcome, Progress, ProgressCell,
 };
+use crate::pkg::inspect::{self, Recommendation, Target};
 use crate::storage::{Settings, Storage};
 use crate::system::SystemInfo;
 use crate::transport::DeviceTransport;
@@ -93,6 +95,9 @@ pub struct AppCore {
     /// Принятые, но ещё не ожидаемые операции (для пары start/await из UI).
     handles: Mutex<HashMap<String, OperationHandle>>,
     host_jobs: Mutex<HashMap<String, Arc<HostJob>>>,
+    library: Library,
+    /// Временные копии пакетов для передачи: операция → папка (удаляется по завершении).
+    staging: Mutex<HashMap<String, PathBuf>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,7 +121,10 @@ impl AppCore {
             .log_to_file
             .then(|| data_dir.join("logs").join("yeskia.log"));
         let diag = Arc::new(Diagnostics::new(500, log_file));
-        let mut core = Self::assemble(storage, diag, settings.use_mock_device, extra);
+        let library = Library::open(&data_dir.join("library"))?;
+        // Остатки временных копий после аварийного выхода.
+        let _ = std::fs::remove_dir_all(data_dir.join("staging"));
+        let mut core = Self::assemble(storage, diag, settings.use_mock_device, extra, library);
         core.data_dir = Some(data_dir.to_path_buf());
         Ok(core)
     }
@@ -129,6 +137,16 @@ impl AppCore {
             Arc::new(Diagnostics::new(500, None)),
             true,
             Vec::new(),
+            Library::open(&{
+                static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                std::env::temp_dir().join(format!(
+                    "yeskia-lib-{}-{}-{}",
+                    std::process::id(),
+                    crate::now_ms(),
+                    SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                ))
+            })
+            .expect("библиотека во временной папке"),
         )
     }
 
@@ -137,6 +155,7 @@ impl AppCore {
         diag: Arc<Diagnostics>,
         mock_enabled: bool,
         extra: Vec<Arc<dyn DeviceTransport>>,
+        library: Library,
     ) -> Self {
         let mock = MockTransport::new();
         if !mock_enabled {
@@ -153,6 +172,8 @@ impl AppCore {
             mock,
             handles: Mutex::new(HashMap::new()),
             host_jobs: Mutex::new(HashMap::new()),
+            library,
+            staging: Mutex::new(HashMap::new()),
         }
     }
 
@@ -176,7 +197,9 @@ impl AppCore {
             .unwrap_or_else(|e| e.into_inner())
             .remove(operation_id)
             .ok_or_else(|| crate::Error::InvalidArgument("неизвестная операция".into()))?;
-        Ok(handle.wait())
+        let result = handle.wait();
+        self.drop_staging(operation_id);
+        Ok(result)
     }
 
     /// Отмена по id. Если операция ещё не ожидается (`await_operation` не вызван), её handle
@@ -188,8 +211,115 @@ impl AppCore {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .remove(operation_id);
+        if orphan.is_some() {
+            self.drop_staging(operation_id);
+        }
         drop(orphan);
         cancelled
+    }
+
+    fn drop_staging(&self, operation_id: &str) {
+        let dir = self
+            .staging
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(operation_id);
+        if let Some(d) = dir {
+            let _ = std::fs::remove_dir_all(d);
+        }
+    }
+
+    // ---------- библиотека пакетов ----------
+
+    pub fn library(&self) -> &Library {
+        &self.library
+    }
+
+    /// Импорт файла с компьютера. Размер проверяется до чтения.
+    pub fn library_import(&self, path: &str, provenance: Provenance) -> Result<Item> {
+        let p = std::path::Path::new(path);
+        crate::fsutil::validate_host_path(p)?;
+        let meta = std::fs::metadata(crate::fsutil::long_path(p))
+            .map_err(|_| Error::HostAccess("файл недоступен".into()))?;
+        if !meta.is_file() {
+            return Err(Error::InvalidArgument("нужен файл, а не папка".into()));
+        }
+        if meta.len() == 0 || meta.len() > crate::pkg::jar::MAX_PACKAGE as u64 {
+            return Err(Error::InvalidArgument(
+                "размер пакета должен быть от 1 байта до 32 МиБ".into(),
+            ));
+        }
+        let name = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| Error::UnsafePath("имя файла не в Unicode".into()))?;
+        let data = std::fs::read(crate::fsutil::long_path(p))?;
+        self.library.import(name, &data, provenance)
+    }
+
+    pub fn library_list(&self, q: &Query) -> Result<Vec<Item>> {
+        self.library.list(q)
+    }
+
+    pub fn library_sets(&self) -> Result<Vec<PackageSet>> {
+        self.library.sets()
+    }
+
+    /// Анализ пакета из библиотеки на момент `at` (секунды Unix; `None` — сейчас).
+    pub fn library_inspect(
+        &self,
+        id: &str,
+        target: Target,
+        at: Option<i64>,
+    ) -> Result<serde_json::Value> {
+        let at = at.unwrap_or((crate::now_ms() / 1000) as i64);
+        let report = self.library.inspect(id, target, at)?;
+        serde_json::to_value(report).map_err(|e| Error::Internal(e.to_string()))
+    }
+
+    pub fn package_diagnose(&self, message: &str) -> Result<Recommendation> {
+        inspect::diagnose(message).map_err(|e| Error::InvalidArgument(e.0))
+    }
+
+    /// «Передать на телефон»: копия пакета из библиотеки (с проверкой целостности) во временную
+    /// папку и операция `packages.transfer`. Это запись файла, не установка. Права доступа к
+    /// устройству проверяет Engine по матрице возможностей.
+    pub fn start_package_transfer(
+        &self,
+        device: &DeviceId,
+        package_id: &str,
+        device_dir: &str,
+    ) -> Result<String> {
+        let staging_root = match &self.data_dir {
+            Some(d) => d.join("staging"),
+            None => std::env::temp_dir().join(format!("yeskia-staging-{}", std::process::id())),
+        };
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let stage = staging_root.join(format!(
+            "{}-{}",
+            crate::now_ms(),
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let (path, item) = self.library.stage_for_transfer(package_id, &stage)?;
+        let dir = device_dir.trim_end_matches('/');
+        let request = OperationRequest::PackageTransfer {
+            source: path.display().to_string(),
+            path: format!("{dir}/{}", item.name),
+            sha256: item.id.clone(),
+        };
+        match self.start_operation(device, request) {
+            Ok(op_id) => {
+                self.staging
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(op_id.clone(), stage);
+                Ok(op_id)
+            }
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(stage);
+                Err(e)
+            }
+        }
     }
 
     pub fn operation_progress(&self, operation_id: &str) -> Option<Progress> {

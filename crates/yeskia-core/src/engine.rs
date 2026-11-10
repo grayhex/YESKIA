@@ -235,8 +235,14 @@ impl Shared {
         let entries = Operation::ALL
             .iter()
             .map(|&op| {
-                let maturity = transport.maturity_for(&device.id, op);
-                let outcome = probe.iter().find(|p| p.operation == op);
+                // Передача пакета — это запись файла: готовность та же, что у `files.write`.
+                let basis = if op == Operation::PackagesTransfer {
+                    Operation::FilesWrite
+                } else {
+                    op
+                };
+                let maturity = transport.maturity_for(&device.id, basis);
+                let outcome = probe.iter().find(|p| p.operation == basis);
                 let (availability, detail) = match (maturity, outcome) {
                     // Причину «не поддерживается» берём у probe (режим USB и т. п.), если он её назвал.
                     (SupportStatus::Unsupported, o) => (
@@ -366,6 +372,11 @@ fn execute_request(
             path,
             overwrite,
         } => upload(t, id, std::path::Path::new(source), path, *overwrite, ctx),
+        OperationRequest::PackageTransfer {
+            source,
+            path,
+            sha256,
+        } => package_transfer(t, id, std::path::Path::new(source), path, sha256, ctx),
         OperationRequest::BackupCreate {
             path,
             dest,
@@ -548,6 +559,49 @@ fn download(
         verified: true,
         replaced: existed,
     })
+}
+
+fn is_package_name(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+    [".sis", ".sisx", ".jar", ".jad"]
+        .iter()
+        .any(|e| name.ends_with(e))
+}
+
+/// Передача пакета: хеш файла сверяется с подтверждённым до записи и после; перезаписи нет.
+/// Размер ограничен как у пакетов в библиотеке. Это запись файла, а не установка.
+fn package_transfer(
+    t: &dyn DeviceTransport,
+    id: &DeviceId,
+    source: &std::path::Path,
+    path: &str,
+    sha256: &str,
+    ctx: &OperationContext,
+) -> Result<OperationData> {
+    const MAX_PACKAGE: u64 = 32 * 1024 * 1024;
+    let meta = std::fs::metadata(source).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => Error::HostAccess("исходный файл не найден".into()),
+        std::io::ErrorKind::PermissionDenied => {
+            Error::HostAccess("нет прав на чтение файла".into())
+        }
+        _ => Error::from(e),
+    })?;
+    if !meta.is_file() || meta.len() == 0 || meta.len() > MAX_PACKAGE {
+        return Err(Error::InvalidArgument(
+            "пакет должен быть файлом от 1 байта до 32 МиБ".into(),
+        ));
+    }
+    let (_, actual) = crate::fsutil::hash_file(source, Some(ctx))?;
+    if actual != sha256 {
+        return Err(Error::InvalidArgument(
+            "файл пакета изменился после проверки (SHA-256 не совпадает)".into(),
+        ));
+    }
+    let data = upload(t, id, source, path, OverwritePolicy::Never, ctx)?;
+    match &data {
+        OperationData::Written { sha256: w, .. } if w == sha256 => Ok(data),
+        _ => Err(Error::VerificationFailed),
+    }
 }
 
 /// Загрузка файла с компьютера на устройство с подтверждением обратным чтением (SHA-256).
@@ -839,6 +893,7 @@ impl Engine {
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
             | OperationRequest::FilesUpload { path, .. }
+            | OperationRequest::PackageTransfer { path, .. }
             | OperationRequest::BackupCreate { path, .. }
             | OperationRequest::BackupRestore { path, .. } => *path = validate_device_path(path)?,
             _ => {}
@@ -868,6 +923,35 @@ impl Engine {
             }
             OperationRequest::FilesDownload { dest, .. } => {
                 validate_host_path(std::path::Path::new(dest))?
+            }
+            OperationRequest::PackageTransfer {
+                source,
+                path,
+                sha256,
+            } => {
+                let p = std::path::Path::new(source);
+                if !p.is_absolute()
+                    || p.components()
+                        .any(|c| matches!(c, std::path::Component::ParentDir))
+                {
+                    return Err(Error::UnsafePath(
+                        "исходный путь должен быть абсолютным".into(),
+                    ));
+                }
+                if sha256.len() != 64
+                    || !sha256
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                {
+                    return Err(Error::InvalidArgument(
+                        "нужен SHA-256 пакета (64 hex-символа)".into(),
+                    ));
+                }
+                if !is_package_name(path) {
+                    return Err(Error::InvalidArgument(
+                        "передавать можно только файлы .sis, .sisx, .jar, .jad".into(),
+                    ));
+                }
             }
             OperationRequest::FilesUpload { source, .. } => {
                 let p = std::path::Path::new(source);

@@ -29,10 +29,14 @@ pub enum Operation {
     /// Установка пакета — отдельная операция. Отправка SIS через `files.write` — НЕ установка.
     #[serde(rename = "packages.install")]
     PackagesInstall,
+    /// Передача файла пакета (SIS/SISX/JAR/JAD) на устройство: запись файла с проверкой
+    /// обратным чтением. **Не установка**: результат установки пользователь проверяет на телефоне.
+    #[serde(rename = "packages.transfer")]
+    PackagesTransfer,
 }
 
 impl Operation {
-    pub const ALL: [Operation; 9] = [
+    pub const ALL: [Operation; 10] = [
         Operation::IdentityRead,
         Operation::FilesList,
         Operation::FilesRead,
@@ -42,6 +46,7 @@ impl Operation {
         Operation::SmsRead,
         Operation::SmsSend,
         Operation::PackagesInstall,
+        Operation::PackagesTransfer,
     ];
 
     pub fn id(self) -> &'static str {
@@ -55,6 +60,7 @@ impl Operation {
             Operation::SmsRead => "sms.read",
             Operation::SmsSend => "sms.send",
             Operation::PackagesInstall => "packages.install",
+            Operation::PackagesTransfer => "packages.transfer",
         }
     }
 
@@ -67,6 +73,7 @@ impl Operation {
                 | Operation::ContactsWrite
                 | Operation::SmsSend
                 | Operation::PackagesInstall
+                | Operation::PackagesTransfer
         )
     }
 }
@@ -135,6 +142,15 @@ pub enum OperationRequest {
         #[serde(default)]
         apply: bool,
     },
+    /// Передать файл пакета с компьютера (`source`, абсолютный путь) в папку/файл устройства `path`.
+    /// `sha256` — хеш, под который пользователь подтвердил передачу: ядро сверяет его с файлом
+    /// до записи и после. Перезапись запрещена. Расширение — только `.sis/.sisx/.jar/.jad`.
+    #[serde(rename = "packages.transfer")]
+    PackageTransfer {
+        source: String,
+        path: String,
+        sha256: String,
+    },
     #[serde(rename = "contacts.read")]
     ContactsRead,
     #[serde(rename = "sms.read")]
@@ -160,6 +176,7 @@ impl OperationRequest {
                     Operation::FilesRead
                 }
             }
+            OperationRequest::PackageTransfer { .. } => Operation::PackagesTransfer,
             OperationRequest::ContactsRead => Operation::ContactsRead,
             OperationRequest::SmsRead => Operation::SmsRead,
         }
@@ -171,6 +188,7 @@ impl OperationRequest {
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
             | OperationRequest::FilesUpload { path, .. }
+            | OperationRequest::PackageTransfer { path, .. }
             | OperationRequest::BackupCreate { path, .. }
             | OperationRequest::BackupRestore { path, .. } => Some(path),
             _ => None,

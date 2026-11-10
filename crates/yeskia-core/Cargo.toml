@@ -14,3 +14,8 @@ rusqlite.workspace = true
 sha2 = "0.10"
 getrandom = "0.2"
 fs2 = "0.4"
+flate2 = "1.1.11"
+sha1 = "0.10.7"
+x509-parser = "0.18.1"
+ring = "0.17.14"
+zip = { version = "4.2.0", default-features = false, features = ["deflate"] }

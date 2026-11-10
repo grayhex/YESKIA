@@ -51,7 +51,8 @@ export type Operation =
   | "contacts.write"
   | "sms.read"
   | "sms.send"
-  | "packages.install";
+  | "packages.install"
+  | "packages.transfer";
 
 export type Availability = "available" | "not-tested" | "unsupported" | "error";
 
@@ -104,6 +105,7 @@ export type OperationRequest =
   | { type: "files.upload"; source: string; path: string; overwrite: OverwritePolicy }
   | { type: "backup.create"; path: string; dest: string; label: string; exclude: string[] }
   | { type: "backup.restore"; backup: string; path: string; only: string | null; apply: boolean }
+  | { type: "packages.transfer"; source: string; path: string; sha256: string }
   | { type: "contacts.read" }
   | { type: "sms.read" };
 
@@ -352,4 +354,131 @@ export interface HostJobResult {
   outcome: "success" | "failed" | "cancelled";
   data: HostJobData | null;
   error: ErrorInfo | null;
+}
+
+// ---------- библиотека пакетов (issue #8) ----------
+
+export interface Provenance {
+  source: string;
+  url: string;
+  license: string;
+  /** «user-confirmed» — пользователь подтвердил право хранить и передавать файл; приложение это не проверяет. */
+  rights: "unknown" | "user-confirmed";
+  note: string;
+}
+
+export type PackageFormat = "sis" | "sisx" | "jar" | "jad";
+
+export interface LibraryItem {
+  /** SHA-256 содержимого (hex). */
+  id: string;
+  name: string;
+  format: PackageFormat;
+  size: number;
+  added_ms: number;
+  status: "ok" | "corrupt" | "unreadable";
+  error: string | null;
+  uid: string | null;
+  title: string | null;
+  version: string | null;
+  vendor: string | null;
+  signed: boolean | null;
+  platform_uids: string[];
+  provenance: Provenance;
+  /** Заявленная пакетом платформа относительно выбранной модели; не проверка установки. */
+  fit: "declared" | "not-declared" | "unknown" | null;
+}
+
+export interface LibraryQuery {
+  text: string;
+  format: PackageFormat | null;
+  model: string | null;
+  only_fitting: boolean;
+  set: number | null;
+}
+
+export interface PackageSet {
+  id: number;
+  name: string;
+  items: string[];
+}
+
+export interface InspectTarget {
+  model: string;
+  rm: string;
+  firmware: string;
+  os: string;
+}
+
+export interface InspectRecommendation {
+  issue: string;
+  advice: string;
+}
+
+export interface CertInfo {
+  subject: string;
+  issuer: string;
+  serial: string;
+  sha256: string;
+  not_before: string;
+  not_after: string;
+  validity: "valid" | "expired" | "not-yet-valid";
+  key_type: string;
+  self_issued: boolean;
+}
+
+export interface InspectReport {
+  schema: string;
+  name: string;
+  format: PackageFormat;
+  sha256: string;
+  size: number;
+  sis: {
+    uid3: number;
+    package: { uid: number; names: string[]; vendor_unique_name: string; version: number[] | null };
+    files: { target: string; length: number; hash_ok: boolean | null }[];
+    signed: boolean;
+    signature_count: number;
+  } | null;
+  midlet: { manifest: Record<string, string>; midp: string; cldc: string } | null;
+  descriptor: { descriptor: Record<string, string>; paired: boolean } | null;
+  integrity: {
+    uid_checksum_ok: boolean;
+    package_uid_matches_header: boolean;
+    controller_crc_ok: boolean | null;
+    data_crc_ok: boolean | null;
+    payload_hashes_ok: boolean | null;
+  } | null;
+  signatures: {
+    status: "unsigned" | "valid" | "invalid" | "unsupported";
+    trust: string;
+    revocation: string;
+    phone_constraints: string;
+    at: string;
+    chains: { status: string; certificates: CertInfo[]; root_signature: string }[];
+  } | null;
+  target: InspectTarget;
+  dependencies: {
+    platforms: { uid: string; label: string; relation: string }[];
+    platform_verdict: string;
+    packages: { uid: string | null; name: string; status: string }[];
+    verdict: string;
+    imports: string;
+  } | null;
+  binaries: {
+    target: string;
+    cpu: string;
+    kernel: string;
+    capabilities: string[] | null;
+    restricted_capabilities: string[] | null;
+  }[];
+  capabilities: string[];
+  issues: string[];
+  compatibility: "compatible" | "incompatible" | "unknown";
+  compatibility_scope: string;
+  emulator: string;
+  installation: string;
+  physical_device: string;
+  limitations: string[];
+  recommendations: InspectRecommendation[];
 }
