@@ -14,7 +14,7 @@
 | Протокольные знания PC Suite / NPC | rewrite | issue #6/#10: реализация на Rust по реальным трассам |
 | Разбор SIS/SISX/JAR, сертификаты | adapt | issue #8: переписано на Rust (`pkg/`), Python не нужен; сверено с исходником и golden-выводом SymPort, см. [PACKAGES.md](PACKAGES.md) |
 | HTTP-каталог приложений, downloader | drop | сетевой, ссылки на сторонние дистрибутивы; офлайн-библиотека пользователя вместо него |
-| Темы, рингтоны, подготовка медиа | adapt | issue #9 |
+| Темы, рингтоны, подготовка медиа | adapt | issue #9: FFmpeg остаётся внешним процессом (как в SymPort), обёртка и анализ тем — Rust; см. [MEDIA.md](MEDIA.md). Сборка тем, Theme Studio, подпись — не переносились |
 | Docker / Compose | drop | требование «без Docker» |
 | Win Bridge relay | drop | прямой локальный доступ вместо relay |
 | Серверная аутентификация, логин, аккаунты | drop | офлайн, одно рабочее место |
@@ -27,6 +27,7 @@
 | --- | --- | --- |
 | flate2, sha1, x509-parser (+ der-parser, asn1-rs, oid-registry), zip | MIT OR Apache-2.0 / MIT | разбор пакетов |
 | ring | Apache-2.0 AND ISC | проверка подписей |
+| FFmpeg (внешний процесс, не линкуется и не поставляется) | LGPL/GPL по сборке пользователя | рингтоны, подготовка медиа; лицензия определяется и показывается |
 | Tauri 2 (`tauri`, `tauri-build`, `@tauri-apps/*`) | MIT OR Apache-2.0 | оболочка |
 | serde, serde_json, thiserror | MIT OR Apache-2.0 | ядро |
 | rusqlite | MIT | ядро |

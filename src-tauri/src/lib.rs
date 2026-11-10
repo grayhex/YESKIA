@@ -3,13 +3,14 @@
 
 use std::sync::Arc;
 use yeskia_core::app::{AppCore, SmokeReport};
-use yeskia_core::app::{HostJobRequest, HostJobResult};
+use yeskia_core::app::{AudioPreview, HostJobRequest, HostJobResult, ThemeSource};
 use yeskia_core::backup::BackupInfo;
 use yeskia_core::device::{Device, DeviceId};
 use yeskia_core::diagnostics::LogEntry;
 use yeskia_core::error::{Error, ErrorInfo};
 use yeskia_core::host::{HostEntry, HostRoot};
 use yeskia_core::library::{Item, PackageSet, Provenance, Query};
+use yeskia_core::media::{MediaInfo, ToolInfo};
 use yeskia_core::operations::{OperationRequest, OperationResult, Progress};
 use yeskia_core::pkg::inspect::{Recommendation, Target};
 use yeskia_core::storage::{data_dir, JournalEntry, Settings};
@@ -158,6 +159,51 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .await
     .map_err(|e| Error::Internal(e.to_string()).to_info())?
     .map_err(|e| e.to_info())
+}
+
+// ---------- медиа и темы (локально) ----------
+
+/// FFmpeg: версия, лицензия, путь. Нет инструмента — ошибка `TOOL_MISSING`.
+#[tauri::command]
+async fn media_tool_info(state: tauri::State<'_, State>) -> Cmd<ToolInfo> {
+    blocking(&state, |c| c.media_tool_info()).await
+}
+
+#[tauri::command]
+async fn media_probe(state: tauri::State<'_, State>, path: String) -> Cmd<MediaInfo> {
+    blocking(&state, move |c| c.media_probe(&path)).await
+}
+
+#[tauri::command]
+async fn media_waveform(
+    state: tauri::State<'_, State>,
+    path: String,
+    buckets: usize,
+) -> Cmd<Vec<f32>> {
+    blocking(&state, move |c| c.media_waveform(&path, buckets)).await
+}
+
+#[tauri::command]
+async fn media_preview(state: tauri::State<'_, State>, path: String) -> Cmd<AudioPreview> {
+    blocking(&state, move |c| c.media_preview(&path)).await
+}
+
+#[tauri::command]
+async fn theme_inspect(
+    state: tauri::State<'_, State>,
+    source: ThemeSource,
+    model: Option<String>,
+) -> Cmd<yeskia_core::theme::ThemeReport> {
+    blocking(&state, move |c| c.theme_inspect(&source, model.as_deref())).await
+}
+
+#[tauri::command]
+async fn theme_preview(
+    state: tauri::State<'_, State>,
+    source: ThemeSource,
+    limit: usize,
+) -> Cmd<Vec<yeskia_core::theme::BitmapPreview>> {
+    blocking(&state, move |c| c.theme_preview(&source, limit)).await
 }
 
 // ---------- библиотека пакетов (офлайн) ----------
@@ -409,6 +455,12 @@ pub fn run() {
             host_job_progress,
             cancel_host_job,
             save_report,
+            media_tool_info,
+            media_probe,
+            media_waveform,
+            media_preview,
+            theme_inspect,
+            theme_preview,
             library_list,
             library_import,
             library_remove,

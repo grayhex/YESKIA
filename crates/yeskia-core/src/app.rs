@@ -8,6 +8,7 @@ use crate::engine::{Engine, OperationHandle};
 use crate::error::Result;
 use crate::error::{Error, ErrorInfo};
 use crate::library::{Item, Library, PackageSet, Provenance, Query};
+use crate::media::{self, MediaInfo, Toolchain};
 use crate::mock::{MockTransport, MOCK_DEVICE_ID};
 use crate::operations::{
     CancellationToken, OperationRequest, OperationResult, Outcome, Progress, ProgressCell,
@@ -23,8 +24,24 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
 
-/// Задание без устройства (копии папок компьютера, проверка, восстановление в папку).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AudioPreview {
+    pub mime: String,
+    pub base64: String,
+}
+
+/// Откуда взять тему для анализа.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ThemeSource {
+    /// Папка с файлами темы, один из файлов `.skn/.mbm/.mif/.pkg` или SIS на компьютере.
+    Path { path: String },
+    /// SIS из библиотеки пакетов (по SHA-256).
+    Library { id: String },
+}
+
+/// Задание без устройства (копии папок компьютера, проверка, восстановление в папку).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum HostJobRequest {
     /// Копия папки компьютера в хранилище копий (каталог создаётся ядром).
@@ -47,9 +64,25 @@ pub enum HostJobRequest {
         #[serde(default)]
         apply: bool,
     },
+    /// Рингтон (MP3) из фрагмента аудио/видео; результат пишется без перезаписи.
+    #[serde(rename = "media.ringtone")]
+    MediaRingtone {
+        source: String,
+        dest: String,
+        options: media::RingtoneOptions,
+    },
+    /// Подготовка файла по пресету (экран модели для картинок).
+    #[serde(rename = "media.prepare")]
+    MediaPrepare {
+        source: String,
+        dest: String,
+        preset: String,
+        #[serde(default)]
+        model: String,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HostJobData {
     BackupCreated {
@@ -71,9 +104,13 @@ pub enum HostJobData {
     BackupApplied {
         report: backup::ApplyReport,
     },
+    /// Файл создан на компьютере и перечитан (`generated`); передача и установка — отдельные шаги.
+    MediaGenerated {
+        result: media::Generated,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HostJobResult {
     pub job_id: String,
     pub outcome: Outcome,
@@ -98,6 +135,8 @@ pub struct AppCore {
     library: Library,
     /// Временные копии пакетов для передачи: операция → папка (удаляется по завершении).
     staging: Mutex<HashMap<String, PathBuf>>,
+    /// Найденный FFmpeg: ключ — настроенная папка.
+    tools: Mutex<Option<(Option<String>, Arc<Toolchain>)>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -174,6 +213,7 @@ impl AppCore {
             host_jobs: Mutex::new(HashMap::new()),
             library,
             staging: Mutex::new(HashMap::new()),
+            tools: Mutex::new(None),
         }
     }
 
@@ -227,6 +267,118 @@ impl AppCore {
         if let Some(d) = dir {
             let _ = std::fs::remove_dir_all(d);
         }
+    }
+
+    // ---------- медиа и темы ----------
+
+    /// FFmpeg: настроенная папка → рядом с приложением → PATH. Кэшируется по настройке.
+    pub fn toolchain(&self) -> Result<Arc<Toolchain>> {
+        let dir = self
+            .get_settings()?
+            .ffmpeg_dir
+            .filter(|d| !d.trim().is_empty());
+        let mut cache = self.tools.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((key, t)) = cache.as_ref() {
+            if *key == dir {
+                return Ok(Arc::clone(t));
+            }
+        }
+        let t = Arc::new(Toolchain::locate(dir.as_deref().map(std::path::Path::new))?);
+        *cache = Some((dir, Arc::clone(&t)));
+        Ok(t)
+    }
+
+    pub fn media_tool_info(&self) -> Result<media::ToolInfo> {
+        Ok(self.toolchain()?.info.clone())
+    }
+
+    pub fn media_probe(&self, path: &str) -> Result<MediaInfo> {
+        let p = media::check_input(path)?;
+        self.toolchain()?.probe(&p, &|| Ok(()))
+    }
+
+    pub fn media_waveform(&self, path: &str, buckets: usize) -> Result<Vec<f32>> {
+        let p = media::check_input(path)?;
+        self.toolchain()?.waveform(&p, buckets, &|| Ok(()))
+    }
+
+    /// Небольшой аудиофайл для предпросмотра в окне (до 8 МиБ; mp3, m4a, aac, wav) как base64.
+    pub fn media_preview(&self, path: &str) -> Result<AudioPreview> {
+        let p = std::path::Path::new(path);
+        crate::fsutil::validate_host_path(p)?;
+        let ext = p
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let mime = match ext.as_str() {
+            "mp3" => "audio/mpeg",
+            "m4a" | "aac" => "audio/mp4",
+            "wav" => "audio/wav",
+            _ => {
+                return Err(Error::InvalidArgument(
+                    "предпросмотр: mp3, m4a, aac или wav".into(),
+                ))
+            }
+        };
+        let lp = crate::fsutil::long_path(p);
+        let meta =
+            std::fs::metadata(&lp).map_err(|_| Error::HostAccess("файл недоступен".into()))?;
+        if !meta.is_file() || meta.len() == 0 || meta.len() > 8 * 1024 * 1024 {
+            return Err(Error::LimitExceeded(
+                "для предпросмотра нужен файл до 8 МиБ".into(),
+            ));
+        }
+        Ok(AudioPreview {
+            mime: mime.into(),
+            base64: crate::theme::base64(&std::fs::read(lp)?),
+        })
+    }
+
+    /// Анализ темы: файл/папка на компьютере или SIS из библиотеки пакетов.
+    pub fn theme_load(&self, source: &ThemeSource) -> Result<crate::theme::Theme> {
+        match source {
+            ThemeSource::Path { path } => {
+                let lower = path.to_ascii_lowercase();
+                if lower.ends_with(".sis") || lower.ends_with(".sisx") {
+                    let p = std::path::Path::new(path);
+                    crate::fsutil::validate_host_path(p)?;
+                    let meta = std::fs::metadata(crate::fsutil::long_path(p))
+                        .map_err(|_| Error::HostAccess("файл недоступен".into()))?;
+                    if !meta.is_file()
+                        || meta.len() == 0
+                        || meta.len() > crate::pkg::jar::MAX_PACKAGE as u64
+                    {
+                        return Err(Error::InvalidArgument(
+                            "пакет должен быть файлом до 32 МиБ".into(),
+                        ));
+                    }
+                    crate::theme::load_sis(&std::fs::read(crate::fsutil::long_path(p))?)
+                } else {
+                    crate::theme::load_folder(path)
+                }
+            }
+            ThemeSource::Library { id } => {
+                let (_, data) = self.library.bytes(id)?;
+                crate::theme::load_sis(&data)
+            }
+        }
+    }
+
+    pub fn theme_inspect(
+        &self,
+        source: &ThemeSource,
+        model: Option<&str>,
+    ) -> Result<crate::theme::ThemeReport> {
+        Ok(crate::theme::inspect(&self.theme_load(source)?, model))
+    }
+
+    pub fn theme_preview(
+        &self,
+        source: &ThemeSource,
+        limit: usize,
+    ) -> Result<Vec<crate::theme::BitmapPreview>> {
+        crate::theme::preview(&self.theme_load(source)?, limit.clamp(1, 24))
     }
 
     // ---------- библиотека пакетов ----------
@@ -406,6 +558,13 @@ impl AppCore {
             }
             HostJobRequest::BackupVerify { name }
             | HostJobRequest::BackupRestoreLocal { name, .. } => Some(self.backup_dir(name)?),
+            HostJobRequest::MediaRingtone { .. } | HostJobRequest::MediaPrepare { .. } => None,
+        };
+        let tools = match &request {
+            HostJobRequest::MediaRingtone { .. } | HostJobRequest::MediaPrepare { .. } => {
+                Some(self.toolchain()?)
+            }
+            _ => None,
         };
         jobs.insert(job_id.clone(), Arc::clone(&job));
         let id2 = job_id.clone();
@@ -424,7 +583,7 @@ impl AppCore {
                 check: &check,
                 progress: &progress,
             };
-            let r = run_host_job(request, plan, &root, &ctl);
+            let r = run_host_job(request, plan, &root, &ctl, tools);
             let (outcome, data, error) = match r {
                 Ok(d) => (Outcome::Success, Some(d), None),
                 Err(Error::Cancelled) => {
@@ -547,9 +706,39 @@ fn run_host_job(
     dir: Option<PathBuf>,
     root: &std::path::Path,
     ctl: &backup::Control,
+    tools: Option<Arc<Toolchain>>,
 ) -> Result<HostJobData> {
     const PLAN_ITEMS_LIMIT: usize = 500;
+    let stage = |done: u64, total: u64| {
+        (ctl.progress)(backup::BackupProgress {
+            files_done: done,
+            files_total: total,
+            bytes_done: 0,
+            bytes_total: 0,
+        })
+    };
     match request {
+        HostJobRequest::MediaRingtone {
+            source,
+            dest,
+            options,
+        } => {
+            let t = tools.ok_or_else(|| Error::Internal("нет FFmpeg".into()))?;
+            Ok(HostJobData::MediaGenerated {
+                result: t.ringtone(&source, &dest, &options, ctl.check, &stage)?,
+            })
+        }
+        HostJobRequest::MediaPrepare {
+            source,
+            dest,
+            preset,
+            model,
+        } => {
+            let t = tools.ok_or_else(|| Error::Internal("нет FFmpeg".into()))?;
+            Ok(HostJobData::MediaGenerated {
+                result: t.prepare(&source, &dest, &preset, &model, ctl.check, &stage)?,
+            })
+        }
         HostJobRequest::BackupCreateLocal {
             source,
             label,

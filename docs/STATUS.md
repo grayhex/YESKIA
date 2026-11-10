@@ -44,3 +44,6 @@
 | Библиотека пакетов, инспектор SIS/SISX/JAR/JAD, подписи, наборы (issue #8) | `tested-on-host` | `crates/yeskia-core/tests/pkg.rs`, `packages.rs`; golden-сверка со SymPort; `ui/src/Packages.test.tsx` |
 | Передача пакета на телефон (`packages.transfer`) | `tested-on-mock` | запись файла с read-back, не установка; на реальном телефоне/карте `not-tested` |
 | Установка пакетов на телефоне, доверие сертификатам телефона | `not-tested` | инспектор не утверждает совместимость (`compatible` не выдаётся) |
+| Рингтоны и подготовка медиа через внешний FFmpeg (issue #9) | `tested-on-host` | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs`; без FFmpeg — `TOOL_MISSING` |
+| Анализ и предпросмотр тем S60 (.skn/.mbm/.mif/SIS) | `tested-on-host` | `crates/yeskia-core/tests/theme.rs` (темы SymPort, golden) |
+| Воспроизведение рингтона / применение темы / передача медиа на телефон | `not-tested` | нужен физический телефон; принятие темы прошивкой `unknown` |

@@ -1,5 +1,7 @@
 import type { Backend } from "./api";
 import type {
+  AudioPreview,
+  BitmapPreview,
   CapabilityEntry,
   CapabilityMatrix,
   BackupInfo,
@@ -19,6 +21,7 @@ import type {
   InspectTarget,
   LibraryItem,
   LibraryQuery,
+  MediaInfo,
   PackageSet,
   PlanItem,
   Provenance,
@@ -29,6 +32,9 @@ import type {
   Progress,
   Settings,
   SystemInfo,
+  ThemeReport,
+  ThemeSource,
+  ToolInfo,
 } from "./types";
 
 const err = (code: ErrorCode, message: string) => ({
@@ -97,6 +103,7 @@ export class MockBackend implements Backend {
     use_mock_device: true,
     log_to_file: false,
     backup_root: null,
+    ffmpeg_dir: null,
   };
   private journal: JournalEntry[] = [];
   private seq = 1;
@@ -132,6 +139,13 @@ export class MockBackend implements Backend {
   backupFiles: Record<string, Record<string, number>> = {};
   /** Копии, которые verify считает повреждёнными (тестовый хук). */
   corruptBackups = new Set<string>();
+  /** FFmpeg «установлен» (тестовый хук); false → TOOL_MISSING. */
+  ffmpegAvailable = true;
+  nextMediaFile: string | null = null;
+  /** Содержимое «файлов» компьютера для проверки: путь → описание. */
+  mediaFiles: Record<string, MediaInfo> = {};
+  /** Отчёты тем (тестовый хук): ключ — путь или id библиотеки. */
+  themeSamples: Record<string, ThemeReport> = {};
   /** Библиотека пакетов (UI-заглушка): ключ — «SHA-256». */
   library = new Map<string, LibraryItem>();
   packageSets: PackageSet[] = [];
@@ -507,7 +521,9 @@ export class MockBackend implements Backend {
   }
 
   async startHostJob(request: HostJobRequest) {
-    if (request.type !== "backup.create_local" && !this.backupFiles[request.name])
+    if (request.type === "media.ringtone" || request.type === "media.prepare") {
+      if (!this.ffmpegAvailable) throw err("TOOL_MISSING", "FFmpeg не найден");
+    } else if (request.type !== "backup.create_local" && !this.backupFiles[request.name])
       throw err("UNSAFE_PATH", "недопустимое имя копии");
     const id = `job-${this.jobSeq++}`;
     this.jobs.set(id, { request, cancelled: false });
@@ -536,7 +552,30 @@ export class MockBackend implements Backend {
       };
     const r = job.request;
     let data: HostJobData;
-    if (r.type === "backup.create_local") {
+    if (r.type === "media.ringtone" || r.type === "media.prepare") {
+      const fail = (code: ErrorCode, message: string): HostJobResult => ({
+        job_id: jobId,
+        outcome: "failed",
+        data: null,
+        error: { code, message, retryable: false, action: "none" },
+      });
+      if (!(r.source in this.mediaFiles) && !(r.source in this.hostFiles))
+        return fail("HOST_ACCESS", "файл недоступен");
+      if (r.dest in this.hostFiles) return fail("ALREADY_EXISTS", "целевой файл уже существует");
+      const duration = r.type === "media.ringtone" ? r.options.end - r.options.start : 0;
+      this.hostFiles[r.dest] = 4096;
+      data = {
+        type: "media_generated",
+        result: {
+          path: r.dest,
+          bytes: 4096,
+          sha256: "c".repeat(64),
+          duration,
+          description: r.type === "media.ringtone" ? "MP3 · моно" : `пресет ${r.preset}`,
+          hardware: "not-tested",
+        },
+      };
+    } else if (r.type === "backup.create_local") {
       const prefix = r.source.endsWith(HOST_SEP) ? r.source : `${r.source}${HOST_SEP}`;
       const files: Record<string, number> = {};
       for (const [p, size] of Object.entries(this.hostFiles)) {
@@ -619,6 +658,51 @@ export class MockBackend implements Backend {
   }
 
   savedReports: { name: string; json: string }[] = [];
+  async pickMediaFile() {
+    return this.nextMediaFile;
+  }
+  async mediaToolInfo(): Promise<ToolInfo> {
+    if (!this.ffmpegAvailable) throw err("TOOL_MISSING", "FFmpeg не найден");
+    return {
+      ffmpeg_path: "C:\\Tools\\ffmpeg\\ffmpeg.exe",
+      ffprobe_path: "C:\\Tools\\ffmpeg\\ffprobe.exe",
+      version: "6.1-ui-mock",
+      license: "lgpl",
+      redistributable: true,
+      encoders: ["libmp3lame", "aac"],
+    };
+  }
+  async mediaProbe(path: string): Promise<MediaInfo> {
+    if (!this.ffmpegAvailable) throw err("TOOL_MISSING", "FFmpeg не найден");
+    const m = this.mediaFiles[path];
+    if (!m)
+      throw err("INVALID_ARGUMENT", "файл не удалось прочитать как аудио, видео или картинку");
+    return m;
+  }
+  async mediaWaveform(_path: string, buckets: number) {
+    return Array.from({ length: buckets }, (_, i) => Math.abs(Math.sin(i / 7)) * 0.8);
+  }
+  async mediaPreview(): Promise<AudioPreview> {
+    return { mime: "audio/mpeg", base64: "AAAA" };
+  }
+  async themeInspect(source: ThemeSource): Promise<ThemeReport> {
+    const key = source.kind === "path" ? source.path : source.id;
+    const r = this.themeSamples[key];
+    if (!r) throw err("INVALID_ARGUMENT", "в папке нет файла .skn");
+    return r;
+  }
+  async themePreview(_source: ThemeSource, limit: number): Promise<BitmapPreview[]> {
+    const px =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    return Array.from({ length: Math.min(limit, 3) }, (_, index) => ({
+      index,
+      width: 240,
+      height: 320,
+      bpp: 16,
+      png_base64: px,
+      masked: index === 1,
+    }));
+  }
   async pickPackageFiles() {
     return [...this.nextPackageFiles];
   }

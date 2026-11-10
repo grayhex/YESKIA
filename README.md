@@ -11,6 +11,7 @@
 - Лаборатория PC Suite (регламент захвата, отчёты): [docs/protocol/NPC_LAB.md](docs/protocol/NPC_LAB.md)
 - Файловый менеджер: [docs/FILE_MANAGER.md](docs/FILE_MANAGER.md)
 - Пакеты, библиотека и инспектор: [docs/PACKAGES.md](docs/PACKAGES.md)
+- Рингтоны, подготовка медиа и темы: [docs/MEDIA.md](docs/MEDIA.md)
 - Резервные копии файлов: [docs/BACKUPS.md](docs/BACKUPS.md)
 - Графика телефонов, происхождение и права: [docs/ASSETS.md](docs/ASSETS.md)
 - Интерфейс и скриншоты: [docs/UI.md](docs/UI.md)

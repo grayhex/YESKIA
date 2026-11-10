@@ -38,6 +38,8 @@ pub struct Settings {
     pub log_to_file: bool,
     /// Хранилище резервных копий (папка Windows); `None` — `<каталог данных>\\backups`.
     pub backup_root: Option<String>,
+    /// Папка с `ffmpeg` и `ffprobe`; `None` — искать рядом с приложением и в PATH.
+    pub ffmpeg_dir: Option<String>,
 }
 
 impl Default for Settings {
@@ -48,6 +50,7 @@ impl Default for Settings {
             use_mock_device: false,
             log_to_file: true,
             backup_root: None,
+            ffmpeg_dir: None,
         }
     }
 }
@@ -286,6 +289,7 @@ mod tests {
             use_mock_device: true,
             log_to_file: false,
             backup_root: Some("D:\\Backups".into()),
+            ffmpeg_dir: Some("D:\\Tools\\ffmpeg".into()),
         };
         s.save_settings(&new).unwrap();
         assert_eq!(s.load_settings().unwrap(), new);

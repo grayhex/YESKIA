@@ -14,12 +14,14 @@ pub mod fsutil;
 pub mod host;
 pub mod inspector;
 pub mod library;
+pub mod media;
 pub mod mock;
 pub mod operations;
 pub mod paths;
 pub mod pkg;
 pub mod storage;
 pub mod system;
+pub mod theme;
 pub mod transport;
 pub mod volume;
 
