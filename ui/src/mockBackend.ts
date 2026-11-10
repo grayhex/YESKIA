@@ -203,6 +203,7 @@ export class MockBackend implements Backend {
       is_windows: false,
       logical_cpus: 1,
       data_dir: "(ui mock)",
+      portable: false,
       network_required: false,
     };
   }

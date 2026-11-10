@@ -385,6 +385,27 @@ fn smoke_test(core: &AppCore) -> yeskia_core::Result<SmokeReport> {
     core.smoke()
 }
 
+/// Нативное окно с сообщением (до создания окна приложения). Только Windows.
+#[cfg(windows)]
+fn show_error(title: &str, text: &str) {
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+    let w = |s: &str| {
+        s.encode_utf16()
+            .chain(std::iter::once(0))
+            .collect::<Vec<u16>>()
+    };
+    let (t, x) = (w(title), w(text));
+    unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(x.as_ptr()),
+            PCWSTR(t.as_ptr()),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+}
+
 pub fn run() {
     // `yeskia-app --doctor [--com-busy]`: печатает privacy-safe отчёт JSON и завершается
     // (без окна; для чистого Windows 11 и для CI). Ничего не устанавливает и не пишет на устройство.
@@ -439,6 +460,21 @@ pub fn run() {
                 std::process::exit(2);
             }
         }
+    }
+
+    // WebView2 нужен для окна. Установщик его не скачивает и не ставит сам: при отсутствии — понятное
+    // сообщение с инструкцией (Windows 11 включает Runtime).
+    #[cfg(windows)]
+    if let Err(e) = tauri::webview_version() {
+        eprintln!("YESKIA: WebView2 недоступен: {e}");
+        show_error(
+            "YESKIA не может открыть окно",
+            "Не найден Microsoft Edge WebView2 Runtime. В Windows 11 он входит в систему; если его нет, \
+             установите его вручную с официальной страницы Microsoft \
+             (developer.microsoft.com/microsoft-edge/webview2) и запустите YESKIA снова.\n\n\
+             Приложение ничего не скачивает и не устанавливает само.",
+        );
+        std::process::exit(3);
     }
 
     tauri::Builder::default()

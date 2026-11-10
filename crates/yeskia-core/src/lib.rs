@@ -24,6 +24,7 @@ pub mod storage;
 pub mod system;
 pub mod theme;
 pub mod transport;
+pub mod update;
 pub mod volume;
 
 pub use engine::Engine;

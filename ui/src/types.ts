@@ -162,6 +162,8 @@ export interface SystemInfo {
   is_windows: boolean;
   logical_cpus: number;
   data_dir: string;
+  /** Портативный режим: данные рядом с программой. */
+  portable: boolean;
   network_required: boolean;
 }
 

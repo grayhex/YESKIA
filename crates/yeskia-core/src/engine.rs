@@ -871,6 +871,12 @@ impl Engine {
             .and_then(|q| q.running.clone())
     }
 
+    /// Сколько операций сейчас принято и не завершено (в очереди или выполняется) по всем устройствам.
+    /// Нужен, чтобы не обновлять приложение посреди записи на телефон.
+    pub fn active_operations(&self) -> usize {
+        self.shared.lock().pending.len()
+    }
+
     /// Сколько операций ждёт в очереди устройства.
     pub fn queued_operations(&self, id: &DeviceId) -> usize {
         self.shared

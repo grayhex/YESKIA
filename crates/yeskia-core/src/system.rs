@@ -10,6 +10,8 @@ pub struct SystemInfo {
     pub is_windows: bool,
     pub logical_cpus: u32,
     pub data_dir: String,
+    /// Портативный режим: данные рядом с программой, профиль и реестр не используются.
+    pub portable: bool,
     /// Всегда false: ядро не требует сети.
     pub network_required: bool,
 }
@@ -25,6 +27,7 @@ impl SystemInfo {
                 .map(|n| n.get() as u32)
                 .unwrap_or(1),
             data_dir: crate::storage::data_dir().display().to_string(),
+            portable: crate::storage::is_portable(),
             network_required: false,
         }
     }
