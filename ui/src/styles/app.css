@@ -1186,3 +1186,12 @@ table.data td {
     flex: auto;
   }
 }
+
+/* Original supplied logo; crop only the whitespace in its display viewport. */
+.brand-logo {
+  width: 132px;
+  height: 26px;
+  object-fit: cover;
+  object-position: center;
+  flex-shrink: 0;
+}

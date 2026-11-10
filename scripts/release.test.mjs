@@ -85,3 +85,32 @@ test("ключ обновлений: подпись Ed25519 проверяетс
   assert.equal(verify(null, manifest, pub, Buffer.from(sig, "hex")), true);
   assert.equal(verify(null, Buffer.from('{"version":"9.9.9"}'), pub, Buffer.from(sig, "hex")), false);
 });
+
+test("упаковка выпускает только свежий setup.exe и отклоняет подмену версии", { skip: process.platform === "win32" }, async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, copyFileSync, chmodSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join, resolve } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+  const root = mkdtempSync(join(tmpdir(), "yeskia-package-"));
+  const shellQuote = (s) => "'" + s.replaceAll("'", "'\\''") + "'";
+  try {
+    for (const d of ["scripts", "src-tauri", "bin", "dist-release", "target/release/bundle/nsis"]) mkdirSync(join(root, d), { recursive: true });
+    copyFileSync(new URL("./package.sh", import.meta.url), join(root, "scripts/package.sh"));
+    copyFileSync(new URL("./installer.conf.json", import.meta.url), join(root, "scripts/installer.conf.json"));
+    writeFileSync(join(root, "src-tauri/tauri.conf.json"), '{"version":"0.1.0"}');
+    writeFileSync(join(root, "dist-release/portable.zip"), "stale");
+    writeFileSync(join(root, "target/release/bundle/nsis/YESKIA_0.0.1_x64-setup.exe"), "stale installer");
+    writeFileSync(join(root, "bin/node"), `#!/bin/sh\nif [ "$1" = scripts/release.mjs ]; then printf 'test licenses' > build-support/THIRD_PARTY_NOTICES.md; else exec ${shellQuote(process.execPath)} "$@"; fi\n`);
+    writeFileSync(join(root, "bin/npm"), '#!/bin/sh\n[ "$*" = "run tauri build -- --bundles nsis --config scripts/installer.conf.json" ] || exit 2\ntest -s build-support/THIRD_PARTY_NOTICES.md || exit 3\nprintf "fresh installer" > target/release/bundle/nsis/YESKIA_0.1.0_x64-setup.exe\n');
+    for (const f of ["node", "npm"]) chmodSync(join(root, "bin", f), 0o755);
+    const env = { ...process.env, PATH: join(root, "bin") + ":" + process.env.PATH };
+    execFileSync("bash", ["scripts/package.sh"], { cwd: root, env });
+    assert.deepEqual(readdirSync(join(root, "dist-release")), ["YESKIA_0.1.0_x64-setup.exe"]);
+    assert.equal(readFileSync(join(root, "dist-release/YESKIA_0.1.0_x64-setup.exe"), "utf8"), "fresh installer");
+    assert(!readdirSync(join(root, "target/release/bundle/nsis")).includes("YESKIA_0.0.1_x64-setup.exe"));
+    assert.throws(() => execFileSync("bash", ["scripts/package.sh", "9.9.9"], { cwd: root, env, stdio: "pipe" }));
+    assert.deepEqual(readdirSync(join(root, "dist-release")), ["YESKIA_0.1.0_x64-setup.exe"]);
+    const overlay = JSON.parse(readFileSync(resolve(root, "scripts/installer.conf.json")));
+    assert.equal(overlay.bundle.resources["../build-support/THIRD_PARTY_NOTICES.md"], "THIRD_PARTY_NOTICES.md");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

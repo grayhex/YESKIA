@@ -106,23 +106,15 @@ jobs:
           fi
           # CSP: только IPC, без внешних адресов
           ! grep -E 'connect-src[^"]*https?://[^i"]' src-tauri/tauri.conf.json
-      - name: Установщик, портативная сборка, уведомления, SBOM, контрольные суммы
+      - name: Установщик для установки и обновления
         shell: bash
         run: bash scripts/package.sh
-      - name: Проверка артефактов без телефона (чистая Windows без Rust/Node/Python — смотрите docs/DISTRIBUTION.md)
-        shell: bash
-        run: |
-          cd dist-release
-          sha256sum -c SHA256SUMS.txt
-          powershell.exe -NoProfile -Command "Expand-Archive -Path (Get-ChildItem 'YESKIA_*_x64-portable.zip').FullName -DestinationPath portable-check -Force"
-          env -u YESKIA_DATA_DIR ./portable-check/YESKIA/YESKIA.exe --smoke-test | grep -q '"storage_ok":true'
-          test -d portable-check/YESKIA/data
-          # портативный режим не пишет в профиль пользователя
-          rm -rf portable-check
-          grep -q 'не подписана' RELEASE_NOTES.md
+      - name: Установка, повторная установка и сохранение данных
+        shell: pwsh
+        run: ./scripts/test-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: yeskia-windows-unsigned
-          path: dist-release/
+          name: YESKIA-Windows-Installer
+          path: dist-release/*-setup.exe
           if-no-files-found: error
           retention-days: 7

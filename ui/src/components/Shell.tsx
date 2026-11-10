@@ -1,3 +1,4 @@
+import logo from "../assets/brand/yeskia-logo.png";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useI18n, type Lang, type MessageKey } from "../i18n";
 
@@ -114,7 +115,7 @@ export function Header({
   return (
     <header className="app-header">
       <div className="brand">
-        <span className="brand-name">{t("appName")}</span>
+        <img className="brand-logo" src={logo} alt={t("appName")} />
         <span className="beta-badge">Beta</span>
         <span className="brand-tagline">{t("appTagline")}</span>
       </div>
