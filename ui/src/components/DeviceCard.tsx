@@ -9,7 +9,11 @@ export function DeviceCard({ device, detailed = false }: { device: Device; detai
     <div className="device-card">
       <PhoneIllustration model={device.identified_model ?? device.display_name} />
       <div>
-        <h3 style={{ marginBottom: "0.25rem" }}>{device.display_name}</h3>
+        <h3 style={{ marginBottom: "0.25rem" }}>
+          {device.identified_model
+            ? `Nokia ${device.identified_model.replace(/^Nokia\s+/i, "")}`
+            : device.display_name}
+        </h3>
         <p style={{ margin: "0 0 0.5rem" }}>
           <MockTag origin={device.origin} /> <ConnectionTag state={device.connection} />
         </p>

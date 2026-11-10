@@ -140,14 +140,15 @@ struct ExportedReport {
     report: DoctorReport,
 }
 
-/// Запускает Doctor и сохраняет отчёт (без IMEI/серийников/instance id) в каталог данных.
+/// Запускает Doctor и сохраняет отчёт по пути, выбранному пользователем.
 #[tauri::command]
-async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
+async fn export_doctor_report(options: DoctorOptions, path: String) -> Cmd<ExportedReport> {
     tauri::async_runtime::spawn_blocking(move || -> yeskia_core::Result<ExportedReport> {
         let report = yeskia_discovery::run_doctor(&doctor_options(&options));
-        let dir = data_dir().join("reports");
-        std::fs::create_dir_all(&dir)?;
-        let path = dir.join(format!("doctor-{}.json", report.generated_at_ms));
+        let path = std::path::PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err(Error::InvalidArgument("Выберите путь для отчёта".into()));
+        }
         let json =
             serde_json::to_string_pretty(&report).map_err(|e| Error::Internal(e.to_string()))?;
         std::fs::write(&path, json)?;
@@ -423,6 +424,43 @@ fn reveal_in_explorer(path: String) -> Cmd<()> {
     }
 }
 
+#[tauri::command]
+async fn export_personal_data(
+    executable: String,
+    config: String,
+    destination: String,
+    kind: String,
+) -> Cmd<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        yeskia_core::gammu_export::export(
+            std::path::Path::new(&executable),
+            std::path::Path::new(&config),
+            std::path::Path::new(&destination),
+            &kind,
+            std::time::Duration::from_secs(120),
+        )
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+fn open_latest_release() -> Cmd<()> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg("https://github.com/grayhex/YESKIA/releases")
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| Error::Internal(e.to_string()).to_info())
+    }
+    #[cfg(not(windows))]
+    {
+        Err(Error::HostAccess("доступно только в Windows".into()).to_info())
+    }
+}
+
 fn smoke_test(core: &AppCore) -> yeskia_core::Result<SmokeReport> {
     core.smoke()
 }
@@ -537,6 +575,8 @@ pub fn run() {
             get_diagnostics,
             run_doctor,
             export_doctor_report,
+            open_latest_release,
+            export_personal_data,
             backup_list,
             start_host_job,
             await_host_job,

@@ -893,3 +893,62 @@ table.data td {
   grid-row: 1;
   color: var(--nk-blue);
 }
+
+/* Compact dashboard for laptop displays. */
+.content {
+  padding: 18px 24px;
+}
+.content > h1 {
+  margin-bottom: 12px;
+}
+.panel {
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+.phone-hero {
+  min-height: 170px;
+  margin-bottom: 12px;
+}
+.hero-copy {
+  padding: 20px 26px;
+}
+.hero-phones {
+  min-height: 170px;
+}
+.quick-actions {
+  margin-bottom: 12px;
+  gap: 10px;
+}
+.quick-actions button {
+  padding: 12px 16px;
+}
+.metric {
+  padding: 10px 12px;
+}
+.btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+}
+.btn-row {
+  margin: 8px 0;
+}
+.connection-guide {
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.connection-guide ol {
+  margin-bottom: 8px;
+}
+.device-card .phone img,
+.device-card .phone svg {
+  max-height: 85px;
+}
+
+.button-icon {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+  vertical-align: -3px;
+  margin-right: 6px;
+}

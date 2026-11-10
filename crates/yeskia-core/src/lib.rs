@@ -12,6 +12,7 @@ pub mod diagnostics;
 pub mod engine;
 pub mod error;
 pub mod fsutil;
+pub mod gammu_export;
 pub mod host;
 pub mod inspector;
 pub mod library;

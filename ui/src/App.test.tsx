@@ -265,6 +265,17 @@ describe("Диагностика (Doctor)", () => {
     expect(await screen.findByText("COM-порт занят", { selector: ".tag" })).toBeInTheDocument();
   });
 
+  it("не сохраняет отчёт, если пользователь отменил диалог", async () => {
+    const backend = new MockBackend();
+    vi.spyOn(backend, "pickSavePath").mockResolvedValue(null);
+    const save = vi.spyOn(backend, "exportDoctorReport");
+    await open(backend);
+    await userEvent.click(nav().getByRole("button", { name: "Диагностика" }));
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить отчёт" }));
+    await waitFor(() => expect(backend.pickSavePath).toHaveBeenCalled());
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("сохраняет отчёт и показывает путь", async () => {
     await openDoctor();
     await userEvent.click(screen.getByRole("button", { name: "Сохранить отчёт" }));

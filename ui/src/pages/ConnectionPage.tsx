@@ -162,6 +162,16 @@ export function ConnectionPage({
       </div>
       <div className="btn-row">
         <button className="btn btn-secondary" disabled={busy} onClick={() => model.refresh()}>
+          <svg
+            className="button-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M20 7v5h-5M4 17v-5h5M5 9a8 8 0 0 1 14-2l1 1M19 15a8 8 0 0 1-14 2l-1-1" />
+          </svg>
           {t("conn.refresh")}
         </button>
       </div>
@@ -204,6 +214,16 @@ export function ConnectionPage({
                 </button>
               ) : (
                 <button className="btn" disabled={busy} onClick={() => model.connect(d.id)}>
+                  <svg
+                    className="button-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M7 3v6M17 3v6M5 9h14v3a7 7 0 0 1-7 7v3M12 19a7 7 0 0 1-7-7" />
+                  </svg>
                   {t("conn.connect")}
                 </button>
               )}
