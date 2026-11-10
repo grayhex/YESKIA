@@ -155,3 +155,47 @@ fn uncertain_certificate_delivery_is_not_retried() {
         .contains("CERT_TRANSFER_UNCERTAIN"));
     assert_eq!(channel.puts, 1);
 }
+
+#[test]
+fn certificate_push_respects_negotiated_mtu_and_final_acknowledgement() {
+    struct Receiver {
+        received: Vec<u8>,
+        finals: usize,
+    }
+    impl Channel for Receiver {
+        fn exchange(&mut self, p: &[u8], _: Duration) -> Result<Vec<u8>> {
+            if p[0] == 0x80 {
+                return pccs::packet(0xa0, &[0x10, 0, 0, 255]);
+            }
+            if p[0] == 0x81 {
+                return pccs::packet(0xa0, &[]);
+            }
+            assert!(p.len() <= 255);
+            let (_, headers) = pccs::response(p, 0)?;
+            for (id, value) in headers {
+                if id == 0x48 || id == 0x49 {
+                    self.received.extend(value);
+                }
+            }
+            if p[0] == 0x82 {
+                self.finals += 1;
+                pccs::packet(0xa0, &[])
+            } else {
+                assert_eq!(p[0], 0x02);
+                pccs::packet(0x90, &[])
+            }
+        }
+    }
+    let der = yeskia_core::pkg::cert::load_public_der(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/pkg/standalone-test.pem"),
+    )
+    .unwrap();
+    let mut receiver = Receiver {
+        received: Vec::new(),
+        finals: 0,
+    };
+    yeskia_core::opp::push_certificate(&mut receiver, &der).unwrap();
+    assert_eq!(receiver.received, der);
+    assert_eq!(receiver.finals, 1);
+}

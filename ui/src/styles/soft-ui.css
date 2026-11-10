@@ -396,3 +396,17 @@ textarea {
     padding-bottom: 8px;
   }
 }
+.dialog-backdrop {
+  z-index: 300;
+}
+.context-menu {
+  z-index: 200;
+}
+@media (min-width: 1100px) and (max-height: 850px) {
+  .compact-tools {
+    gap: 6px;
+  }
+  .compact-tools > h1 {
+    margin-bottom: 4px;
+  }
+}

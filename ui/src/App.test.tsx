@@ -207,7 +207,7 @@ describe("Ошибки и счётчики", () => {
       }
     }
     render(<App backend={new Broken()} />);
-    expect(await screen.findByTestId("error")).toHaveTextContent("TRANSPORT_ERROR: usb недоступен");
+    expect(await screen.findByTestId("error")).toHaveTextContent("usb недоступен");
   });
 
   it("не считает операции прошлых запусков операциями сессии", async () => {

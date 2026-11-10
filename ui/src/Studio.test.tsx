@@ -96,7 +96,7 @@ describe("Медиа и темы", () => {
     await open(b);
     expect(await screen.findByTestId("st-tool-missing")).toHaveTextContent(/TOOL_MISSING/);
     await pick(b, SONG);
-    expect(await screen.findByTestId("error")).toHaveTextContent("TOOL_MISSING");
+    expect(await screen.findByTestId("error")).toHaveTextContent(/FFmpeg/);
     b.nextFolder = "C:\\themes\\t";
     await userEvent.click(screen.getByRole("button", { name: "Папка темы…" }));
     expect(await screen.findByTestId("st-theme-structure")).toHaveTextContent("согласованы");

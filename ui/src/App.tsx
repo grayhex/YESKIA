@@ -82,7 +82,7 @@ export function App({ backend }: { backend: Backend }) {
               {t("banner.uiMock")}
             </p>
           )}
-          {model.error && <ErrorMessage error={model.error} />}
+          {model.error && <ErrorMessage error={model.error} developer={developer} />}
           {welcome && (
             <WelcomePage
               model={model}

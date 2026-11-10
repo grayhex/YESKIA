@@ -46,7 +46,11 @@ fn command(port: &mut dyn SerialPort, text: &str, cancel: &AtomicBool) -> Result
 }
 pub fn read(port: &mut dyn SerialPort, cancel: &AtomicBool) -> Result<Value> {
     let mode = command(port, "AT+CMGF?", cancel)?;
-    if !mode.lines().any(|l| l.trim() == "+CMGF: 0") {
+    if !mode.lines().any(|l| {
+        l.trim()
+            .strip_prefix("+CMGF:")
+            .is_some_and(|v| v.trim() == "0")
+    }) {
         return Err(Error::CapabilityUnsupported("SMS_PDU_MODE_REQUIRED".into()));
     }
     let reply = command(port, "AT+CMGL=4,1", cancel)?;

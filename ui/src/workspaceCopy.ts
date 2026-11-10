@@ -249,7 +249,27 @@ export function useWorkspaceCopy() {
       const key = (Object.keys(dict) as WorkspaceKey[]).find(
         (k) => k.startsWith("error.") && error.message.includes(k.slice(6)),
       );
-      return key ? { ...error, message: dict[key] } : error;
+      if (key) return { ...error, message: dict[key] };
+      if (lang === "en") {
+        const messages: Record<string, string> = {
+          NOT_CONNECTED: "Connect a phone first.",
+          DEVICE_DISCONNECTED: "The phone was disconnected. Reconnect and try again.",
+          DEVICE_NOT_FOUND: "The selected phone is no longer available.",
+          TIMEOUT: "The phone did not respond in time.",
+          OPERATION_CANCELLED: "Operation cancelled.",
+          HOST_ACCESS: "The device or selected file is busy or inaccessible.",
+          FINGERPRINT_MISMATCH: "The device or file changed. Inspect it again before proceeding.",
+          TRANSPORT_ERROR:
+            "The phone response could not be read. Check the connection and try again.",
+          OPERATION_FAILED: "The phone operation failed. Check the connection before retrying.",
+          STORAGE_ERROR: "The file could not be saved. Check the selected folder.",
+          ALREADY_EXISTS: "This file already exists. Choose a new name.",
+          INVALID_ARGUMENT: "The selected file or request is not supported.",
+          CAPABILITY_UNSUPPORTED: "This operation is not supported by the current connection.",
+        };
+        if (messages[error.code]) return { ...error, message: messages[error.code] };
+      }
+      return error;
     },
   };
 }

@@ -283,5 +283,9 @@ pub fn rows(items: &[Item], domain: &str) -> Result<Value> {
             return Err(invalid());
         }
     }
-    Ok(Value::Array(rows))
+    let out = Value::Array(rows);
+    if serde_json::to_vec(&out).map_err(|_| invalid())?.len() > MAX_BODY {
+        return Err(invalid());
+    }
+    Ok(out)
 }
