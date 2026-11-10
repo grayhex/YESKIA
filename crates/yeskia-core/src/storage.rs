@@ -97,6 +97,8 @@ pub struct Settings {
     pub backup_root: Option<String>,
     /// Папка с `ffmpeg` и `ffprobe`; `None` — искать рядом с приложением и в PATH.
     pub ffmpeg_dir: Option<String>,
+    /// Первый запуск пройден (приветствие закрыто). Сбрасывается только вручную в настройках.
+    pub onboarded: bool,
 }
 
 impl Default for Settings {
@@ -108,6 +110,7 @@ impl Default for Settings {
             log_to_file: true,
             backup_root: None,
             ffmpeg_dir: None,
+            onboarded: false,
         }
     }
 }
@@ -392,6 +395,7 @@ mod tests {
             log_to_file: false,
             backup_root: Some("D:\\Backups".into()),
             ffmpeg_dir: Some("D:\\Tools\\ffmpeg".into()),
+            onboarded: true,
         };
         s.save_settings(&new).unwrap();
         assert_eq!(s.load_settings().unwrap(), new);

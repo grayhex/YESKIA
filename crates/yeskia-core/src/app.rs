@@ -316,7 +316,9 @@ impl AppCore {
         let meta = std::fs::metadata(crate::fsutil::long_path(p))
             .map_err(|_| Error::HostAccess("файл подписи недоступен".into()))?;
         if !meta.is_file() || meta.len() > 1024 {
-            return Err(Error::LimitExceeded("подпись — текстовый файл до 1 КиБ".into()));
+            return Err(Error::LimitExceeded(
+                "подпись — текстовый файл до 1 КиБ".into(),
+            ));
         }
         Ok(Some(std::fs::read_to_string(crate::fsutil::long_path(p))?))
     }
@@ -348,7 +350,9 @@ impl AppCore {
         accept_unsigned: bool,
     ) -> Result<()> {
         if !confirm {
-            return Err(Error::InvalidArgument("нужно явное подтверждение запуска".into()));
+            return Err(Error::InvalidArgument(
+                "нужно явное подтверждение запуска".into(),
+            ));
         }
         let blockers = self.update_blockers();
         if !blockers.is_empty() {
@@ -360,7 +364,8 @@ impl AppCore {
         let c = self.update_check(installer, manifest, signature)?;
         if c.trust == crate::update::Trust::UnsignedSource && !accept_unsigned {
             return Err(Error::InvalidArgument(
-                "источник не подписан: нужно отдельное согласие запустить неподписанный установщик".into(),
+                "источник не подписан: нужно отдельное согласие запустить неподписанный установщик"
+                    .into(),
             ));
         }
         (self.launcher)(std::path::Path::new(installer))

@@ -176,6 +176,8 @@ export interface Settings {
   backup_root: string | null;
   /** Папка с ffmpeg и ffprobe; null — искать рядом с приложением и в PATH. */
   ffmpeg_dir: string | null;
+  /** Приветствие первого запуска пройдено. */
+  onboarded: boolean;
 }
 
 export interface JournalEntry {
@@ -587,4 +589,18 @@ export interface BitmapPreview {
   bpp: number;
   png_base64: string;
   masked: boolean;
+}
+
+// ---------- обновление из файла (issue #11) ----------
+
+export interface UpdateCheck {
+  current: string;
+  version: string;
+  notes: string;
+  installer: string;
+  size: number;
+  sha256: string;
+  /** signed — подпись манифеста проверена доверенным ключом; unsigned-source — только контрольная сумма. */
+  trust: "signed" | "unsigned-source";
+  limitations: string[];
 }

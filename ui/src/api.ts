@@ -30,6 +30,7 @@ import type {
   ThemeReport,
   ThemeSource,
   ToolInfo,
+  UpdateCheck,
 } from "./types";
 import { MockBackend } from "./mockBackend";
 
@@ -68,6 +69,17 @@ export interface Backend {
   awaitHostJob(jobId: string): Promise<HostJobResult>;
   hostJobProgress(jobId: string): Promise<Progress | null>;
   cancelHostJob(jobId: string): Promise<boolean>;
+  /** Обновление из файла: приложение ничего не скачивает. */
+  updateCheck(installer: string, manifest: string, signature: string | null): Promise<UpdateCheck>;
+  /** Причины, по которым обновление сейчас откладывается (операции с телефоном, задания записи). */
+  updateBlockers(): Promise<string[]>;
+  updateLaunch(
+    installer: string,
+    manifest: string,
+    signature: string | null,
+    confirm: boolean,
+    acceptUnsigned: boolean,
+  ): Promise<void>;
   /** Выбор любого локального файла (аудио, видео, картинка, тема) нативным диалогом. */
   pickMediaFile(): Promise<string | null>;
   /** FFmpeg: версия и лицензия; без инструмента — ошибка TOOL_MISSING. */
@@ -142,6 +154,23 @@ export class TauriBackend implements Backend {
   awaitHostJob = (jobId: string) => invoke<HostJobResult>("await_host_job", { jobId });
   hostJobProgress = (jobId: string) => invoke<Progress | null>("host_job_progress", { jobId });
   cancelHostJob = (jobId: string) => invoke<boolean>("cancel_host_job", { jobId });
+  updateCheck = (installer: string, manifest: string, signature: string | null) =>
+    invoke<UpdateCheck>("update_check", { installer, manifest, signature });
+  updateBlockers = () => invoke<string[]>("update_blockers");
+  updateLaunch = (
+    installer: string,
+    manifest: string,
+    signature: string | null,
+    confirm: boolean,
+    acceptUnsigned: boolean,
+  ) =>
+    invoke<void>("update_launch", {
+      installer,
+      manifest,
+      signature,
+      confirm,
+      acceptUnsigned,
+    });
   pickMediaFile = async () => {
     const r = await openDialog({ directory: false, multiple: false });
     return typeof r === "string" ? r : null;

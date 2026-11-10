@@ -502,6 +502,79 @@ const ru = {
   "st.check.unknown": "неизвестно",
   "st.check.skip": "пропущено",
   "st.contrast": "контраст на белом {w}:1, на чёрном {b}:1",
+  "up.title": "Обновление приложения",
+  "up.scope":
+    "Версия {version}. Приложение работает офлайн и само ничего не скачивает и не обновляет: получите установщик и манифест (update.json) самостоятельно. Проверяются размер и SHA-256; подпись издателя пока не настроена, поэтому источник считается неподтверждённым. Обновление откладывается, пока идёт запись на телефон.",
+  "up.installer": "Выбрать установщик…",
+  "up.manifest": "Выбрать манифест…",
+  "up.signature": "Файл подписи (необязательно)…",
+  "up.verify": "Проверить",
+  "up.found": "Версия {version} (сейчас {current})",
+  "up.trust.signed": "Подпись манифеста проверена доверенным ключом.",
+  "up.trust.unsigned":
+    "Подпись издателя не проверена: источник не подтверждён, проверена только контрольная сумма.",
+  "up.blocked":
+    "Обновление отложено: сначала дождитесь завершения операций с телефоном и заданий записи.",
+  "up.launch": "Запустить установщик…",
+  "up.launched": "Установщик запущен. Закройте YESKIA и продолжайте в окне установщика.",
+  "up.confirmTitle": "Запустить установщик?",
+  "up.confirmText":
+    "Будет запущен «{installer}» (версия {version}). Это обновит приложение; данные и резервные копии остаются на месте.",
+  "up.confirmOk": "Запустить",
+  "up.acceptUnsigned":
+    "Понимаю, что установщик не подписан издателем, и всё равно хочу запустить его",
+  "settings.mode": "Режим",
+  "settings.modePortable":
+    "Портативный: данные лежат рядом с программой, профиль Windows и реестр не используются",
+  "settings.modeInstalled": "Установленный: данные в профиле пользователя",
+  "settings.uninstallNote":
+    "При удалении приложения ваши настройки и резервные копии сохраняются, пока вы сами не отметите их удаление в деинсталляторе; резервные копии по умолчанию лежат в «Документы\\YESKIA\\Backups», вне каталога данных.",
+  "wel.title": "Добро пожаловать в YESKIA",
+  "wel.step": "Шаг {n} из {total}",
+  "wel.s1.title": "Что это за приложение",
+  "wel.s1.text":
+    "YESKIA — офлайн-клиент для Nokia/Symbian на Windows 11. Он ничего не устанавливает на телефон без вашего подтверждения.",
+  "wel.s1.p1": "Работает без интернета, сервера, Docker, Python и браузера: серверных портов нет.",
+  "wel.s1.p2":
+    "Показывает только то, что реально подтверждено на вашем соединении; остальное честно помечено «не проверено» или «не поддерживается».",
+  "wel.s1.p3": "Не меняет и не заменяет драйверы, не пишет в реестр и не делает ничего в фоне.",
+  "wel.s1.p4": "Запись на телефон — только по вашей команде и с проверкой результата.",
+  "wel.s2.title": "Найти телефон",
+  "wel.s2.search": "Искать телефон",
+  "wel.s2.noneTitle": "Телефон не найден",
+  "wel.s2.noneText":
+    "Подключите Nokia кабелем, разблокируйте её и выберите режим USB (PC Suite, «Передача данных» или «Хранилище»). Затем нажмите «Искать телефон» снова. Чужие MTP-устройства в список не попадают.",
+  "wel.s2.connect": "Подключить",
+  "wel.driver.title": "Как установить драйвер",
+  "wel.driver.1": "Приложение само драйверы не устанавливает и не заменяет.",
+  "wel.driver.2":
+    "Откройте «Диагностику»: она показывает режим USB, драйвер и COM-порты, не записывая ничего на телефон.",
+  "wel.driver.3":
+    "Драйвер Nokia можно получить из Центра обновления Windows или с официального сайта производителя телефона; устанавливайте его вручную.",
+  "wel.driver.4":
+    "Если телефон виден только как MTP или COM занят другой программой (например, Nokia PC Suite), диагностика подскажет, что именно закрыть или переключить.",
+  "wel.driver.doctor": "Открыть диагностику",
+  "wel.s3.title": "Что доступно",
+  "wel.s3.text":
+    "Матрица возможностей этого соединения. «Не проверено» значит, что функция реализована, но на вашем телефоне ещё не подтверждена.",
+  "wel.s3.availability": "Состояние",
+  "wel.s3.noneTitle": "Телефон не подключён",
+  "wel.s3.noneText":
+    "Вернитесь на предыдущий шаг и подключите телефон — или пропустите: возможности будут видны в разделе «Подключение».",
+  "wel.av.available": "доступно",
+  "wel.av.not-tested": "не проверено",
+  "wel.av.unsupported": "не поддерживается",
+  "wel.av.error": "ошибка",
+  "wel.s4.title": "Файловый менеджер",
+  "wel.s4.text": "Можно открыть файловый менеджер: слева компьютер, справа телефон.",
+  "wel.s4.noFiles":
+    "На этом соединении файлы телефона недоступны. Возможности — в разделе «Подключение», причины — в «Диагностике».",
+  "wel.s4.open": "Открыть файловый менеджер",
+  "wel.s4.home": "На главную",
+  "wel.back": "Назад",
+  "wel.start": "Начать",
+  "wel.next": "Далее",
+  "wel.skip": "Пропустить приветствие",
   "state.loading": "Загрузка…",
   "state.error": "Ошибка",
   "state.saving": "Сохранение…",
@@ -1012,6 +1085,81 @@ const en: Record<MessageKey, string> = {
   "st.check.unknown": "unknown",
   "st.check.skip": "skipped",
   "st.contrast": "contrast on white {w}:1, on black {b}:1",
+  "up.title": "Application update",
+  "up.scope":
+    "Version {version}. The app works offline and never downloads or updates itself: get the installer and the manifest (update.json) yourself. Size and SHA-256 are checked; the publisher signature is not configured yet, so the source is treated as unconfirmed. The update is postponed while a write to the phone is in progress.",
+  "up.installer": "Choose installer…",
+  "up.manifest": "Choose manifest…",
+  "up.signature": "Signature file (optional)…",
+  "up.verify": "Verify",
+  "up.found": "Version {version} (now {current})",
+  "up.trust.signed": "The manifest signature was verified with a trusted key.",
+  "up.trust.unsigned":
+    "The publisher signature was not verified: the source is unconfirmed, only the checksum was checked.",
+  "up.blocked": "The update is postponed: wait until phone operations and write jobs finish.",
+  "up.launch": "Run installer…",
+  "up.launched": "The installer has started. Close YESKIA and continue in the installer window.",
+  "up.confirmTitle": "Run the installer?",
+  "up.confirmText":
+    "“{installer}” (version {version}) will be started. It updates the app; your data and backups stay in place.",
+  "up.confirmOk": "Run",
+  "up.acceptUnsigned":
+    "I understand the installer is not signed by the publisher and still want to run it",
+  "settings.mode": "Mode",
+  "settings.modePortable":
+    "Portable: data lives next to the program; the Windows profile and registry are not used",
+  "settings.modeInstalled": "Installed: data lives in the user profile",
+  "settings.uninstallNote":
+    "Uninstalling keeps your settings and backups unless you choose to delete them in the uninstaller; backups default to “Documents\\YESKIA\\Backups”, outside the data folder.",
+  "wel.title": "Welcome to YESKIA",
+  "wel.step": "Step {n} of {total}",
+  "wel.s1.title": "What this app is",
+  "wel.s1.text":
+    "YESKIA is an offline client for Nokia/Symbian phones on Windows 11. It installs nothing on the phone without your confirmation.",
+  "wel.s1.p1":
+    "It works without the internet, a server, Docker, Python or a browser: there are no server ports.",
+  "wel.s1.p2":
+    "It shows only what is actually confirmed on your connection; everything else is honestly marked “not tested” or “unsupported”.",
+  "wel.s1.p3":
+    "It does not change or replace drivers, write to the registry, or do anything in the background.",
+  "wel.s1.p4": "Writing to the phone happens only on your command and the result is verified.",
+  "wel.s2.title": "Find the phone",
+  "wel.s2.search": "Search for the phone",
+  "wel.s2.noneTitle": "No phone found",
+  "wel.s2.noneText":
+    "Connect the Nokia with a cable, unlock it and pick a USB mode (PC Suite, “Data transfer” or “Mass storage”). Then press “Search for the phone” again. Foreign MTP devices are not listed.",
+  "wel.s2.connect": "Connect",
+  "wel.driver.title": "How to install the driver",
+  "wel.driver.1": "The app never installs or replaces drivers by itself.",
+  "wel.driver.2":
+    "Open “Diagnostics”: it shows the USB mode, driver and COM ports without writing anything to the phone.",
+  "wel.driver.3":
+    "A Nokia driver can come from Windows Update or the phone manufacturer's official site; install it manually.",
+  "wel.driver.4":
+    "If the phone shows up only as MTP or COM is held by another program (for example Nokia PC Suite), diagnostics tells you what to close or switch.",
+  "wel.driver.doctor": "Open diagnostics",
+  "wel.s3.title": "What is available",
+  "wel.s3.text":
+    "The capability matrix of this connection. “Not tested” means the function is implemented but not yet confirmed on your phone.",
+  "wel.s3.availability": "State",
+  "wel.s3.noneTitle": "No phone connected",
+  "wel.s3.noneText":
+    "Go back and connect the phone — or skip: capabilities are shown in the “Connection” section.",
+  "wel.av.available": "available",
+  "wel.av.not-tested": "not tested",
+  "wel.av.unsupported": "unsupported",
+  "wel.av.error": "error",
+  "wel.s4.title": "File manager",
+  "wel.s4.text":
+    "You can open the file manager: your computer on the left, the phone on the right.",
+  "wel.s4.noFiles":
+    "Phone files are not available on this connection. See “Connection” for capabilities and “Diagnostics” for the reasons.",
+  "wel.s4.open": "Open the file manager",
+  "wel.s4.home": "Go to the home page",
+  "wel.back": "Back",
+  "wel.start": "Start",
+  "wel.next": "Next",
+  "wel.skip": "Skip the welcome",
   "state.loading": "Loading…",
   "state.error": "Error",
   "state.saving": "Saving…",

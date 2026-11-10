@@ -1,4 +1,5 @@
 import { Panel } from "../components/Ui";
+import { UpdatePanel } from "../components/UpdatePanel";
 import { useI18n } from "../i18n";
 import type { AppModel } from "../useAppModel";
 
@@ -44,9 +45,17 @@ export function SettingsPage({ model }: { model: AppModel }) {
             <dd>{system.app_version}</dd>
             <dt>{t("settings.dataDir")}</dt>
             <dd className="mono">{system.data_dir}</dd>
+            <dt>{t("settings.mode")}</dt>
+            <dd data-testid="settings-mode">
+              {system.portable ? t("settings.modePortable") : t("settings.modeInstalled")}
+            </dd>
           </dl>
         )}
+        <p className="hint" style={{ marginLeft: 0 }}>
+          {t("settings.uninstallNote")}
+        </p>
       </Panel>
+      {system && <UpdatePanel backend={model.backend} version={system.app_version} />}
     </>
   );
 }

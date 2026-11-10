@@ -161,6 +161,48 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .map_err(|e| e.to_info())
 }
 
+// ---------- обновление из файла (приложение ничего не скачивает) ----------
+
+#[tauri::command]
+async fn update_check(
+    state: tauri::State<'_, State>,
+    installer: String,
+    manifest: String,
+    signature: Option<String>,
+) -> Cmd<yeskia_core::update::UpdateCheck> {
+    blocking(&state, move |c| {
+        c.update_check(&installer, &manifest, signature.as_deref())
+    })
+    .await
+}
+
+#[tauri::command]
+fn update_blockers(state: tauri::State<'_, State>) -> Vec<String> {
+    state.0.update_blockers()
+}
+
+/// Запуск установщика: только с подтверждением, после повторной проверки и без незавершённых записей.
+#[tauri::command]
+async fn update_launch(
+    state: tauri::State<'_, State>,
+    installer: String,
+    manifest: String,
+    signature: Option<String>,
+    confirm: bool,
+    accept_unsigned: bool,
+) -> Cmd<()> {
+    blocking(&state, move |c| {
+        c.update_launch(
+            &installer,
+            &manifest,
+            signature.as_deref(),
+            confirm,
+            accept_unsigned,
+        )
+    })
+    .await
+}
+
 // ---------- медиа и темы (локально) ----------
 
 /// FFmpeg: версия, лицензия, путь. Нет инструмента — ошибка `TOOL_MISSING`.
@@ -501,6 +543,9 @@ pub fn run() {
             host_job_progress,
             cancel_host_job,
             save_report,
+            update_check,
+            update_blockers,
+            update_launch,
             media_tool_info,
             media_probe,
             media_waveform,
