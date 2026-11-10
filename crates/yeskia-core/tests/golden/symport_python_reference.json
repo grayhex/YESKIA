@@ -1,0 +1,172 @@
+{
+ "sdk_probe_package": {
+  "signatures": {
+   "at": "2026-11-10T00:00:00+00:00",
+   "chains": [],
+   "dependencies": [],
+   "phone_constraints": "not-verified",
+   "revocation": "not-checked",
+   "status": "unsigned",
+   "trust": "unknown"
+  },
+  "sis": {
+   "controller_crc_ok": true,
+   "data_crc_ok": true,
+   "data_units": 1,
+   "dependencies": {
+    "declared": 0,
+    "items": [],
+    "uids_best_effort": []
+   },
+   "files": [
+    {
+     "actual_length": 348,
+     "actual_sha1": "828039ed23e2febae472b64ff136ea5d78bcdcac",
+     "capabilities_raw": null,
+     "data_present": true,
+     "file_index": 0,
+     "hash_algorithm": 1,
+     "hash_ok": true,
+     "length": 348,
+     "mime_type": "",
+     "operation": 1,
+     "operation_options": 0,
+     "sha1": "828039ed23e2febae472b64ff136ea5d78bcdcac",
+     "target": "!:\\sys\\bin\\probe.exe",
+     "uncompressed_length": 348
+    }
+   ],
+   "package": {
+    "names": [
+     "Symbian E32 Probe"
+    ],
+    "uid": 3758098441,
+    "uid_matches_header": true,
+    "vendor_names": [
+     "Symbian research"
+    ],
+    "vendor_unique_name": "Symbian research",
+    "version": [
+     1,
+     0,
+     0
+    ]
+   },
+   "signature_count": 0,
+   "signed": false,
+   "size": 984,
+   "uid1": 270539386,
+   "uid2": 0,
+   "uid3": 3758098441,
+   "uid_checksum_ok": true
+  }
+ },
+ "sdk_probe_package_signed": {
+  "signatures": {
+   "at": "2026-11-10T00:00:00+00:00",
+   "chains": [
+    {
+     "certificates": [
+      {
+       "extensions": [
+        {
+         "critical": false,
+         "interpreted": true,
+         "oid": "2.5.29.14"
+        },
+        {
+         "critical": false,
+         "interpreted": true,
+         "oid": "2.5.29.35"
+        },
+        {
+         "critical": true,
+         "interpreted": true,
+         "oid": "2.5.29.19"
+        }
+       ],
+       "issuer": "CN=SymPort test only",
+       "key_type": "RSAPublicKey",
+       "not_after": "2036-10-31T05:19:31+00:00",
+       "not_before": "2026-11-03T05:19:31+00:00",
+       "self_issued": true,
+       "serial": "0x75ea09cd0b723f81391cc04c2e087f543e2d8251",
+       "sha256": "b8d0023931ed046156f9617ccb12dc14a1ac6c23cd6eec912c8fa8d5cfe876d8",
+       "subject": "CN=SymPort test only",
+       "validity": "valid"
+      }
+     ],
+     "chain_links": [],
+     "phone_trust": "unknown",
+     "root_signature": "valid-self-signature",
+     "signatures": [
+      {
+       "legacy_sha1": true,
+       "oid": "1.2.840.113549.1.1.5",
+       "signed_bytes": 488,
+       "signed_sha256": "3c98e61117c2258e0b61f356c7933d31ea9ab45ddc2995dac41e6ae45788b417",
+       "status": "valid"
+      }
+     ],
+     "status": "valid"
+    }
+   ],
+   "dependencies": [],
+   "phone_constraints": "not-verified",
+   "revocation": "not-checked",
+   "status": "valid",
+   "trust": "unknown"
+  },
+  "sis": {
+   "controller_crc_ok": true,
+   "data_crc_ok": true,
+   "data_units": 1,
+   "dependencies": {
+    "declared": 0,
+    "items": [],
+    "uids_best_effort": []
+   },
+   "files": [
+    {
+     "actual_length": 348,
+     "actual_sha1": "828039ed23e2febae472b64ff136ea5d78bcdcac",
+     "capabilities_raw": null,
+     "data_present": true,
+     "file_index": 0,
+     "hash_algorithm": 1,
+     "hash_ok": true,
+     "length": 348,
+     "mime_type": "",
+     "operation": 1,
+     "operation_options": 0,
+     "sha1": "828039ed23e2febae472b64ff136ea5d78bcdcac",
+     "target": "!:\\sys\\bin\\probe.exe",
+     "uncompressed_length": 348
+    }
+   ],
+   "package": {
+    "names": [
+     "Symbian E32 Probe"
+    ],
+    "uid": 3758098441,
+    "uid_matches_header": true,
+    "vendor_names": [
+     "Symbian research"
+    ],
+    "vendor_unique_name": "Symbian research",
+    "version": [
+     1,
+     0,
+     0
+    ]
+   },
+   "signature_count": 1,
+   "signed": true,
+   "size": 2144,
+   "uid1": 270539386,
+   "uid2": 0,
+   "uid3": 3758098441,
+   "uid_checksum_ok": true
+  }
+ }
+}

@@ -16,6 +16,7 @@ pub mod inspector;
 pub mod mock;
 pub mod operations;
 pub mod paths;
+pub mod pkg;
 pub mod storage;
 pub mod system;
 pub mod transport;
