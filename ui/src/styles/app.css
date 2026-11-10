@@ -952,3 +952,237 @@ table.data td {
   vertical-align: -3px;
   margin-right: 6px;
 }
+
+/* Desktop workspace: fixed shell, compact controls, scrolling only inside long lists. */
+:root {
+  --nav-width: 11.5rem;
+  --space-5: 1rem;
+}
+.content {
+  padding: 14px 20px;
+}
+.content p {
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+.panel {
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.btn {
+  min-height: 30px;
+  padding: 5px 11px;
+  font-size: 0.82rem;
+}
+.nav-item {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+.workspace-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+}
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-heading h1,
+.page-heading .btn-row {
+  margin: 0;
+}
+.workspace-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+.device-workspace .workspace-scroll > h1 {
+  display: none;
+}
+.device-workspace .connection-guide {
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.device-workspace .device-card {
+  margin-bottom: 0;
+}
+.personal-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(320px, 1.3fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+.personal-grid > .panel {
+  overflow: auto;
+  min-height: 0;
+}
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.record-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  padding: 10px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.record-row.selected {
+  background: var(--nk-blue-tint);
+  border-color: var(--nk-blue);
+}
+.record-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 25rem;
+}
+.record-field {
+  display: contents;
+}
+.record-field dd {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+.catalog-card {
+  margin: 0;
+}
+.catalog-card p {
+  font-size: 0.84rem;
+}
+.app-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--nk-blue-tint);
+  color: var(--nk-blue);
+  font-weight: 700;
+  float: left;
+  margin-right: 10px;
+}
+@media (min-width: 1100px) {
+  .device-workspace .workspace-scroll:has(.connection-guide) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    align-content: start;
+    gap: 10px;
+  }
+  .device-workspace .connection-guide {
+    grid-column: 1 / -1;
+  }
+  .fm-grid {
+    gap: 12px;
+  }
+}
+@media (max-width: 800px) {
+  .workspace-page {
+    height: auto;
+    min-height: 100%;
+  }
+  .personal-grid {
+    grid-template-columns: 1fr;
+  }
+  .personal-grid > .panel {
+    max-height: 50vh;
+  }
+}
+.content:has(> .workspace-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.content > .workspace-page {
+  height: auto;
+  flex: 1;
+}
+.content > .banner {
+  flex-shrink: 0;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.settings-grid > h1 {
+  grid-column: 1 / -1;
+}
+@media (min-width: 1100px) {
+  .compact-tools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+  .compact-tools > h1,
+  .compact-tools > .banner {
+    grid-column: 1 / -1;
+  }
+  .compact-tools > .panel {
+    margin: 0;
+    min-width: 0;
+  }
+}
+@media (min-width: 1100px) and (max-height: 800px) {
+  .phone-hero,
+  .hero-phones {
+    min-height: 130px;
+  }
+  .hero-copy {
+    padding: 12px 20px;
+  }
+  .hero-copy h2 {
+    font-size: 1.4rem;
+  }
+  .hero-copy > p:last-child {
+    margin-top: 4px;
+  }
+  .content .phone-model {
+    width: 60px;
+  }
+  .quick-actions button {
+    padding: 8px 12px;
+  }
+}
+@media (min-width: 1100px) and (max-height: 800px) {
+  .compact-tools {
+    gap: 8px;
+  }
+  .compact-tools > .panel {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
+@media (max-width: 900px), (max-height: 650px) {
+  .content:has(> .workspace-page) {
+    display: block;
+    overflow: auto;
+  }
+  .content > .workspace-page {
+    height: auto;
+  }
+  .workspace-scroll {
+    max-height: 65vh;
+    flex: auto;
+  }
+}

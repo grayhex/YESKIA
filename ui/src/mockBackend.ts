@@ -1025,6 +1025,21 @@ export class MockBackend implements Backend {
       excluded: ["IMEI", "serial numbers", "PnP instance IDs", "MAC addresses"],
     };
   }
+  async cancelPersonalRead(): Promise<void> {}
+  async inspectCertificate(): Promise<import("./types").CertInfo> {
+    throw new Error("Откройте сертификат в настольном приложении");
+  }
+  async readPersonalData(): Promise<Record<string, unknown>[]> {
+    throw {
+      code: "TOOL_MISSING",
+      message: "Для чтения подключите телефон в настольном приложении",
+      retryable: false,
+      action: "none",
+    };
+  }
+  async savePersonalSnapshot(): Promise<void> {
+    throw new Error("Доступно в настольном приложении");
+  }
   async openLatestRelease() {}
   async exportPersonalData(): Promise<void> {
     throw err("TOOL_MISSING", "Gammu недоступен в демо-режиме");

@@ -50,6 +50,14 @@ export interface Backend {
   cancelOperation(operationId: string): Promise<boolean>;
   /** Read-only диагностика USB/PnP/WPD/COM; отчёт без IMEI/серийников/instance id. */
   runDoctor(options: DoctorOptions): Promise<DoctorReport>;
+  cancelPersonalRead(): Promise<void>;
+  inspectCertificate(path: string): Promise<import("./types").CertInfo>;
+  readPersonalData(
+    python: string,
+    config: string,
+    domain: string,
+  ): Promise<Record<string, unknown>[]>;
+  savePersonalSnapshot(path: string, data: string): Promise<void>;
   openLatestRelease(): Promise<void>;
   exportPersonalData(
     executable: string,
@@ -140,6 +148,13 @@ export class TauriBackend implements Backend {
     invoke<Progress | null>("operation_progress", { operationId });
   cancelOperation = (operationId: string) => invoke<boolean>("cancel_operation", { operationId });
   runDoctor = (options: DoctorOptions) => invoke<DoctorReport>("run_doctor", { options });
+  cancelPersonalRead = () => invoke<void>("cancel_personal_read");
+  inspectCertificate = (path: string) =>
+    invoke<import("./types").CertInfo>("inspect_certificate", { path });
+  readPersonalData = (python: string, config: string, domain: string) =>
+    invoke<Record<string, unknown>[]>("read_personal_data", { python, config, domain });
+  savePersonalSnapshot = (path: string, data: string) =>
+    invoke<void>("save_personal_snapshot", { path, data });
   openLatestRelease = () => invoke<void>("open_latest_release");
   exportPersonalData = (
     executable: string,

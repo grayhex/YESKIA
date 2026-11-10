@@ -1,0 +1,402 @@
+[
+  {
+    "id": "aikon",
+    "name": "AIKON",
+    "category": "communication",
+    "description": "Java ME клиент к собственному серверу диалогов и поиска.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "emir",
+    "version": "0.18.4"
+  },
+  {
+    "id": "bluewap",
+    "name": "BlueWAP",
+    "category": "internet",
+    "description": "Bluetooth-браузерный клиент: доступ к вебу через другой Java ME аппарат.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.0"],
+    "developer": "gtrxAC",
+    "version": "1.5.0"
+  },
+  {
+    "id": "brainfuck",
+    "name": "Brainfuck Editor",
+    "category": "development",
+    "description": "Мини-редактор и интерпретатор для офлайн-экспериментов с языком Brainfuck.",
+    "description_en": null,
+    "platforms": ["MIDP-1.0", "CLDC-1.0"],
+    "developer": "shinovon",
+    "version": "0.3.1"
+  },
+  {
+    "id": "celeste",
+    "name": "Celeste Classic J2ME",
+    "category": "games",
+    "description": "Открытый порт Celeste Classic для Java ME с аппаратным управлением.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "r58Playz",
+    "version": "1.0"
+  },
+  {
+    "id": "export-rms",
+    "name": "ExportRMS",
+    "category": "development",
+    "description": "Экспорт RMS в пределах возможностей Java sandbox для диагностики MIDlet.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.0"],
+    "developer": "shinovon",
+    "version": "1.0.0"
+  },
+  {
+    "id": "filelist",
+    "name": "FileList QML",
+    "category": "multimedia",
+    "description": "Пример медиабраузера Qt Quick. На E52/E72 используйте встроенную медиагалерею SymPort.",
+    "description_en": "Qt Quick media-browser example. Use the built-in SymPort gallery with E52/E72.",
+    "platforms": ["Symbian touch / Symbian^3"],
+    "developer": "Nokia / Microsoft Mobile",
+    "version": "1.1.0"
+  },
+  {
+    "id": "fplay",
+    "name": "FPlay J2ME",
+    "category": "multimedia",
+    "description": "Локальный музыкальный проигрыватель с эквалайзером и настройками цвета.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "carlosrafaelgn",
+    "version": "1.0.64"
+  },
+  {
+    "id": "fshell",
+    "name": "FShell",
+    "category": "development",
+    "description": "Командная оболочка Symbian. Доступны исходники; готовый проверенный установщик отсутствует.",
+    "description_en": "Symbian command-line shell. Author sources are available; a full validated installer is not.",
+    "platforms": ["S60 3rd Edition (source build profile)"],
+    "developer": "Accenture / Symbian Foundation",
+    "version": "Source tree (no full release)"
+  },
+  {
+    "id": "game-2048",
+    "name": "2048 J2ME",
+    "category": "games",
+    "description": "Небольшая офлайн-головоломка с числовой клавиатурой.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "turbanoff",
+    "version": "1.1"
+  },
+  {
+    "id": "github-j2me",
+    "name": "GitHub J2ME",
+    "category": "internet",
+    "description": "Просмотр GitHub, репозиториев и файлов с Java-телефона.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "shinovon",
+    "version": "0.9.9"
+  },
+  {
+    "id": "gps-tracker",
+    "name": "S60 GPS Tracker",
+    "category": "maps",
+    "description": "Запись GPS-треков в GPX для прогулок и последующей обработки на компьютере.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition"],
+    "developer": "artem78",
+    "version": "1.4.0"
+  },
+  {
+    "id": "gpstest",
+    "name": "GPSTest",
+    "category": "maps",
+    "description": "Проверка Location API и получения GPS-координат на телефоне.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "shinovon",
+    "version": "1.0.1"
+  },
+  {
+    "id": "hotpants",
+    "name": "Hotpants OTP",
+    "category": "system",
+    "description": "Офлайн-генератор одноразовых HOTP/TOTP кодов.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "baumschubser",
+    "version": "2.0"
+  },
+  {
+    "id": "http-server",
+    "name": "J2ME HTTP Server",
+    "category": "development",
+    "description": "Небольшой HTTP-сервер на телефоне для локальных экспериментов с Java ME.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.0"],
+    "developer": "shinovon",
+    "version": "1.0.2"
+  },
+  {
+    "id": "internet-radio",
+    "name": "Internet Radio",
+    "category": "multimedia",
+    "description": "Исходники интернет-радио Nokia. ROM-stub не предлагается для установки.",
+    "description_en": "Nokia Internet Radio sources. A ROM stub is not offered as an installable player.",
+    "platforms": ["Native Symbian / Qt variants; exact distribution unknown"],
+    "developer": "Nokia / Symbian Foundation",
+    "version": "Native 1.1.0 source / Qt source"
+  },
+  {
+    "id": "ip-calculator",
+    "name": "IP Calculator",
+    "category": "system",
+    "description": "Расчёт IPv4 подсетей, масок и диапазонов на клавиатурном устройстве.",
+    "description_en": null,
+    "platforms": ["MIDP-2.1", "CLDC-1.1"],
+    "developer": "developer-kaczmarek",
+    "version": "1.0"
+  },
+  {
+    "id": "jellyfin-s60-en",
+    "name": "Jellyfin for S60 (English)",
+    "category": "multimedia",
+    "description": "Клиент Jellyfin для телефонов S60 3rd Edition: библиотека, продолжение просмотра и музыка; видео отдаёт RTSP-companion. Английский интерфейс.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition FP1+", "Qt 4.7.3"],
+    "developer": "Hinduc0der",
+    "version": "0.3.22"
+  },
+  {
+    "id": "jellyfin-s60-ru",
+    "name": "Jellyfin for S60 (RU)",
+    "category": "multimedia",
+    "description": "Клиент Jellyfin для телефонов S60 3rd Edition: библиотека, продолжение просмотра и музыка; видео отдаёт RTSP-companion. Русский интерфейс.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition FP1+", "Qt 4.7.3"],
+    "developer": "Hinduc0der",
+    "version": "0.3.22"
+  },
+  {
+    "id": "jtreversi",
+    "name": "jtReversi",
+    "category": "games",
+    "description": "Офлайн-реверси для MIDP телефонов.",
+    "description_en": null,
+    "platforms": ["MIDP-1.0", "CLDC-1.0"],
+    "developer": "asalamon74",
+    "version": "0.87.00"
+  },
+  {
+    "id": "maholichki",
+    "name": "MahoLichki",
+    "category": "maps",
+    "description": "Просмотр расписаний пригородных поездов на Java ME.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "shinovon",
+    "version": "1.1.5"
+  },
+  {
+    "id": "mahomaps",
+    "name": "MahoMaps",
+    "category": "maps",
+    "description": "Клиент карт Яндекса для Java ME: просмотр, GPS и работа с кэшем.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "mahomaps",
+    "version": "1.2.4"
+  },
+  {
+    "id": "mahorasp",
+    "name": "MahoRasp",
+    "category": "maps",
+    "description": "Расписания транспорта через сервис Яндекс Расписания на Java ME.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "shinovon",
+    "version": "1.1.1"
+  },
+  {
+    "id": "mapnav",
+    "name": "MapNav",
+    "category": "maps",
+    "description": "GPS-навигация, компас, точки и локальные карты.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "magdel",
+    "version": "4.8.18"
+  },
+  {
+    "id": "md5-benchmark",
+    "name": "MD5 Benchmark",
+    "category": "development",
+    "description": "Сравнение скорости Java VM на простом вычислительном тесте.",
+    "description_en": null,
+    "platforms": ["MIDP-1.0", "CLDC-1.0"],
+    "developer": "shinovon",
+    "version": "2.0.0"
+  },
+  {
+    "id": "mdreader",
+    "name": "MDReader",
+    "category": "documents",
+    "description": "Чтение Markdown и TXT с карты памяти, русская сборка.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "Hinduc0der",
+    "version": "0.2.0"
+  },
+  {
+    "id": "meshcore",
+    "name": "MeshCore J2ME",
+    "category": "communication",
+    "description": "Клиент Companion Radio: сообщения, ретрансляторы и диагностика mesh-сети.",
+    "description_en": null,
+    "platforms": ["MIDP-2.1", "CLDC-1.1"],
+    "developer": "dobrishinov",
+    "version": "1.0"
+  },
+  {
+    "id": "mpgram",
+    "name": "MPGram",
+    "category": "communication",
+    "description": "Telegram через отдельный MPGram backend для MIDP устройств.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.0"],
+    "developer": "shinovon",
+    "version": "1.6.6"
+  },
+  {
+    "id": "nano-counter",
+    "name": "NanoCounter",
+    "category": "system",
+    "description": "Счётчик нажатий для сенсорных Symbian. Не подходит для E52/E72.",
+    "description_en": "Tap counter for touch Symbian devices. Unsupported on Nokia E52/E72.",
+    "platforms": ["Symbian 9.4–Belle FP2"],
+    "developer": "Vitalii Shunkov",
+    "version": "0.1.1"
+  },
+  {
+    "id": "nmania",
+    "name": "nmania",
+    "category": "games",
+    "description": "Ритм-игра для клавиатурных телефонов с загрузкой собственных карт.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "Feodor0090",
+    "version": "2.7.0"
+  },
+  {
+    "id": "opera-mini",
+    "name": "Opera Mini (Java ME)",
+    "category": "internet",
+    "description": "Прокси-браузер Opera Mini. Карточка источника: оригинальный Java ME дистрибутив сейчас не получен.",
+    "description_en": "Opera Mini Java ME proxy browser. Source card: an original Java distribution could not be obtained.",
+    "platforms": ["Java ME MIDP 2.0"],
+    "developer": "Opera Software",
+    "version": "Legacy Java ME version unconfirmed"
+  },
+  {
+    "id": "passgen",
+    "name": "PassGen",
+    "category": "system",
+    "description": "Небольшой офлайн-генератор паролей для Java ME.",
+    "description_en": null,
+    "platforms": ["MIDP-1.0", "CLDC-1.0"],
+    "developer": "scadl",
+    "version": "1.0.0"
+  },
+  {
+    "id": "pys60",
+    "name": "Python for S60",
+    "category": "development",
+    "description": "Python 1.4.5 runtime для скриптов на Symbian S60 3rd Edition.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition"],
+    "developer": "Nokia",
+    "version": "1.4.5"
+  },
+  {
+    "id": "qremotecontrol",
+    "name": "QRemoteControl",
+    "category": "internet",
+    "description": "Пульт управления ПК. Авторские исходники и инструкция; сборка для E52/E72 не установлена.",
+    "description_en": "PC remote-control client. Author source and instructions; no E52/E72 distribution is confirmed.",
+    "platforms": ["Qt mobile; Symbian variant requires separate verification"],
+    "developer": "QRemoteControl contributors",
+    "version": "2.6.1 source (Symbian binary unconfirmed)"
+  },
+  {
+    "id": "rotate-it",
+    "name": "Rotate It!",
+    "category": "system",
+    "description": "Поворот фотографий для сенсорных Symbian. Не подходит для E52/E72.",
+    "description_en": "Photo rotation for touch Symbian devices. Unsupported on Nokia E52/E72.",
+    "platforms": ["Symbian 9.4 / Anna / Belle"],
+    "developer": "Vitalii Shunkov",
+    "version": "0.2.1"
+  },
+  {
+    "id": "s2putty",
+    "name": "PuTTY for Symbian",
+    "category": "internet",
+    "description": "Нативный SSH-клиент: доступ к собственному серверу с аппаратной клавиатуры.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition"],
+    "developer": "shinovon",
+    "version": "1.6.1"
+  },
+  {
+    "id": "s60maps",
+    "name": "S60Maps",
+    "category": "maps",
+    "description": "Карты OSM и навигация, GPS, закладки и кэш просмотренных тайлов.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition"],
+    "developer": "artem78",
+    "version": "1.26"
+  },
+  {
+    "id": "scummvm",
+    "name": "ScummVM S60v3",
+    "category": "games",
+    "description": "Запуск классических приключенческих игр из собственных легальных файлов.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition"],
+    "developer": "ScummVM team",
+    "version": "1.7.0"
+  },
+  {
+    "id": "vk4me",
+    "name": "VK4ME",
+    "category": "communication",
+    "description": "Клиент VK для Java ME: сообщения и работа с социальной сетью.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "VK4ME",
+    "version": "3.3.4"
+  },
+  {
+    "id": "w4me",
+    "name": "W4ME Station",
+    "category": "games",
+    "description": "WASM-4 runtime с включёнными офлайн-картриджами, без JIT.",
+    "description_en": null,
+    "platforms": ["MIDP-2.0", "CLDC-1.1"],
+    "developer": "mulfyx",
+    "version": "1.1.0"
+  },
+  {
+    "id": "xplore",
+    "name": "X-plore (S60 3rd)",
+    "category": "system",
+    "description": "Двухпанельный файловый менеджер для Symbian: просмотр, копирование и архивы. Официальная сборка автора 1.64 для S60 3rd/5th.",
+    "description_en": null,
+    "platforms": ["Symbian 9.x", "S60 3rd Edition", "S60 5th Edition"],
+    "developer": "Lonely Cat Games",
+    "version": "1.64"
+  }
+]

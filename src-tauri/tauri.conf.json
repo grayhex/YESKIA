@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "YESKIA",
-        "width": 1360,
-        "height": 850,
+        "width": 1500,
+        "height": 900,
         "minWidth": 800,
         "minHeight": 560,
         "dragDropEnabled": false

@@ -8,7 +8,7 @@ export function SettingsPage({ model }: { model: AppModel }) {
   const { t } = useI18n();
   const { settings, system, busy } = model;
   return (
-    <>
+    <div className="settings-grid">
       <h1>{t("settings.title")}</h1>
       <Panel>
         {settings ? (
@@ -58,6 +58,6 @@ export function SettingsPage({ model }: { model: AppModel }) {
       </Panel>
       <PersonalExport backend={model.backend} />
       {system && <UpdatePanel backend={model.backend} version={system.app_version} />}
-    </>
+    </div>
   );
 }

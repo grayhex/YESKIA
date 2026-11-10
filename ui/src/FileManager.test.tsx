@@ -347,3 +347,26 @@ describe("Файловый менеджер: источник буфера, пу
     expect(screen.queryByRole("list", { name: "Передача файлов" })).toBeNull();
   });
 });
+
+it("фоновый опрос с новым объектом того же устройства не перечитывает папку", async () => {
+  const backend = new MockBackend();
+  const original = backend.listDevices.bind(backend);
+  const list = vi
+    .spyOn(backend, "listDevices")
+    .mockImplementation(async () => JSON.parse(JSON.stringify(await original())));
+  const start = vi.spyOn(backend, "startOperation");
+  await openFiles(backend);
+  await within(grid("Телефон")).findByText("readme.txt");
+  const calls = start.mock.calls.filter(([, r]) => r.type === "files.list").length;
+  vi.useFakeTimers();
+  try {
+    const { act } = await import("@testing-library/react");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    expect(list.mock.calls.length).toBeGreaterThan(1);
+    expect(start.mock.calls.filter(([, r]) => r.type === "files.list")).toHaveLength(calls);
+  } finally {
+    vi.useRealTimers();
+  }
+});

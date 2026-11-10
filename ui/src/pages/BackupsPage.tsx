@@ -269,7 +269,7 @@ export function BackupsPage({ model }: { model: AppModel }) {
     !!planFor && planFor.new > 0 && (tgtMode === "local" || (deviceWrite && !!device)) && !running;
 
   return (
-    <>
+    <div className="compact-tools">
       <h1>{t("bk.title")}</h1>
       <p role="note" className="banner banner-warn">
         {t("bk.scope")}
@@ -534,7 +534,7 @@ export function BackupsPage({ model }: { model: AppModel }) {
           <p>{t("bk.confirm.text", { n: planFor?.new ?? 0 })}</p>
         </Dialog>
       )}
-    </>
+    </div>
   );
 }
 

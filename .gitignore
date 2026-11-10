@@ -14,3 +14,7 @@ lab-captures/
 
 # Артефакты релиза (собираются scripts/package.sh)
 dist-release/
+
+# Python adapter contract tests
+__pycache__/
+*.pyc

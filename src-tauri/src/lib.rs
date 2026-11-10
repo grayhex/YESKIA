@@ -446,6 +446,67 @@ async fn export_personal_data(
 }
 
 #[tauri::command]
+async fn inspect_certificate(path: String) -> Cmd<yeskia_core::pkg::cert::CertInfo> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| Error::Internal("Проверьте дату компьютера".into()))?
+            .as_secs() as i64;
+        yeskia_core::pkg::cert::inspect_file(std::path::Path::new(&path), at)
+    })
+    .await
+    .map_err(|_| Error::Internal("Ошибка проверки сертификата".into()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+fn cancel_personal_read() {
+    yeskia_core::personal::cancel();
+}
+
+#[tauri::command]
+async fn read_personal_data(
+    python: String,
+    config: String,
+    domain: String,
+) -> Cmd<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        yeskia_core::personal::read(
+            std::path::Path::new(&python),
+            std::path::Path::new(&config),
+            &domain,
+            std::time::Duration::from_secs(180),
+        )
+    })
+    .await
+    .map_err(|_| Error::Internal("Ошибка адаптера".into()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+fn save_personal_snapshot(path: String, data: String) -> Cmd<()> {
+    use std::io::Write;
+    if !std::path::Path::new(&path).is_absolute() || data.len() > 8 * 1024 * 1024 {
+        return Err(Error::InvalidArgument("Некорректный путь или размер файла".into()).to_info());
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|_| Error::HostAccess("Выберите новое имя файла".into()).to_info())?;
+    if file
+        .write_all(data.as_bytes())
+        .and_then(|_| file.sync_all())
+        .is_err()
+    {
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        return Err(Error::HostAccess("Не удалось сохранить файл".into()).to_info());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn open_latest_release() -> Cmd<()> {
     #[cfg(windows)]
     {
@@ -577,6 +638,10 @@ pub fn run() {
             export_doctor_report,
             open_latest_release,
             export_personal_data,
+            read_personal_data,
+            cancel_personal_read,
+            inspect_certificate,
+            save_personal_snapshot,
             backup_list,
             start_host_job,
             await_host_job,
