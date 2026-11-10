@@ -4,6 +4,7 @@
 //! `inspector`, `diagnostics`, `engine`.
 
 pub mod app;
+pub mod at;
 pub mod backup;
 pub mod catalog;
 pub mod device;
