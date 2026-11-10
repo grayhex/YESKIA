@@ -17,7 +17,9 @@ describe("Первый запуск", () => {
     await fresh();
     expect(screen.getByTestId("wel-step")).toHaveTextContent("Шаг 1 из 4");
     expect(screen.getByText(/Не меняет и не заменяет драйверы/)).toBeInTheDocument();
-    expect(screen.getByText(/серверных портов нет/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Данные телефона обрабатываются на этом компьютере/),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Главная" })).not.toBeInTheDocument();
   });
 

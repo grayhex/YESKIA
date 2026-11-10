@@ -199,3 +199,12 @@ fn certificate_push_respects_negotiated_mtu_and_final_acknowledgement() {
     assert_eq!(receiver.received, der);
     assert_eq!(receiver.finals, 1);
 }
+
+#[test]
+fn contact_photo_base64_continuations_do_not_break_text_fields() {
+    let item=Item{id:1,mime:"text/x-vcard".into(),payload:b"BEGIN:VCARD\r\nFN:Photo contact\r\nPHOTO;ENCODING=BASE64;TYPE=JPEG:YWJj\r\nZGVm\r\nTEL:123\r\nEND:VCARD\r\n".to_vec()};
+    assert_eq!(
+        pim_text::rows(&[item], "contacts").unwrap()[0]["name"],
+        "Photo contact"
+    );
+}

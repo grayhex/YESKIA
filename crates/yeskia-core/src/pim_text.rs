@@ -69,6 +69,13 @@ fn properties(payload: &[u8]) -> Result<Vec<(String, String)>> {
         }
         if let Some(prev) = lines.last_mut() {
             let head = prev.split(|b| *b == b':').next().unwrap_or_default();
+            let upper = String::from_utf8_lossy(head).to_ascii_uppercase();
+            if (upper.contains("ENCODING=BASE64") || upper.split(';').any(|p| p == "ENCODING=B"))
+                && !raw.contains(&b':')
+            {
+                prev.extend(raw);
+                continue;
+            }
             if prev.ends_with(b"=")
                 && String::from_utf8_lossy(head)
                     .to_ascii_uppercase()

@@ -3,16 +3,6 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Lang = "ru" | "en";
 
 const ru = {
-  "personal.title": "Контакты и календарь",
-  "personal.intro":
-    "Для чтения подключите телефон с помощью Gammu и выберите его настройки. Данные сохраняются только в выбранный файл.",
-  "personal.program": "Выбрать Gammu",
-  "personal.config": "Выбрать настройки Gammu",
-  "personal.contacts": "Сохранить контакты",
-  "personal.calendar": "Сохранить календарь",
-  "personal.done": "Файл сохранён: {path}",
-  "personal.busy": "Чтение телефона…",
-
   "up.currentVersion": "Текущая версия: {version}",
   "up.latest": "Последний выпуск",
   "hero.label": "ВАША NOKIA. НОВЫЕ ВОЗМОЖНОСТИ.",
@@ -20,7 +10,7 @@ const ru = {
   "hero.text":
     "Файлы, приложения и любимые мелодии — в одном месте. Без аккаунта и подключения к интернету.",
   "quick.files": "Переносите фотографии и музыку",
-  "quick.packages": "Соберите библиотеку приложений",
+  "quick.packages": "Каталог и ваши установщики",
   "quick.backups": "Сохраните важные файлы",
   "connect.usb": "Подключите телефон по USB",
   "connect.mode": "Выберите режим передачи данных",
@@ -565,7 +555,7 @@ const ru = {
   "wel.s1.title": "Что это за приложение",
   "wel.s1.text":
     "YESKIA — офлайн-клиент для Nokia/Symbian на Windows 11. Он ничего не устанавливает на телефон без вашего подтверждения.",
-  "wel.s1.p1": "Работает без интернета, сервера, Docker, Python и браузера: серверных портов нет.",
+  "wel.s1.p1": "Данные телефона обрабатываются на этом компьютере.",
   "wel.s1.p2":
     "Показывает только то, что реально подтверждено на вашем соединении; остальное честно помечено «не проверено» или «не поддерживается».",
   "wel.s1.p3": "Не меняет и не заменяет драйверы, не пишет в реестр и не делает ничего в фоне.",
@@ -618,16 +608,6 @@ const ru = {
 export type MessageKey = keyof typeof ru;
 
 const en: Record<MessageKey, string> = {
-  "personal.title": "Contacts and calendar",
-  "personal.intro":
-    "Connect your phone using Gammu and select its configuration. Data is saved only to the chosen file.",
-  "personal.program": "Choose Gammu",
-  "personal.config": "Choose Gammu configuration",
-  "personal.contacts": "Save contacts",
-  "personal.calendar": "Save calendar",
-  "personal.done": "Saved: {path}",
-  "personal.busy": "Reading phone…",
-
   "up.currentVersion": "Current version: {version}",
   "up.latest": "Latest release",
   "hero.label": "YOUR NOKIA. NEW POSSIBILITIES.",
@@ -635,7 +615,7 @@ const en: Record<MessageKey, string> = {
   "hero.text":
     "Files, apps and favourite music, together. No account or internet connection needed.",
   "quick.files": "Transfer photos and music",
-  "quick.packages": "Build your app library",
+  "quick.packages": "Catalog and your installers",
   "quick.backups": "Keep important files safe",
   "connect.usb": "Connect your phone over USB",
   "connect.mode": "Select data transfer mode",
@@ -1177,8 +1157,7 @@ const en: Record<MessageKey, string> = {
   "wel.s1.title": "What this app is",
   "wel.s1.text":
     "YESKIA is an offline client for Nokia/Symbian phones on Windows 11. It installs nothing on the phone without your confirmation.",
-  "wel.s1.p1":
-    "It works without the internet, a server, Docker, Python or a browser: there are no server ports.",
+  "wel.s1.p1": "Phone data is processed on this computer.",
   "wel.s1.p2":
     "It shows only what is actually confirmed on your connection; everything else is honestly marked “not tested” or “unsupported”.",
   "wel.s1.p3":
