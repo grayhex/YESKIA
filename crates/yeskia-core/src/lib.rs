@@ -13,6 +13,7 @@ pub mod error;
 pub mod fsutil;
 pub mod host;
 pub mod inspector;
+pub mod library;
 pub mod mock;
 pub mod operations;
 pub mod paths;
