@@ -11,7 +11,14 @@ import type {
   HostJobRequest,
   HostJobResult,
   HostRoot,
+  InspectRecommendation,
+  InspectReport,
+  InspectTarget,
   JournalEntry,
+  LibraryItem,
+  LibraryQuery,
+  PackageSet,
+  Provenance,
   OperationRequest,
   OperationResult,
   Progress,
@@ -55,6 +62,21 @@ export interface Backend {
   awaitHostJob(jobId: string): Promise<HostJobResult>;
   hostJobProgress(jobId: string): Promise<Progress | null>;
   cancelHostJob(jobId: string): Promise<boolean>;
+  /** Выбор файлов пакетов (SIS/SISX/JAR/JAD) нативным диалогом. */
+  pickPackageFiles(): Promise<string[]>;
+  /** Библиотека пакетов: локальная, офлайн. */
+  libraryList(query: LibraryQuery): Promise<LibraryItem[]>;
+  libraryImport(paths: string[], provenance: Provenance): Promise<LibraryItem[]>;
+  libraryRemove(id: string): Promise<void>;
+  libraryInspect(id: string, target: InspectTarget, at?: number): Promise<InspectReport>;
+  librarySets(): Promise<PackageSet[]>;
+  libraryCreateSet(name: string): Promise<PackageSet>;
+  libraryDeleteSet(id: number): Promise<void>;
+  librarySetAdd(set: number, pkg: string): Promise<void>;
+  librarySetRemove(set: number, pkg: string): Promise<void>;
+  packageDiagnose(message: string): Promise<InspectRecommendation>;
+  /** «Передать на телефон»: запись файла пакета (не установка). Возвращает id операции. */
+  startPackageTransfer(deviceId: string, pkg: string, dir: string): Promise<string>;
   /** Сохраняет JSON-отчёт в каталог данных приложения; возвращает путь. */
   saveReport(name: string, json: string): Promise<string>;
   getSettings(): Promise<Settings>;
@@ -105,6 +127,31 @@ export class TauriBackend implements Backend {
   awaitHostJob = (jobId: string) => invoke<HostJobResult>("await_host_job", { jobId });
   hostJobProgress = (jobId: string) => invoke<Progress | null>("host_job_progress", { jobId });
   cancelHostJob = (jobId: string) => invoke<boolean>("cancel_host_job", { jobId });
+  pickPackageFiles = async () => {
+    const r = await openDialog({
+      directory: false,
+      multiple: true,
+      filters: [{ name: "Symbian / Java ME", extensions: ["sis", "sisx", "jar", "jad"] }],
+    });
+    return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
+  };
+  libraryList = (query: LibraryQuery) => invoke<LibraryItem[]>("library_list", { query });
+  libraryImport = (paths: string[], provenance: Provenance) =>
+    invoke<LibraryItem[]>("library_import", { paths, provenance });
+  libraryRemove = (id: string) => invoke<void>("library_remove", { id });
+  libraryInspect = (id: string, target: InspectTarget, at?: number) =>
+    invoke<InspectReport>("library_inspect", { id, target, at: at ?? null });
+  librarySets = () => invoke<PackageSet[]>("library_sets");
+  libraryCreateSet = (name: string) => invoke<PackageSet>("library_create_set", { name });
+  libraryDeleteSet = (id: number) => invoke<void>("library_delete_set", { id });
+  librarySetAdd = (set: number, pkg: string) =>
+    invoke<void>("library_set_add", { set, package: pkg });
+  librarySetRemove = (set: number, pkg: string) =>
+    invoke<void>("library_set_remove", { set, package: pkg });
+  packageDiagnose = (message: string) =>
+    invoke<InspectRecommendation>("package_diagnose", { message });
+  startPackageTransfer = (deviceId: string, pkg: string, dir: string) =>
+    invoke<string>("start_package_transfer", { id: deviceId, package: pkg, dir });
   saveReport = (name: string, json: string) => invoke<string>("save_report", { name, json });
   getSettings = () => invoke<Settings>("get_settings");
   saveSettings = (settings: Settings) => invoke<Settings>("save_settings", { settings });

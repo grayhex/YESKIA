@@ -14,7 +14,14 @@ import type {
   HostJobRequest,
   HostJobResult,
   HostRoot,
+  InspectRecommendation,
+  InspectReport,
+  InspectTarget,
+  LibraryItem,
+  LibraryQuery,
+  PackageSet,
   PlanItem,
+  Provenance,
   JournalEntry,
   Operation,
   OperationRequest,
@@ -41,6 +48,7 @@ const OPERATIONS: Operation[] = [
   "sms.read",
   "sms.send",
   "packages.install",
+  "packages.transfer",
 ];
 const PROBED: Operation[] = ["identity.read", "files.list", "files.read"];
 const FP = "mockfingerprint01";
@@ -124,6 +132,16 @@ export class MockBackend implements Backend {
   backupFiles: Record<string, Record<string, number>> = {};
   /** Копии, которые verify считает повреждёнными (тестовый хук). */
   corruptBackups = new Set<string>();
+  /** Библиотека пакетов (UI-заглушка): ключ — «SHA-256». */
+  library = new Map<string, LibraryItem>();
+  packageSets: PackageSet[] = [];
+  private setSeq = 1;
+  /** Ответ диалога выбора файлов пакетов и «содержимое» файлов на компьютере (тестовые хуки). */
+  nextPackageFiles: string[] = [];
+  packageSamples: Record<
+    string,
+    Partial<LibraryItem> & { size: number; platform_uids?: string[] }
+  > = {};
   private jobs = new Map<string, { request: HostJobRequest; cancelled: boolean }>();
   private jobSeq = 1;
 
@@ -142,7 +160,10 @@ export class MockBackend implements Backend {
 
   private buildMatrix(): CapabilityMatrix {
     const entries: CapabilityEntry[] = OPERATIONS.map((operation) => {
-      const implemented = operation === "files.write" || PROBED.includes(operation);
+      const implemented =
+        operation === "files.write" ||
+        operation === "packages.transfer" ||
+        PROBED.includes(operation);
       return {
         operation,
         availability: !implemented
@@ -213,6 +234,7 @@ export class MockBackend implements Backend {
     const isWrite =
       req.type === "files.write" ||
       req.type === "files.upload" ||
+      req.type === "packages.transfer" ||
       (req.type === "backup.restore" && req.apply);
     const cancelled = p.cancelled;
     // Сбой записи имитируем до применения эффектов: на «устройстве» ничего не появляется.
@@ -412,6 +434,23 @@ export class MockBackend implements Backend {
         },
       };
     }
+    if (request.type === "packages.transfer") {
+      const item = this.library.get(request.sha256);
+      if (!item || item.status !== "ok")
+        return fail("INVALID_ARGUMENT", "пакет не прошёл проверку целостности");
+      if (request.path in this.deviceFiles)
+        return fail("ALREADY_EXISTS", "целевой файл уже существует");
+      this.deviceFiles[request.path] = item.size;
+      return {
+        data: {
+          type: "written",
+          bytes: item.size,
+          sha256: item.id,
+          verified: true,
+          replaced: false,
+        },
+      };
+    }
     return null;
   }
 
@@ -580,6 +619,196 @@ export class MockBackend implements Backend {
   }
 
   savedReports: { name: string; json: string }[] = [];
+  async pickPackageFiles() {
+    return [...this.nextPackageFiles];
+  }
+  async libraryList(q: LibraryQuery) {
+    const text = q.text.trim().toLowerCase();
+    const members = q.set === null ? null : this.packageSets.find((x) => x.id === q.set)?.items;
+    return [...this.library.values()]
+      .map((it) => ({ ...it, fit: this.fitFor(it, q.model) }))
+      .filter(
+        (it) =>
+          (!q.format || it.format === q.format) &&
+          (!members || members.includes(it.id)) &&
+          (!q.only_fitting || it.fit === "declared") &&
+          (!text ||
+            `${it.name} ${it.title ?? ""} ${it.vendor ?? ""} ${it.uid ?? ""}`
+              .toLowerCase()
+              .includes(text)),
+      )
+      .sort((a, b) => b.added_ms - a.added_ms);
+  }
+  private fitFor(it: LibraryItem, model: string | null): LibraryItem["fit"] {
+    if (!model) return null;
+    if (model === "nokia-7610" || it.platform_uids.length === 0) return "unknown";
+    const known: Record<string, string[]> = {
+      "nokia-e52": ["0x101f7961", "0x102032be", "0x102752ae"],
+      "nokia-n95": ["0x101f7961", "0x102032be"],
+      "nokia-n97-mini": ["0x1028315f"],
+    };
+    return it.platform_uids.some((u) => (known[model] ?? []).includes(u))
+      ? "declared"
+      : "not-declared";
+  }
+  async libraryImport(paths: string[], provenance: Provenance) {
+    const out: LibraryItem[] = [];
+    for (const path of paths) {
+      const sample = this.packageSamples[path];
+      const size = sample?.size ?? this.hostFiles[path];
+      if (size === undefined) throw err("HOST_ACCESS", "файл недоступен");
+      const name = path.split(/[\\/]/).pop()!;
+      const ext = name.split(".").pop()!.toLowerCase();
+      if (!["sis", "sisx", "jar", "jad"].includes(ext))
+        throw err("INVALID_ARGUMENT", "поддерживаются файлы .sis, .sisx, .jar, .jad");
+      const id = (sample?.id ?? `${name}:${size}`)
+        .split("")
+        .reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+        .toString(16)
+        .padStart(8, "0")
+        .repeat(8);
+      const item = {
+        id,
+        name,
+        format: ext as LibraryItem["format"],
+        added_ms: 1_700_000_000_000 + this.library.size,
+        status: "ok",
+        error: null,
+        uid: null,
+        title: name.replace(/\.[^.]+$/, ""),
+        version: null,
+        vendor: null,
+        signed: ext === "sis" || ext === "sisx" ? false : null,
+        platform_uids: [],
+        provenance: { ...provenance, rights: provenance.rights },
+        fit: null,
+        ...sample,
+        size,
+      } as LibraryItem;
+      this.library.set(id, item);
+      out.push(item);
+    }
+    return out;
+  }
+  async libraryRemove(id: string) {
+    this.library.delete(id);
+    for (const s of this.packageSets) s.items = s.items.filter((x) => x !== id);
+  }
+  async libraryInspect(id: string, target: InspectTarget): Promise<InspectReport> {
+    const it = this.library.get(id);
+    if (!it) throw err("INVALID_ARGUMENT", "пакета нет в библиотеке");
+    const sis = it.format === "sis" || it.format === "sisx";
+    const issues = [
+      ...(sis && it.signed === false ? ["unsigned-package"] : []),
+      ...(it.status === "corrupt" ? ["corrupt-package"] : []),
+      ...(sis ? ["platform-undeclared"] : []),
+    ];
+    return {
+      schema: "yeskia.inspector/1",
+      name: it.name,
+      format: it.format,
+      sha256: it.id,
+      size: it.size,
+      sis: sis
+        ? {
+            uid3: 0,
+            package: {
+              uid: 0,
+              names: [it.title ?? it.name],
+              vendor_unique_name: it.vendor ?? "",
+              version: [1, 0, 0],
+            },
+            files: [],
+            signed: !!it.signed,
+            signature_count: it.signed ? 1 : 0,
+          }
+        : null,
+      midlet: null,
+      descriptor: null,
+      integrity: sis
+        ? {
+            uid_checksum_ok: true,
+            package_uid_matches_header: true,
+            controller_crc_ok: it.status !== "corrupt",
+            data_crc_ok: it.status !== "corrupt",
+            payload_hashes_ok: it.status !== "corrupt",
+          }
+        : null,
+      signatures: sis
+        ? {
+            status: it.signed ? "valid" : "unsigned",
+            trust: "unknown",
+            revocation: "not-checked",
+            phone_constraints: "not-verified",
+            at: "2026-11-10T00:00:00+00:00",
+            chains: [],
+          }
+        : null,
+      target,
+      dependencies: sis
+        ? {
+            platforms: [],
+            platform_verdict: "unknown",
+            packages: [],
+            verdict: "no-declared-dependencies",
+            imports: "not-decoded",
+          }
+        : null,
+      binaries: [],
+      capabilities: [],
+      issues,
+      compatibility: it.status === "corrupt" ? "incompatible" : "unknown",
+      compatibility_scope:
+        "только статический анализ; установка, доверие сертификатам телефона и запуск не установлены",
+      emulator: "not-tested",
+      installation: "not-tested",
+      physical_device: "not-tested",
+      limitations: ["UI-заглушка: отчёт не от Rust-ядра."],
+      recommendations: issues.map((issue) => ({ issue, advice: `Совет для ${issue}` })),
+    };
+  }
+  async librarySets() {
+    return this.packageSets.map((s) => ({ ...s, items: [...s.items] }));
+  }
+  async libraryCreateSet(name: string) {
+    const n = name.trim();
+    if (!n) throw err("INVALID_ARGUMENT", "название набора не может быть пустым");
+    if (this.packageSets.some((s) => s.name === n))
+      throw err("ALREADY_EXISTS", "набор с таким названием уже есть");
+    const set = { id: this.setSeq++, name: n, items: [] as string[] };
+    this.packageSets.push(set);
+    return { ...set };
+  }
+  async libraryDeleteSet(id: number) {
+    this.packageSets = this.packageSets.filter((s) => s.id !== id);
+  }
+  async librarySetAdd(set: number, pkg: string) {
+    const s = this.packageSets.find((x) => x.id === set);
+    if (!s || !this.library.has(pkg))
+      throw err("INVALID_ARGUMENT", "набора или пакета не существует");
+    if (!s.items.includes(pkg)) s.items.push(pkg);
+  }
+  async librarySetRemove(set: number, pkg: string) {
+    const s = this.packageSets.find((x) => x.id === set);
+    if (s) s.items = s.items.filter((x) => x !== pkg);
+  }
+  async packageDiagnose(message: string): Promise<InspectRecommendation> {
+    const m = message.toLowerCase();
+    const issue = m.includes("expired") ? "expired-certificate" : "unknown";
+    return { issue, advice: `Совет для ${issue}` };
+  }
+  async startPackageTransfer(deviceId: string, pkg: string, dir: string) {
+    const it = this.library.get(pkg);
+    if (!it) throw err("INVALID_ARGUMENT", "пакета нет в библиотеке");
+    if (it.status !== "ok")
+      throw err("INVALID_ARGUMENT", "передавать можно только пакеты, прошедшие проверку");
+    return this.startOperation(deviceId, {
+      type: "packages.transfer",
+      source: `C:\\staging\\${it.name}`,
+      path: `${dir.replace(/\/+$/, "")}/${it.name}`,
+      sha256: it.id,
+    });
+  }
   async saveReport(name: string, json: string) {
     this.savedReports.push({ name, json });
     return `C:\\Users\\user\\AppData\\Roaming\\YESKIA\\reports\\${name}.json`;

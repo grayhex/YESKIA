@@ -41,3 +41,6 @@
 | Протоколы PC Suite (NPC) | `unsupported` | ни одна функция не заявляется без адаптера YESKIA, проверенного на телефоне |
 | Файловые резервные копии: create/verify/restore-plan/apply только новых (issue #7) | `tested-on-host` / `tested-on-mock` | `crates/yeskia-core/tests/backup*.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/Backups.test.tsx` |
 | Резервная копия с реального телефона/карты | `not-tested` | нужен физический телефон; это файловая копия, не полный backup (docs/BACKUPS.md) |
+| Библиотека пакетов, инспектор SIS/SISX/JAR/JAD, подписи, наборы (issue #8) | `tested-on-host` | `crates/yeskia-core/tests/pkg.rs`, `packages.rs`; golden-сверка со SymPort; `ui/src/Packages.test.tsx` |
+| Передача пакета на телефон (`packages.transfer`) | `tested-on-mock` | запись файла с read-back, не установка; на реальном телефоне/карте `not-tested` |
+| Установка пакетов на телефоне, доверие сертификатам телефона | `not-tested` | инспектор не утверждает совместимость (`compatible` не выдаётся) |

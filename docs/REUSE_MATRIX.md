@@ -12,7 +12,8 @@
 | Дизайн Nokia Classic UI (SymPort) | adapt | issue #2; тема/компоненты в React, без серверных зависимостей |
 | Модель возможностей и статусов (STATUS/LIMITATIONS) | adapt | реализована как `Capability/SupportStatus/Evidence` |
 | Протокольные знания PC Suite / NPC | rewrite | issue #6/#10: реализация на Rust по реальным трассам |
-| Разбор SIS/SISX/JAR, сертификаты | adapt | issue #8: Rust-инспектор; Python только как опциональный sidecar |
+| Разбор SIS/SISX/JAR, сертификаты | adapt | issue #8: переписано на Rust (`pkg/`), Python не нужен; сверено с исходником и golden-выводом SymPort, см. [PACKAGES.md](PACKAGES.md) |
+| HTTP-каталог приложений, downloader | drop | сетевой, ссылки на сторонние дистрибутивы; офлайн-библиотека пользователя вместо него |
 | Темы, рингтоны, подготовка медиа | adapt | issue #9 |
 | Docker / Compose | drop | требование «без Docker» |
 | Win Bridge relay | drop | прямой локальный доступ вместо relay |
@@ -24,6 +25,8 @@
 
 | Компонент | Лицензия | Как используется |
 | --- | --- | --- |
+| flate2, sha1, x509-parser (+ der-parser, asn1-rs, oid-registry), zip | MIT OR Apache-2.0 / MIT | разбор пакетов |
+| ring | Apache-2.0 AND ISC | проверка подписей |
 | Tauri 2 (`tauri`, `tauri-build`, `@tauri-apps/*`) | MIT OR Apache-2.0 | оболочка |
 | serde, serde_json, thiserror | MIT OR Apache-2.0 | ядро |
 | rusqlite | MIT | ядро |

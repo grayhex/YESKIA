@@ -9,7 +9,9 @@ use yeskia_core::device::{Device, DeviceId};
 use yeskia_core::diagnostics::LogEntry;
 use yeskia_core::error::{Error, ErrorInfo};
 use yeskia_core::host::{HostEntry, HostRoot};
+use yeskia_core::library::{Item, PackageSet, Provenance, Query};
 use yeskia_core::operations::{OperationRequest, OperationResult, Progress};
+use yeskia_core::pkg::inspect::{Recommendation, Target};
 use yeskia_core::storage::{data_dir, JournalEntry, Settings};
 use yeskia_core::system::SystemInfo;
 use yeskia_discovery::{CollectOptions, DoctorReport};
@@ -156,6 +158,91 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .await
     .map_err(|e| Error::Internal(e.to_string()).to_info())?
     .map_err(|e| e.to_info())
+}
+
+// ---------- библиотека пакетов (офлайн) ----------
+
+#[tauri::command]
+async fn library_list(state: tauri::State<'_, State>, query: Query) -> Cmd<Vec<Item>> {
+    blocking(&state, move |c| c.library_list(&query)).await
+}
+
+/// Импорт выбранных файлов (пути из нативного диалога). Каждый файл — отдельный результат.
+#[tauri::command]
+async fn library_import(
+    state: tauri::State<'_, State>,
+    paths: Vec<String>,
+    provenance: Provenance,
+) -> Cmd<Vec<Item>> {
+    blocking(&state, move |c| {
+        if paths.len() > 100 {
+            return Err(Error::InvalidArgument("не больше 100 файлов за раз".into()));
+        }
+        paths
+            .iter()
+            .map(|p| c.library_import(p, provenance.clone()))
+            .collect()
+    })
+    .await
+}
+
+#[tauri::command]
+async fn library_remove(state: tauri::State<'_, State>, id: String) -> Cmd<()> {
+    blocking(&state, move |c| c.library().remove(&id)).await
+}
+
+#[tauri::command]
+async fn library_inspect(
+    state: tauri::State<'_, State>,
+    id: String,
+    target: Target,
+    at: Option<i64>,
+) -> Cmd<serde_json::Value> {
+    blocking(&state, move |c| c.library_inspect(&id, target, at)).await
+}
+
+#[tauri::command]
+async fn library_sets(state: tauri::State<'_, State>) -> Cmd<Vec<PackageSet>> {
+    blocking(&state, |c| c.library_sets()).await
+}
+
+#[tauri::command]
+async fn library_create_set(state: tauri::State<'_, State>, name: String) -> Cmd<PackageSet> {
+    blocking(&state, move |c| c.library().create_set(&name)).await
+}
+
+#[tauri::command]
+async fn library_delete_set(state: tauri::State<'_, State>, id: i64) -> Cmd<()> {
+    blocking(&state, move |c| c.library().delete_set(id)).await
+}
+
+#[tauri::command]
+async fn library_set_add(state: tauri::State<'_, State>, set: i64, package: String) -> Cmd<()> {
+    blocking(&state, move |c| c.library().set_add(set, &package)).await
+}
+
+#[tauri::command]
+async fn library_set_remove(state: tauri::State<'_, State>, set: i64, package: String) -> Cmd<()> {
+    blocking(&state, move |c| c.library().set_remove(set, &package)).await
+}
+
+#[tauri::command]
+fn package_diagnose(state: tauri::State<'_, State>, message: String) -> Cmd<Recommendation> {
+    state.0.package_diagnose(&message).map_err(|e| e.to_info())
+}
+
+/// «Передать на телефон»: запись файла пакета (не установка). Возвращает id операции.
+#[tauri::command]
+async fn start_package_transfer(
+    state: tauri::State<'_, State>,
+    id: String,
+    package: String,
+    dir: String,
+) -> Cmd<String> {
+    blocking(&state, move |c| {
+        c.start_package_transfer(&DeviceId::new(id), &package, &dir)
+    })
+    .await
 }
 
 /// Резервные копии в хранилище (папка пользователя или `<данные>/backups`).
@@ -322,6 +409,17 @@ pub fn run() {
             host_job_progress,
             cancel_host_job,
             save_report,
+            library_list,
+            library_import,
+            library_remove,
+            library_inspect,
+            library_sets,
+            library_create_set,
+            library_delete_set,
+            library_set_add,
+            library_set_remove,
+            package_diagnose,
+            start_package_transfer,
             host_roots,
             host_list_dir,
             host_create_dir,
