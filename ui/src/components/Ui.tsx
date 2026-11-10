@@ -1,3 +1,4 @@
+import { useWorkspaceCopy } from "../workspaceCopy";
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
 import type { ConnectionState, ErrorInfo } from "../types";
@@ -46,12 +47,21 @@ export function StateMessage({
   );
 }
 
-export function ErrorMessage({ error }: { error: ErrorInfo }) {
+export function ErrorMessage({
+  error: received,
+  developer = false,
+}: {
+  error: ErrorInfo;
+  developer?: boolean;
+}) {
+  const { error: localize } = useWorkspaceCopy();
+  const error = developer ? received : localize(received);
   const { t } = useI18n();
   return (
     <StateMessage kind="error" title={t("state.error")}>
       <span data-testid="error">
-        {error.code}: {error.message}
+        {developer ? `${error.code}: ` : ""}
+        {error.message}
         {error.retryable ? ` (${t("conn.retryHint")})` : ""}
       </span>
     </StateMessage>

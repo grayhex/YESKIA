@@ -4,6 +4,7 @@ import { App } from "./App";
 import { createBackend } from "./api";
 import "./styles/tokens.css";
 import "./styles/app.css";
+import "./styles/soft-ui.css";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

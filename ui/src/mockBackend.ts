@@ -1029,10 +1029,18 @@ export class MockBackend implements Backend {
   async inspectCertificate(): Promise<import("./types").CertInfo> {
     throw new Error("Откройте сертификат в настольном приложении");
   }
+  async installPhoneCertificate(): Promise<void> {
+    throw {
+      code: "CAPABILITY_UNSUPPORTED",
+      message: "CERT_OPP_UNAVAILABLE",
+      retryable: false,
+      action: "none",
+    };
+  }
   async readPersonalData(): Promise<Record<string, unknown>[]> {
     throw {
       code: "TOOL_MISSING",
-      message: "Для чтения подключите телефон в настольном приложении",
+      message: "NATIVE_WINDOWS_REQUIRED",
       retryable: false,
       action: "none",
     };
@@ -1041,9 +1049,6 @@ export class MockBackend implements Backend {
     throw new Error("Доступно в настольном приложении");
   }
   async openLatestRelease() {}
-  async exportPersonalData(): Promise<void> {
-    throw err("TOOL_MISSING", "Gammu недоступен в демо-режиме");
-  }
   async exportDoctorReport(options: DoctorOptions, path: string): Promise<ExportedReport> {
     return { path, report: await this.runDoctor(options) };
   }

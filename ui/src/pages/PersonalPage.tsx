@@ -1,57 +1,58 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppModel } from "../useAppModel";
 import { toErrorInfo } from "../api";
 import { ErrorMessage, Panel } from "../components/Ui";
 import type { ErrorInfo } from "../types";
 import { useI18n } from "../i18n";
 
+import { Icon } from "../components/Icon";
+import { useWorkspaceCopy, type WorkspaceKey } from "../workspaceCopy";
+const fields = new Set([
+  "name",
+  "given",
+  "family",
+  "phones",
+  "emails",
+  "number",
+  "text",
+  "date",
+  "state",
+  "direction",
+  "summary",
+  "description",
+  "location",
+  "start",
+  "end",
+  "due",
+  "status",
+  "priority",
+  "recurrence",
+  "part",
+  "parts",
+]);
+
 export type PersonalDomain = "contacts" | "sms" | "calendar" | "tasks";
-const titles = { contacts: "Контакты", sms: "Сообщения", calendar: "Календарь", tasks: "Задачи" };
-const labels: Record<string, string> = {
-  name: "Имя",
-  given: "Имя",
-  family: "Фамилия",
-  phones: "Телефоны",
-  emails: "Почта",
-  number: "Номер",
-  text: "Сообщение",
-  date: "Дата",
-  state: "Состояние",
-  direction: "Направление",
-  summary: "Название",
-  description: "Описание",
-  location: "Место",
-  start: "Начало",
-  end: "Окончание",
-  due: "Срок",
-  completed: "Завершено",
-  priority: "Приоритет",
-  recurrence: "Повторение",
-  part: "Часть",
-  parts: "Всего частей",
-};
-const value = (v: unknown): string =>
-  Array.isArray(v)
-    ? v.join(", ")
-    : v == null
-      ? ""
-      : typeof v === "boolean"
-        ? v
-          ? "Да"
-          : "Нет"
-        : String(v);
-export function PersonalPage({
-  model,
-  domain,
-  profile,
-  setProfile,
-}: {
-  model: AppModel;
-  domain: PersonalDomain;
-  profile: { python: string; config: string };
-  setProfile: (p: { python: string; config: string }) => void;
-}) {
-  const { lang } = useI18n();
+export function PersonalPage({ model, domain }: { model: AppModel; domain: PersonalDomain }) {
+  const { c, error: localizeError } = useWorkspaceCopy();
+  const { t } = useI18n();
+  const device = model.devices.find((d) => d.connection === "connected");
+  const value = (v: unknown): string =>
+    Array.isArray(v)
+      ? v.join(", ")
+      : v == null
+        ? ""
+        : typeof v === "boolean"
+          ? c(v ? "yes" : "no")
+          : v === "incoming" ||
+              v === "outgoing" ||
+              v === "unread" ||
+              v === "read" ||
+              v === "unsent" ||
+              v === "sent"
+            ? c(`field.${v}`)
+            : String(v);
+  const request = useRef(0);
+  const reading = useRef(false);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -61,30 +62,42 @@ export function PersonalPage({
   const [saved, setSaved] = useState("");
   const [tasks, setTasks] = useState(false);
   const actual = domain === "calendar" && tasks ? "tasks" : domain;
-  const title =
-    lang === "ru"
-      ? titles[domain]
-      : domain === "sms"
-        ? "Messages"
-        : domain[0].toUpperCase() + domain.slice(1);
+  const title = domain === "tasks" ? c("personal.tasks") : t(`nav.${domain}`);
   const filtered = rows.filter((r) =>
     Object.values(r).map(value).join(" ").toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   const row = filtered[selected];
+  useEffect(() => {
+    setRows([]);
+    setLoaded(false);
+    setSelected(0);
+    setSaved("");
+    setBusy(false);
+    return () => {
+      request.current += 1;
+      if (reading.current) void model.backend.cancelPersonalRead().catch(() => undefined);
+    };
+  }, [model.backend, device?.id, actual]);
   const read = async () => {
+    if (!device) return;
+    const ticket = ++request.current;
+    reading.current = true;
     setBusy(true);
     setError(null);
     setRows([]);
     setLoaded(false);
     setSaved("");
     try {
-      setRows(await model.backend.readPersonalData(profile.python, profile.config, actual));
+      const records = await model.backend.readPersonalData(device.id, actual);
+      if (ticket !== request.current) return;
+      setRows(records);
       setSelected(0);
       setLoaded(true);
     } catch (e) {
-      setError(toErrorInfo(e));
+      if (ticket === request.current) setError(toErrorInfo(e));
     } finally {
-      setBusy(false);
+      reading.current = false;
+      if (ticket === request.current) setBusy(false);
     }
   };
   const exportRows = async () => {
@@ -107,38 +120,11 @@ export function PersonalPage({
         <h1>{title}</h1>
         <span className="tag">{rows.length}</span>
       </div>
-      <details className="panel" open={!profile.python || !profile.config}>
-        <summary>{lang === "ru" ? "Настройка чтения телефона" : "Phone connection setup"}</summary>
-        <p>
-          {lang === "ru"
-            ? "Для чтения нужен Python 3 с python-gammu и профиль вашего телефона. Закройте другие программы, использующие его порт."
-            : "Select Python 3 with python-gammu and your phone connection profile. Close other applications using its port."}
-        </p>
-        <div className="btn-row">
-          {(["python", "config"] as const).map((key) => (
-            <button
-              className="btn btn-secondary"
-              key={key}
-              disabled={busy}
-              onClick={async () => {
-                try {
-                  const p = await model.backend.pickFile();
-                  if (p) setProfile({ ...profile, [key]: p });
-                } catch (e) {
-                  setError(toErrorInfo(e));
-                }
-              }}
-            >
-              {key === "python" ? "Python" : "Профиль"}
-              {profile[key] ? ` · ${profile[key].split(/[\\/]/).pop()}` : "…"}
-            </button>
-          ))}
-        </div>
-      </details>
+      <p className="hint">{c(device ? "personal.ready" : "personal.connect")}</p>
       <div className="btn-row">
         {domain === "calendar" && (
           <select
-            aria-label="Раздел календаря"
+            aria-label={c("personal.calendarSection")}
             disabled={busy}
             value={tasks ? "tasks" : "calendar"}
             onChange={(e) => {
@@ -147,16 +133,12 @@ export function PersonalPage({
               setLoaded(false);
             }}
           >
-            <option value="calendar">События</option>
-            <option value="tasks">Задачи</option>
+            <option value="calendar">{c("personal.events")}</option>
+            <option value="tasks">{c("personal.tasks")}</option>
           </select>
         )}
-        <button
-          className="btn"
-          disabled={busy || !profile.python || !profile.config}
-          onClick={() => void read()}
-        >
-          ↻ {busy ? "Чтение…" : "Прочитать телефон"}
+        <button className="btn" disabled={busy || !device} onClick={() => void read()}>
+          <Icon name="refresh" /> {c(busy ? "personal.reading" : "personal.read")}
         </button>
         {busy && (
           <button
@@ -165,12 +147,12 @@ export function PersonalPage({
               void model.backend.cancelPersonalRead().catch((e) => setError(toErrorInfo(e)))
             }
           >
-            Отменить чтение
+            {c("personal.cancel")}
           </button>
         )}
         <input
-          aria-label="Поиск записей"
-          placeholder="Поиск"
+          aria-label={c("personal.search")}
+          placeholder={c("search")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -182,11 +164,15 @@ export function PersonalPage({
           disabled={busy || !loaded}
           onClick={() => void exportRows()}
         >
-          ↓ Экспорт JSON
+          <Icon name="download" /> {c("personal.export")}
         </button>
       </div>
-      {error && <ErrorMessage error={error} />}
-      {saved && <p role="status">Сохранено: {saved}</p>}
+      {error && <ErrorMessage error={localizeError(error)} />}
+      {saved && (
+        <p role="status">
+          {c("saved")}: {saved}
+        </p>
+      )}
       <div className="personal-grid">
         <Panel title={title}>
           <div className="record-list" role="listbox" aria-label={title}>
@@ -198,36 +184,32 @@ export function PersonalPage({
                 key={String(r.native_id ?? i)}
                 onClick={() => setSelected(i)}
               >
-                <strong>{value(r.name || r.summary || r.number) || "Без названия"}</strong>
+                <strong>{value(r.name || r.summary || r.number) || c("personal.noName")}</strong>
                 <small>{value(r.phones || r.start || r.date)}</small>
                 {domain === "sms" && <span>{value(r.text)}</span>}
               </button>
             ))}
             {!filtered.length && (
               <p role="status">
-                {busy
-                  ? "Чтение…"
-                  : loaded
-                    ? "Записей не найдено"
-                    : "Нажмите «Прочитать телефон», чтобы загрузить записи."}
+                {busy ? c("personal.reading") : loaded ? c("personal.empty") : c("personal.start")}
               </p>
             )}
           </div>
         </Panel>
-        <Panel title="Подробности">
+        <Panel title={c("personal.details")}>
           {row ? (
             <dl className="facts">
               {Object.entries(row)
-                .filter(([key, v]) => labels[key] && value(v))
+                .filter(([key, v]) => fields.has(key) && value(v))
                 .map(([key, v]) => (
                   <div className="record-field" key={key}>
-                    <dt>{labels[key]}</dt>
+                    <dt>{c(`field.${key}` as WorkspaceKey)}</dt>
                     <dd>{value(v)}</dd>
                   </div>
                 ))}
             </dl>
           ) : (
-            <p>Выберите запись из списка.</p>
+            <p>{c("personal.select")}</p>
           )}
         </Panel>
       </div>

@@ -1,3 +1,4 @@
+import { useWorkspaceCopy } from "../workspaceCopy";
 import { useState } from "react";
 import { ConnectionPage } from "./ConnectionPage";
 import { DoctorPage } from "./DoctorPage";
@@ -14,25 +15,26 @@ export function DevicePage({
   go: (p: PageId) => void;
   diagnostic?: boolean;
 }) {
+  const { c } = useWorkspaceCopy();
   const [doctor, setDoctor] = useState(diagnostic);
   return (
     <div className="workspace-page device-workspace">
       <div className="page-heading">
-        <h1>Телефон и подключение</h1>
+        <h1>{c("device.title")}</h1>
         <div className="btn-row">
           <button
             className="btn btn-secondary"
             aria-pressed={!doctor}
             onClick={() => setDoctor(false)}
           >
-            Подключение
+            {c("device.connection")}
           </button>
           <button
             className="btn btn-secondary"
             aria-pressed={doctor}
             onClick={() => setDoctor(true)}
           >
-            Диагностика
+            {c("device.diagnostics")}
           </button>
         </div>
       </div>

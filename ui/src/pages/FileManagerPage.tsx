@@ -1,3 +1,4 @@
+import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
 import { Dialog } from "../fm/Dialog";
@@ -490,7 +491,11 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
             {transfers.items.map((i) => (
               <li key={i.id} data-status={i.status}>
                 <span className="mono">
-                  {i.kind === "download" ? "↓" : i.kind === "upload" ? "↑" : "📁"}
+                  <Icon
+                    name={
+                      i.kind === "download" ? "download" : i.kind === "upload" ? "upload" : "folder"
+                    }
+                  />
                 </span>{" "}
                 {i.name} — {t(statusKey(i))}
                 {i.status === "done" && i.kind !== "mkdir" && i.sha256 && (

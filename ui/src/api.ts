@@ -52,19 +52,15 @@ export interface Backend {
   runDoctor(options: DoctorOptions): Promise<DoctorReport>;
   cancelPersonalRead(): Promise<void>;
   inspectCertificate(path: string): Promise<import("./types").CertInfo>;
-  readPersonalData(
-    python: string,
-    config: string,
-    domain: string,
-  ): Promise<Record<string, unknown>[]>;
+  readPersonalData(deviceId: string, domain: string): Promise<Record<string, unknown>[]>;
   savePersonalSnapshot(path: string, data: string): Promise<void>;
-  openLatestRelease(): Promise<void>;
-  exportPersonalData(
-    executable: string,
-    config: string,
-    destination: string,
-    kind: "contacts" | "calendar",
+  installPhoneCertificate(
+    deviceId: string,
+    path: string,
+    fingerprint: string,
+    confirm: boolean,
   ): Promise<void>;
+  openLatestRelease(): Promise<void>;
   exportDoctorReport(options: DoctorOptions, path: string): Promise<ExportedReport>;
   /** Диски и быстрые папки компьютера. */
   hostRoots(): Promise<HostRoot[]>;
@@ -151,17 +147,17 @@ export class TauriBackend implements Backend {
   cancelPersonalRead = () => invoke<void>("cancel_personal_read");
   inspectCertificate = (path: string) =>
     invoke<import("./types").CertInfo>("inspect_certificate", { path });
-  readPersonalData = (python: string, config: string, domain: string) =>
-    invoke<Record<string, unknown>[]>("read_personal_data", { python, config, domain });
+  readPersonalData = (deviceId: string, domain: string) =>
+    invoke<Record<string, unknown>[]>("read_personal_data", { deviceId, domain });
+  installPhoneCertificate = (
+    deviceId: string,
+    path: string,
+    fingerprint: string,
+    confirm: boolean,
+  ) => invoke<void>("install_phone_certificate", { deviceId, path, fingerprint, confirm });
   savePersonalSnapshot = (path: string, data: string) =>
     invoke<void>("save_personal_snapshot", { path, data });
   openLatestRelease = () => invoke<void>("open_latest_release");
-  exportPersonalData = (
-    executable: string,
-    config: string,
-    destination: string,
-    kind: "contacts" | "calendar",
-  ) => invoke<void>("export_personal_data", { executable, config, destination, kind });
   exportDoctorReport = (options: DoctorOptions, path: string) =>
     invoke<ExportedReport>("export_doctor_report", { options, path });
   hostRoots = () => invoke<HostRoot[]>("host_roots");

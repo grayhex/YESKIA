@@ -1,3 +1,4 @@
+import { Icon } from "../components/Icon";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { formatSize } from "./paths";
@@ -268,7 +269,7 @@ export function FilePane(p: Props) {
                   }}
                 >
                   <td>
-                    <span aria-hidden="true">{r.is_dir ? "📁 " : "📄 "}</span>
+                    <Icon name={r.is_dir ? "folder" : "file"} />
                     {r.name}
                   </td>
                   <td>{r.is_dir ? "" : formatSize(r.size)}</td>

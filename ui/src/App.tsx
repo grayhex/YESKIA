@@ -19,7 +19,6 @@ import { useAppModel } from "./useAppModel";
 export function App({ backend }: { backend: Backend }) {
   const model = useAppModel(backend);
   const [page, setPage] = useState<PageId>("home");
-  const [profile, setProfile] = useState({ python: "", config: "" });
   const mainRef = useRef<HTMLElement>(null);
 
   const lang = normalizeLang(model.settings?.language);
@@ -83,7 +82,7 @@ export function App({ backend }: { backend: Backend }) {
               {t("banner.uiMock")}
             </p>
           )}
-          {model.error && <ErrorMessage error={model.error} />}
+          {model.error && <ErrorMessage error={model.error} developer={developer} />}
           {welcome && (
             <WelcomePage
               model={model}
@@ -106,13 +105,7 @@ export function App({ backend }: { backend: Backend }) {
           {!welcome && current === "studio" && <StudioPage model={model} />}
           {!welcome && current === "backups" && <BackupsPage model={model} />}
           {!welcome && (current === "contacts" || current === "sms" || current === "calendar") && (
-            <PersonalPage
-              key={current}
-              domain={current}
-              model={model}
-              profile={profile}
-              setProfile={setProfile}
-            />
+            <PersonalPage key={current} domain={current} model={model} />
           )}
           {!welcome && current === "certificates" && <CertificatesPage model={model} />}
           {!welcome && current === "journal" && <JournalPage model={model} />}

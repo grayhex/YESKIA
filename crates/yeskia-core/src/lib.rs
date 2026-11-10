@@ -12,7 +12,6 @@ pub mod diagnostics;
 pub mod engine;
 pub mod error;
 pub mod fsutil;
-pub mod gammu_export;
 pub mod host;
 pub mod inspector;
 pub mod library;
@@ -38,4 +37,10 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-pub mod personal;
+pub mod pccs;
+
+pub mod pim_text;
+
+pub mod sms;
+
+pub mod opp;

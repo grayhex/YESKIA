@@ -80,6 +80,58 @@ impl PnpTransport {
         f(port.as_mut())
     }
 
+    /// Explicit PIM request, bound to the selected physical device. No external process.
+    pub fn read_personal(
+        &self,
+        id: &DeviceId,
+        domain: &str,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<serde_json::Value> {
+        if domain == "sms" {
+            let selected = self.find(id)?;
+            let name = selected
+                .com_port
+                .ok_or_else(|| Error::CapabilityUnsupported("SMS_PORT_MISSING".into()))?;
+            let opener = self
+                .serial
+                .as_ref()
+                .ok_or_else(|| Error::CapabilityUnsupported("SMS_PORT_MISSING".into()))?;
+            return yeskia_core::sms::read(opener.open(&name)?.as_mut(), cancel);
+        }
+        let selected = self.find(id)?;
+        #[cfg(windows)]
+        {
+            crate::windows_obex::read(&selected.instance_id, domain, cancel)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (selected, domain, cancel);
+            Err(Error::CapabilityUnsupported(
+                "NATIVE_WINDOWS_REQUIRED".into(),
+            ))
+        }
+    }
+
+    pub fn send_certificate(
+        &self,
+        id: &DeviceId,
+        der: &[u8],
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<()> {
+        let selected = self.find(id)?;
+        #[cfg(windows)]
+        {
+            crate::windows_obex::send_certificate(&selected.instance_id, der, cancel)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (selected, der, cancel);
+            Err(Error::CapabilityUnsupported(
+                "NATIVE_WINDOWS_REQUIRED".into(),
+            ))
+        }
+    }
+
     fn id_for(&self, instance_id: &str) -> DeviceId {
         DeviceId::new(format!(
             "usb-{:016x}",

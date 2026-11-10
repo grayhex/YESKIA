@@ -147,7 +147,7 @@ describe("Подключение", () => {
     await connect();
     const row = () => screen.getByText("Запись файла").closest("tr")!;
     expect(row()).toHaveTextContent("Не проверено");
-    expect(screen.getByText("Чтение контактов").closest("tr")).toHaveTextContent(
+    expect(screen.getByText("Число контактов (AT)").closest("tr")).toHaveTextContent(
       "Не поддерживается",
     );
     await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
@@ -207,7 +207,7 @@ describe("Ошибки и счётчики", () => {
       }
     }
     render(<App backend={new Broken()} />);
-    expect(await screen.findByTestId("error")).toHaveTextContent("TRANSPORT_ERROR: usb недоступен");
+    expect(await screen.findByTestId("error")).toHaveTextContent("usb недоступен");
   });
 
   it("не считает операции прошлых запусков операциями сессии", async () => {

@@ -1,8 +1,10 @@
+import { useWorkspaceCopy } from "../workspaceCopy";
 import { useState } from "react";
 import apps from "../catalog/apps.json";
 import { PackagesPage } from "./PackagesPage";
 import type { AppModel } from "../useAppModel";
 export function StorePage({ model }: { model: AppModel }) {
+  const { c, lang } = useWorkspaceCopy();
   const [local, setLocal] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -10,22 +12,24 @@ export function StorePage({ model }: { model: AppModel }) {
   const filtered = apps.filter(
     (a) =>
       (!category || a.category === category) &&
-      `${a.name} ${a.description} ${a.developer}`.toLowerCase().includes(search.toLowerCase()),
+      `${a.name} ${lang === "en" ? a.description_en || a.description : a.description} ${a.developer}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   );
   return (
     <div className="workspace-page">
       <div className="page-heading">
-        <h1>Приложения</h1>
+        <h1>{c("store.title")}</h1>
         <div className="btn-row">
           <button
             className="btn btn-secondary"
             aria-pressed={!local}
             onClick={() => setLocal(false)}
           >
-            Каталог
+            {c("store.catalog")}
           </button>
           <button className="btn btn-secondary" aria-pressed={local} onClick={() => setLocal(true)}>
-            Мои установщики
+            {c("store.local")}
           </button>
         </div>
       </div>
@@ -37,29 +41,28 @@ export function StorePage({ model }: { model: AppModel }) {
         <>
           <div className="btn-row">
             <input
-              aria-label="Поиск приложений"
-              placeholder="Найти приложение"
+              aria-label={c("store.search")}
+              placeholder={c("store.find")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <select
-              aria-label="Категория"
+              aria-label={c("store.category")}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="">Все категории</option>
+              <option value="">{c("store.all")}</option>
               {[...new Set(apps.map((a) => a.category))].map((c) => (
                 <option key={c} value={c ?? ""}>
                   {c}
                 </option>
               ))}
             </select>
-            <span>{filtered.length} приложений</span>
+            <span>
+              {filtered.length} {c("store.count")}
+            </span>
           </div>
-          <p className="hint">
-            Каталог s60modern · Предварительная версия. Загрузка и установка появятся после
-            подключения сервиса каталога.
-          </p>
+          <p className="hint">{c("store.preview")}</p>
           <div className="catalog-grid workspace-scroll">
             {filtered.map((a) => (
               <article className="panel catalog-card" key={a.id}>
@@ -68,7 +71,7 @@ export function StorePage({ model }: { model: AppModel }) {
                 </span>
                 <h2>{a.name}</h2>
                 <small>{a.developer}</small>
-                <p>{a.description}</p>
+                <p>{lang === "en" ? a.description_en || a.description : a.description}</p>
                 <div className="btn-row">
                   <span className="tag">{a.platforms?.join(" · ")}</span>
                   <button
@@ -76,10 +79,14 @@ export function StorePage({ model }: { model: AppModel }) {
                     aria-expanded={selected === a.id}
                     onClick={() => setSelected(selected === a.id ? null : a.id)}
                   >
-                    Подробнее
+                    {c("store.details")}
                   </button>
                 </div>
-                {selected === a.id && <p>{a.version} · Загрузка пока недоступна.</p>}
+                {selected === a.id && (
+                  <p>
+                    {a.version} · {c("store.unavailable")}
+                  </p>
+                )}
               </article>
             ))}
           </div>

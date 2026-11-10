@@ -20,6 +20,9 @@ use yeskia_discovery::{CollectOptions, DoctorReport};
 type Cmd<T> = Result<T, ErrorInfo>;
 
 struct State(Arc<AppCore>);
+struct NativeState(Arc<yeskia_discovery::adapter::PnpTransport>);
+static PIM_ACTIVE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static PIM_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Выполняет блокирующую работу ядра вне потока UI.
 async fn blocking<T, F>(core: &State, f: F) -> Cmd<T>
@@ -425,27 +428,6 @@ fn reveal_in_explorer(path: String) -> Cmd<()> {
 }
 
 #[tauri::command]
-async fn export_personal_data(
-    executable: String,
-    config: String,
-    destination: String,
-    kind: String,
-) -> Cmd<()> {
-    tauri::async_runtime::spawn_blocking(move || {
-        yeskia_core::gammu_export::export(
-            std::path::Path::new(&executable),
-            std::path::Path::new(&config),
-            std::path::Path::new(&destination),
-            &kind,
-            std::time::Duration::from_secs(120),
-        )
-    })
-    .await
-    .map_err(|e| Error::Internal(e.to_string()).to_info())?
-    .map_err(|e| e.to_info())
-}
-
-#[tauri::command]
 async fn inspect_certificate(path: String) -> Cmd<yeskia_core::pkg::cert::CertInfo> {
     tauri::async_runtime::spawn_blocking(move || {
         let at = std::time::SystemTime::now()
@@ -460,27 +442,68 @@ async fn inspect_certificate(path: String) -> Cmd<yeskia_core::pkg::cert::CertIn
 }
 
 #[tauri::command]
+async fn install_phone_certificate(
+    state: tauri::State<'_, State>,
+    native: tauri::State<'_, NativeState>,
+    device_id: String,
+    path: String,
+    fingerprint: String,
+    confirm: bool,
+) -> Cmd<()> {
+    if !confirm {
+        return Err(Error::InvalidArgument("CERT_CONFIRM_REQUIRED".into()).to_info());
+    }
+    let transport = Arc::clone(&native.0);
+    blocking(&state, move |core| {
+        let id = DeviceId::new(device_id);
+        if !core
+            .engine
+            .list_devices()?
+            .iter()
+            .any(|d| d.id == id && d.connection == yeskia_core::device::ConnectionState::Connected)
+        {
+            return Err(Error::NotConnected);
+        }
+        let der = yeskia_core::pkg::cert::checked_der(std::path::Path::new(&path), &fingerprint)?;
+        let _active = PIM_ACTIVE
+            .try_lock()
+            .map_err(|_| Error::OperationFailed("PIM_BUSY".into()))?;
+        PIM_CANCEL.store(false, std::sync::atomic::Ordering::SeqCst);
+        transport.send_certificate(&id, &der, &PIM_CANCEL)
+    })
+    .await
+}
+
+#[tauri::command]
 fn cancel_personal_read() {
-    yeskia_core::personal::cancel();
+    PIM_CANCEL.store(true, std::sync::atomic::Ordering::SeqCst);
 }
 
 #[tauri::command]
 async fn read_personal_data(
-    python: String,
-    config: String,
+    state: tauri::State<'_, State>,
+    native: tauri::State<'_, NativeState>,
+    device_id: String,
     domain: String,
 ) -> Cmd<serde_json::Value> {
-    tauri::async_runtime::spawn_blocking(move || {
-        yeskia_core::personal::read(
-            std::path::Path::new(&python),
-            std::path::Path::new(&config),
-            &domain,
-            std::time::Duration::from_secs(180),
-        )
+    let transport = Arc::clone(&native.0);
+    blocking(&state, move |core| {
+        let id = DeviceId::new(device_id);
+        if !core
+            .engine
+            .list_devices()?
+            .iter()
+            .any(|d| d.id == id && d.connection == yeskia_core::device::ConnectionState::Connected)
+        {
+            return Err(Error::NotConnected);
+        }
+        let _active = PIM_ACTIVE
+            .try_lock()
+            .map_err(|_| Error::OperationFailed("PIM_BUSY".into()))?;
+        PIM_CANCEL.store(false, std::sync::atomic::Ordering::SeqCst);
+        transport.read_personal(&id, &domain, &PIM_CANCEL)
     })
     .await
-    .map_err(|_| Error::Internal("Ошибка адаптера".into()).to_info())?
-    .map_err(|e| e.to_info())
 }
 
 #[tauri::command]
@@ -576,8 +599,8 @@ pub fn run() {
             yeskia_discovery::windows_serial::WindowsSerialOpener,
         ));
     }
-    let pnp: std::sync::Arc<dyn yeskia_core::transport::DeviceTransport> =
-        std::sync::Arc::new(transport);
+    let native = Arc::new(transport);
+    let pnp: Arc<dyn yeskia_core::transport::DeviceTransport> = native.clone();
     let core = match AppCore::init_with(&data_dir(), vec![pnp]) {
         Ok(c) => Arc::new(c),
         Err(e) => {
@@ -621,6 +644,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(State(core))
+        .manage(NativeState(native))
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             list_devices,
@@ -637,10 +661,10 @@ pub fn run() {
             run_doctor,
             export_doctor_report,
             open_latest_release,
-            export_personal_data,
             read_personal_data,
             cancel_personal_read,
             inspect_certificate,
+            install_phone_certificate,
             save_personal_snapshot,
             backup_list,
             start_host_job,
