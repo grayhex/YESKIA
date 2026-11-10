@@ -5,7 +5,8 @@
 //!   VID/PID — имя нейтральное, модель берётся из свойств WPD после `connect`.
 //! * Что доступно, определяется режимом USB **этого** соединения: Mass Storage → файлы тома
 //!   (запись — только после явной операции, `not-tested`), WPD → read-only листинг/скачивание,
-//!   запись `unsupported`; COM/неизвестный режим → ничего.
+//!   запись `unsupported`; COM → AT-канал 3GPP (только чтение: идентификация и счётчики хранилищ),
+//!   если задан открыватель порта (`with_serial`), иначе ничего; неизвестный режим → ничего.
 //! * Mass Storage ограничен томами, привязанными к устройству через PnP-цепочку; выйти за их
 //!   пределы нельзя. Не-Nokia MTP-устройства видны Doctor'у, но в список YESKIA не попадают.
 
@@ -16,6 +17,8 @@ use std::hash::BuildHasher;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
+use yeskia_core::at::{self, Query, SerialOpener, SerialPort};
 use yeskia_core::device::*;
 use yeskia_core::error::{Error, Result};
 use yeskia_core::operations::{FileEntry, Operation, OperationContext, OverwritePolicy};
@@ -34,6 +37,8 @@ pub struct PnpTransport {
     key: RandomState,
     /// Буква тома → корень в файловой системе (`F:` → `F:\`); в тестах — временные папки.
     resolver: VolumeResolver,
+    /// Открытие COM-портов для AT-канала. Без него COM-режим остаётся `unsupported`.
+    serial: Option<Arc<dyn SerialOpener>>,
 }
 
 impl PnpTransport {
@@ -46,7 +51,33 @@ impl PnpTransport {
             source,
             key: RandomState::new(),
             resolver,
+            serial: None,
         }
+    }
+
+    /// Включает AT-канал (стандарт 3GPP, только чтение) для устройств с виртуальным COM-портом.
+    /// Это не протокол Nokia PC Suite; на реальном телефоне функция `not-tested`.
+    pub fn with_serial(mut self, opener: Arc<dyn SerialOpener>) -> Self {
+        self.serial = Some(opener);
+        self
+    }
+
+    /// Открывает порт устройства, выполняет `f` и закрывает порт: порт не удерживается между операциями.
+    fn with_port<T>(
+        &self,
+        id: &DeviceId,
+        f: impl FnOnce(&mut dyn SerialPort) -> Result<T>,
+    ) -> Result<T> {
+        let r = self.find(id)?;
+        let Service::Serial(name) = self.service(&r) else {
+            return Err(Error::CapabilityUnsupported("serial".into()));
+        };
+        let opener = self
+            .serial
+            .as_ref()
+            .ok_or_else(|| Error::CapabilityUnsupported("serial".into()))?;
+        let mut port = opener.open(&name)?;
+        f(port.as_mut())
     }
 
     fn id_for(&self, instance_id: &str) -> DeviceId {
@@ -93,6 +124,10 @@ impl PnpTransport {
             Service::MassStorage(r.volumes.clone())
         } else if let (DoctorState::WpdOnly, Some(w)) = (r.state, &r.wpd_device_id) {
             Service::Wpd(w.clone())
+        } else if let (DoctorState::ComPresent, Some(port), Some(_)) =
+            (r.state, &r.com_port, &self.serial)
+        {
+            Service::Serial(port.clone())
         } else {
             Service::None
         }
@@ -122,8 +157,13 @@ impl PnpTransport {
 enum Service {
     MassStorage(Vec<char>),
     Wpd(String),
+    /// Виртуальный COM-порт: AT-команды 3GPP только для чтения.
+    Serial(String),
     None,
 }
+
+/// Время ожидания ответа на одну AT-команду внутри операции.
+const AT_TIMEOUT: Duration = Duration::from_secs(4);
 
 fn kind_and_label(r: &DeviceRef) -> (TransportKind, &'static str) {
     match r.state {
@@ -216,6 +256,11 @@ impl DeviceTransport for PnpTransport {
                 Service::MassStorage(_),
                 Operation::FilesList | Operation::FilesRead | Operation::FilesWrite,
             ) => SupportStatus::TestedOnHost,
+            // AT по COM: код и контракт проверены на синтетических диалогах, телефон не проверялся.
+            (
+                Service::Serial(_),
+                Operation::IdentityRead | Operation::ContactsRead | Operation::SmsRead,
+            ) => SupportStatus::Implemented,
             // WPD: запись не реализована; всё остальное — пока нет.
             _ => SupportStatus::Unsupported,
         }
@@ -261,6 +306,79 @@ impl DeviceTransport for PnpTransport {
                     "в режиме Mass Storage нет идентификации по протоколу",
                 ));
             }
+            Service::Serial(_) => {
+                // Один сеанс: проверка связи и идентификация, затем только счётчики хранилищ.
+                // Содержимое контактов и сообщений не читается; ничего не записывается.
+                let res = self.with_port(id, |p| {
+                    let ident = at::identify(p, AT_TIMEOUT, ctx).map(|_| ());
+                    let query = |p: &mut dyn SerialPort, q| -> Result<()> {
+                        ctx.checkpoint()?;
+                        at::exec(p, q, AT_TIMEOUT, ctx).map(|_| ())
+                    };
+                    let contacts = match &ident {
+                        Ok(()) => Some(query(p, Query::PhonebookStatus)),
+                        Err(_) => None,
+                    };
+                    let sms = match &ident {
+                        Ok(()) => Some(query(p, Query::MessageStorageStatus)),
+                        Err(_) => None,
+                    };
+                    Ok((ident, contacts, sms))
+                });
+                let as_outcome = |op, r: Result<()>| match r {
+                    Ok(()) => ProbeOutcome {
+                        operation: op,
+                        availability: Availability::Available,
+                        detail: None,
+                    },
+                    Err(Error::CapabilityUnsupported(_)) => ProbeOutcome {
+                        operation: op,
+                        availability: Availability::Unsupported,
+                        detail: Some("телефон отклонил AT-запрос".into()),
+                    },
+                    Err(e) => ProbeOutcome {
+                        operation: op,
+                        availability: Availability::Error,
+                        detail: Some(e.to_string()),
+                    },
+                };
+                match res {
+                    Ok((ident, contacts, sms)) => {
+                        let blocked = ident.is_err();
+                        out.push(as_outcome(Operation::IdentityRead, ident));
+                        for (op, r) in [
+                            (Operation::ContactsRead, contacts),
+                            (Operation::SmsRead, sms),
+                        ] {
+                            out.push(match r {
+                                Some(r) => as_outcome(op, r),
+                                None => ProbeOutcome {
+                                    operation: op,
+                                    availability: Availability::NotTested,
+                                    detail: Some(
+                                        if blocked {
+                                            "идентификация по AT не удалась"
+                                        } else {
+                                            ""
+                                        }
+                                        .into(),
+                                    ),
+                                },
+                            });
+                        }
+                    }
+                    // порт не открылся (занят другой программой и т. п.)
+                    Err(e) => {
+                        for op in [
+                            Operation::IdentityRead,
+                            Operation::ContactsRead,
+                            Operation::SmsRead,
+                        ] {
+                            out.push(as_outcome(op, Err(clone_err(&e))));
+                        }
+                    }
+                }
+            }
             Service::None => {
                 out.push(unsupported(
                     Operation::IdentityRead,
@@ -274,6 +392,13 @@ impl DeviceTransport for PnpTransport {
     fn identity(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Identity> {
         ctx.checkpoint()?;
         let r = self.find(id)?;
+        if matches!(self.service(&r), Service::Serial(_)) {
+            let i = self.with_port(id, |p| at::identify(p, AT_TIMEOUT, ctx))?;
+            return Ok(Identity {
+                model: i.model,
+                firmware: i.revision,
+            });
+        }
         let Service::Wpd(wpd) = self.service(&r) else {
             return Err(Error::CapabilityUnsupported("identity.read".into()));
         };
@@ -286,6 +411,50 @@ impl DeviceTransport for PnpTransport {
 
     fn files(&self) -> Option<&dyn FileProvider> {
         Some(self)
+    }
+
+    fn pim(&self) -> Option<&dyn PimProvider> {
+        Some(self)
+    }
+}
+
+/// Только счётчики занятости хранилищ (AT+CPBS? / AT+CPMS?): записи и сообщения не читаются.
+impl PimProvider for PnpTransport {
+    fn contacts_count(&self, id: &DeviceId, ctx: &OperationContext) -> Result<u64> {
+        ctx.checkpoint()?;
+        self.with_port(id, |p| {
+            at::drain(p);
+            let r = at::exec(p, Query::PhonebookStatus, AT_TIMEOUT, ctx)?;
+            Ok(at::parse_cpbs(&r)?.used)
+        })
+        .map_err(|e| match e {
+            Error::CapabilityUnsupported(_) => Error::CapabilityUnsupported("contacts.read".into()),
+            e => e,
+        })
+    }
+
+    fn sms_count(&self, id: &DeviceId, ctx: &OperationContext) -> Result<u64> {
+        ctx.checkpoint()?;
+        self.with_port(id, |p| {
+            at::drain(p);
+            let r = at::exec(p, Query::MessageStorageStatus, AT_TIMEOUT, ctx)?;
+            Ok(at::parse_cpms(&r)?.used)
+        })
+        .map_err(|e| match e {
+            Error::CapabilityUnsupported(_) => Error::CapabilityUnsupported("sms.read".into()),
+            e => e,
+        })
+    }
+}
+
+/// `Error` не `Clone`: копия для одинакового исхода по нескольким операциям.
+fn clone_err(e: &Error) -> Error {
+    match e {
+        Error::CapabilityUnsupported(s) => Error::CapabilityUnsupported(s.clone()),
+        Error::DeviceDisconnected => Error::DeviceDisconnected,
+        Error::Timeout => Error::Timeout,
+        Error::HostAccess(s) => Error::HostAccess(s.clone()),
+        other => Error::Transport(other.to_string()),
     }
 }
 
@@ -327,7 +496,9 @@ impl FileProvider for PnpTransport {
                 });
                 Ok(v)
             }
-            Service::None => Err(Error::CapabilityUnsupported("files.list".into())),
+            Service::None | Service::Serial(_) => {
+                Err(Error::CapabilityUnsupported("files.list".into()))
+            }
         }
     }
 
@@ -360,7 +531,9 @@ impl FileProvider for PnpTransport {
                         size: e.size,
                     }))
             }
-            Service::None => Err(Error::CapabilityUnsupported("files.list".into())),
+            Service::None | Service::Serial(_) => {
+                Err(Error::CapabilityUnsupported("files.list".into()))
+            }
         }
     }
 
@@ -421,7 +594,9 @@ impl FileProvider for PnpTransport {
                 res.map_err(wpd_err)?;
                 Ok(done)
             }
-            Service::None => Err(Error::CapabilityUnsupported("files.read".into())),
+            Service::None | Service::Serial(_) => {
+                Err(Error::CapabilityUnsupported("files.read".into()))
+            }
         }
     }
 

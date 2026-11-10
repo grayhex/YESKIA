@@ -404,8 +404,18 @@ pub fn run() {
 
     let source: std::sync::Arc<dyn yeskia_discovery::SnapshotSource> =
         std::sync::Arc::from(yeskia_discovery::system_source());
+    #[allow(unused_mut)]
+    let mut transport = yeskia_discovery::adapter::PnpTransport::new(source);
+    // AT-канал по виртуальному COM-порту (открытый стандарт 3GPP, только чтение). Не протокол NPC;
+    // на реальном телефоне не проверялся.
+    #[cfg(windows)]
+    {
+        transport = transport.with_serial(std::sync::Arc::new(
+            yeskia_discovery::windows_serial::WindowsSerialOpener,
+        ));
+    }
     let pnp: std::sync::Arc<dyn yeskia_core::transport::DeviceTransport> =
-        std::sync::Arc::new(yeskia_discovery::adapter::PnpTransport::new(source));
+        std::sync::Arc::new(transport);
     let core = match AppCore::init_with(&data_dir(), vec![pnp]) {
         Ok(c) => Arc::new(c),
         Err(e) => {
