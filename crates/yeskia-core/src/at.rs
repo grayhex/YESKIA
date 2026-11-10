@@ -108,7 +108,7 @@ impl AtError {
             // 3GPP TS 27.007 9.2: 3 not allowed, 4 not supported, 100 unknown; 302/303 для CMS
             AtError::Error => true,
             AtError::Cme(c) => matches!(c, 3 | 4 | 100),
-            AtError::Cms(c) => matches!(c, 300 | 301 | 302 | 303 | 304),
+            AtError::Cms(c) => matches!(c, 300..=304),
             _ => false,
         }
     }

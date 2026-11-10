@@ -41,7 +41,11 @@ impl Modem {
         m
     }
     fn reply(&self, cmd: &str, bytes: &str) -> &Self {
-        self.st.lock().unwrap().script.insert(cmd.into(), bytes.as_bytes().to_vec());
+        self.st
+            .lock()
+            .unwrap()
+            .script
+            .insert(cmd.into(), bytes.as_bytes().to_vec());
         self
     }
     fn with(&self, f: impl FnOnce(&mut State)) -> &Self {
@@ -57,9 +61,15 @@ impl Modem {
         m.reply("AT", "\r\nOK\r\n")
             .reply("AT+CGMI", "\r\nNokia\r\n\r\nOK\r\n")
             .reply("AT+CGMM", "\r\nNokia E52-1\r\n\r\nOK\r\n")
-            .reply("AT+CGMR", "\r\nV 071.004\r\n01-01-10\r\nRM-469\r\n(c) Nokia\r\n\r\nOK\r\n")
+            .reply(
+                "AT+CGMR",
+                "\r\nV 071.004\r\n01-01-10\r\nRM-469\r\n(c) Nokia\r\n\r\nOK\r\n",
+            )
             .reply("AT+CPBS?", "\r\n+CPBS: \"ME\",12,250\r\n\r\nOK\r\n")
-            .reply("AT+CPMS?", "\r\n+CPMS: \"ME\",3,100,\"ME\",3,100,\"ME\",3,100\r\n\r\nOK\r\n");
+            .reply(
+                "AT+CPMS?",
+                "\r\n+CPMS: \"ME\",3,100,\"ME\",3,100,\"ME\",3,100\r\n\r\nOK\r\n",
+            );
         m
     }
 }
@@ -67,7 +77,9 @@ impl Modem {
 impl SerialPort for Modem {
     fn write_all(&mut self, data: &[u8]) -> io::Result<()> {
         let mut st = self.st.lock().unwrap();
-        let text = String::from_utf8_lossy(data).trim_end_matches('\r').to_string();
+        let text = String::from_utf8_lossy(data)
+            .trim_end_matches('\r')
+            .to_string();
         if let Some(n) = st.unplug_after {
             if st.written.len() >= n {
                 return Err(io::Error::new(io::ErrorKind::BrokenPipe, "порт потерян"));
@@ -149,7 +161,10 @@ fn framing_survives_byte_by_byte_delivery_missing_echo_and_urcs() {
     }
     // URC в ответе на запрос с префиксом отбрасывается, а не ломает разбор
     let mut m = Modem::phone();
-    m.reply("AT+CPBS?", "\r\n+CMTI: \"ME\",4\r\n+CPBS: \"ME\",7,50\r\n\r\nOK\r\n");
+    m.reply(
+        "AT+CPBS?",
+        "\r\n+CMTI: \"ME\",4\r\n+CPBS: \"ME\",7,50\r\n\r\nOK\r\n",
+    );
     let r = at::exec_plain(&mut m, Query::PhonebookStatus, T).unwrap();
     assert_eq!(at::parse_cpbs(&r).unwrap().used, 7);
 }
@@ -159,9 +174,14 @@ fn counts_come_from_storage_status_only() {
     let mut m = Modem::phone();
     let c = at::parse_cpbs(&at::exec(&mut m, Query::PhonebookStatus, T, &ctx()).unwrap()).unwrap();
     assert_eq!((c.name.as_str(), c.used, c.total), ("ME", 12, 250));
-    let s = at::parse_cpms(&at::exec(&mut m, Query::MessageStorageStatus, T, &ctx()).unwrap()).unwrap();
+    let s =
+        at::parse_cpms(&at::exec(&mut m, Query::MessageStorageStatus, T, &ctx()).unwrap()).unwrap();
     assert_eq!((s.used, s.total), (3, 100));
-    assert_eq!(m.written(), vec!["AT+CPBS?", "AT+CPMS?"], "содержимое записей не запрашивалось");
+    assert_eq!(
+        m.written(),
+        vec!["AT+CPBS?", "AT+CPMS?"],
+        "содержимое записей не запрашивалось"
+    );
 }
 
 #[test]
@@ -169,14 +189,32 @@ fn phone_errors_are_classified_not_swallowed() {
     let mut m = Modem::phone();
     m.reply("AT+CPBS?", "\r\n+CME ERROR: 4\r\n");
     let e = at::exec_plain(&mut m, Query::PhonebookStatus, T).unwrap_err();
-    assert_eq!(e.code(), ErrorCode::CapabilityUnsupported, "операция не поддерживается телефоном");
+    assert_eq!(
+        e.code(),
+        ErrorCode::CapabilityUnsupported,
+        "операция не поддерживается телефоном"
+    );
     m.reply("AT+CPBS?", "\r\n+CME ERROR: 10\r\n");
     let e = at::exec_plain(&mut m, Query::PhonebookStatus, T).unwrap_err();
-    assert_eq!(e.code(), ErrorCode::TransportError, "SIM отсутствует ≠ «не поддерживается»");
+    assert_eq!(
+        e.code(),
+        ErrorCode::TransportError,
+        "SIM отсутствует ≠ «не поддерживается»"
+    );
     m.reply("AT+CPMS?", "\r\n+CMS ERROR: 303\r\n");
-    assert_eq!(at::exec_plain(&mut m, Query::MessageStorageStatus, T).unwrap_err().code(), ErrorCode::CapabilityUnsupported);
+    assert_eq!(
+        at::exec_plain(&mut m, Query::MessageStorageStatus, T)
+            .unwrap_err()
+            .code(),
+        ErrorCode::CapabilityUnsupported
+    );
     m.reply("AT+CPMS?", "\r\nERROR\r\n");
-    assert_eq!(at::exec_plain(&mut m, Query::MessageStorageStatus, T).unwrap_err().code(), ErrorCode::CapabilityUnsupported);
+    assert_eq!(
+        at::exec_plain(&mut m, Query::MessageStorageStatus, T)
+            .unwrap_err()
+            .code(),
+        ErrorCode::CapabilityUnsupported
+    );
     assert!(AtError::Cme(4).is_unsupported());
 }
 
@@ -220,7 +258,12 @@ fn cancellation_and_presence_loss_stop_the_exchange() {
     );
     let mut silent = Modem::new();
     token.cancel();
-    assert_eq!(at::exec(&mut silent, Query::Attention, T, &c).unwrap_err().code(), ErrorCode::OperationCancelled);
+    assert_eq!(
+        at::exec(&mut silent, Query::Attention, T, &c)
+            .unwrap_err()
+            .code(),
+        ErrorCode::OperationCancelled
+    );
     let token2 = CancellationToken::new();
     let p3 = Arc::clone(&present);
     let c2 = OperationContext::new(
@@ -231,14 +274,24 @@ fn cancellation_and_presence_loss_stop_the_exchange() {
         Arc::new(ProgressCell::default()),
     );
     *present.lock().unwrap() = false;
-    assert_eq!(at::exec(&mut silent, Query::Attention, T, &c2).unwrap_err().code(), ErrorCode::DeviceDisconnected);
+    assert_eq!(
+        at::exec(&mut silent, Query::Attention, T, &c2)
+            .unwrap_err()
+            .code(),
+        ErrorCode::DeviceDisconnected
+    );
 }
 
 #[test]
 fn data_mode_and_hostile_replies_are_protocol_errors() {
     let mut m = Modem::phone();
     m.reply("AT", "\r\nCONNECT 115200\r\n");
-    assert_eq!(at::exec_plain(&mut m, Query::Attention, T).unwrap_err().code(), ErrorCode::TransportError);
+    assert_eq!(
+        at::exec_plain(&mut m, Query::Attention, T)
+            .unwrap_err()
+            .code(),
+        ErrorCode::TransportError
+    );
     // бесконечный поток без финального кода
     let mut flood = Modem::new();
     flood.reply("AT+CGMI", &"Nokia\r\n".repeat(2000));
@@ -261,7 +314,11 @@ fn a_non_nokia_modem_is_not_taken_for_a_phone() {
     let e = at::identify(&mut m, T, &ctx()).unwrap_err();
     assert_eq!(e.code(), ErrorCode::TransportError);
     assert!(e.to_string().contains("не Nokia"));
-    assert_eq!(m.written(), vec!["AT", "AT+CGMI"], "после отказа модель не запрашивается");
+    assert_eq!(
+        m.written(),
+        vec!["AT", "AT+CGMI"],
+        "после отказа модель не запрашивается"
+    );
 }
 
 #[test]

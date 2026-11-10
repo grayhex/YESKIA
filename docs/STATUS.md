@@ -47,3 +47,6 @@
 | Рингтоны и подготовка медиа через внешний FFmpeg (issue #9) | `tested-on-host` | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs`; без FFmpeg — `TOOL_MISSING` |
 | Анализ и предпросмотр тем S60 (.skn/.mbm/.mif/SIS) | `tested-on-host` | `crates/yeskia-core/tests/theme.rs` (темы SymPort, golden) |
 | Воспроизведение рингтона / применение темы / передача медиа на телефон | `not-tested` | нужен физический телефон; принятие темы прошивкой `unknown` |
+| AT-канал по COM (3GPP, только чтение): идентификация, число контактов/сообщений (issue #10) | `tested-on-mock` | `crates/yeskia-core/tests/at.rs` (кадрирование, ошибки, hot-unplug), `crates/yeskia-discovery/tests/serial.rs`; синтетические диалоги, не снятые с телефона |
+| AT-канал на реальном Nokia | `not-tested` | нужен собственный телефон; чек-лист в docs/protocol/AT_SERIAL.md |
+| Любой сервис протокола Nokia PC Suite (NPC) | `unsupported` | нет реальных трасс (#6); ничего не заявляется |

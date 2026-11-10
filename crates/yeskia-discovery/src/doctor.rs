@@ -144,6 +144,8 @@ pub struct DeviceRef {
     pub nokia_vendor_hint: bool,
     /// Буквы томов, привязанных к этому устройству через PnP-цепочку (Mass Storage).
     pub volumes: Vec<char>,
+    /// Виртуальный COM-порт устройства (`COM5`) — для AT-канала; наружу (в отчёт) не уходит.
+    pub com_port: Option<String>,
 }
 
 fn enumerator(instance_id: &str) -> &str {
@@ -402,6 +404,10 @@ pub fn analyze_with_refs(snap: &Snapshot, now_ms: u64) -> (DoctorReport, Vec<Dev
             state,
             nokia_vendor_hint: nokia,
             volumes: vol_letters,
+            com_port: ports.iter().map(|p| p.port_name.clone()).min_by_key(|n| {
+                // COM2 раньше COM10
+                (n.len(), n.clone())
+            }),
         });
     }
 

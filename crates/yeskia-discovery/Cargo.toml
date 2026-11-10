@@ -20,6 +20,7 @@ yeskia-core = { path = "../yeskia-core", optional = true }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
     "Win32_Foundation",
+    "Win32_Devices_Communication",
     "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Devices_Properties",
     "Win32_Devices_PortableDevices",
@@ -39,4 +40,8 @@ required-features = ["engine"]
 
 [[test]]
 name = "files"
+required-features = ["engine"]
+
+[[test]]
+name = "serial"
 required-features = ["engine"]

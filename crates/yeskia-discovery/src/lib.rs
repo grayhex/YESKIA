@@ -15,6 +15,9 @@ pub mod model;
 #[cfg(windows)]
 pub mod windows_impl;
 
+#[cfg(all(windows, feature = "engine"))]
+pub mod windows_serial;
+
 #[cfg(feature = "engine")]
 pub mod adapter;
 
