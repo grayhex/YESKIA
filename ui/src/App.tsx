@@ -87,7 +87,7 @@ export function App({ backend }: { backend: Backend }) {
           )}
           {!welcome && current === "home" && <HomePage model={model} go={select} />}
           {!welcome && current === "connection" && (
-            <ConnectionPage model={model} developer={developer} />
+            <ConnectionPage model={model} developer={developer} go={select} />
           )}
           {!welcome && current === "files" && <FileManagerPage model={model} go={select} />}
           {!welcome && current === "packages" && <PackagesPage model={model} />}
@@ -106,7 +106,7 @@ export function App({ backend }: { backend: Backend }) {
               : t("status.noDevice")}
           </span>
           {model.settings?.use_mock_device && <span>{t("status.mockOn")}</span>}
-          {model.isUiMock && <span>{t("status.uiMock")}</span>}
+          {developer && model.isUiMock && <span>{t("status.uiMock")}</span>}
         </StatusBar>
       </div>
     </I18nProvider>

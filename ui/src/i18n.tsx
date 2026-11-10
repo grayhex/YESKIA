@@ -3,6 +3,21 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Lang = "ru" | "en";
 
 const ru = {
+  "hero.label": "ВАША NOKIA. НОВЫЕ ВОЗМОЖНОСТИ.",
+  "hero.title": "Всё для вашего телефона",
+  "hero.text":
+    "Файлы, приложения и любимые мелодии — в одном месте. Без аккаунта и подключения к интернету.",
+  "quick.files": "Переносите фотографии и музыку",
+  "quick.packages": "Соберите библиотеку приложений",
+  "quick.backups": "Сохраните важные файлы",
+  "connect.usb": "Подключите телефон по USB",
+  "connect.mode": "Выберите режим передачи данных",
+  "connect.open": "Нажмите «Подключить» рядом с телефоном",
+  "result.success": "Готово",
+  "result.failed": "Не удалось выполнить",
+  "result.cancelled": "Отменено",
+  "result.interrupted": "Прервано",
+
   appName: "YESKIA",
   appTagline: "Клиент для Nokia / Symbian",
   skipToContent: "Перейти к содержимому",
@@ -21,8 +36,7 @@ const ru = {
   "status.connected": "Подключено: {name}",
   "status.mockOn": "Включено демо-устройство",
   "status.uiMock": "UI-заглушка",
-  "banner.uiMock":
-    "UI-заглушка: данные не от Rust-ядра (запуск вне Tauri). Цифры не относятся к реальным устройствам.",
+  "banner.uiMock": "Демо-режим · Для подключения телефона откройте приложение YESKIA для Windows.",
   "tag.mock": "MOCK",
   "tag.real": "Реальное",
   "conn.disconnected": "Отключено",
@@ -31,7 +45,8 @@ const ru = {
   "conn.disconnecting": "Отключение…",
   "home.title": "Главная",
   "home.noDeviceTitle": "Устройство не выбрано",
-  "home.noDeviceText": "Подключите телефон по USB или включите демо-устройство в настройках.",
+  "home.noDeviceText":
+    "Подключите Nokia кабелем USB и выберите режим передачи данных на экране телефона.",
   "home.goConnection": "Открыть раздел «Подключение»",
   "home.metrics": "Показатели",
   "home.metric.devices": "Найдено устройств",
@@ -48,7 +63,7 @@ const ru = {
   "conn.disconnect": "Отключить",
   "conn.empty": "Устройства не найдены.",
   "conn.emptyHint":
-    "Подключите телефон по USB и нажмите «Обновить список». Для проверки интерфейса включите демо-устройство в настройках.",
+    "Разблокируйте телефон, проверьте кабель и режим USB, затем обновите список. Если телефон не появился, откройте диагностику.",
   "conn.actions": "Проверочные операции",
   "conn.op.identify": "Идентификация",
   "conn.op.list": "Список файлов",
@@ -106,7 +121,7 @@ const ru = {
     "Сначала проверьте содержимое устройства: исход записи неизвестен.",
   "conn.matrix": "Возможности соединения",
   "conn.matrixHint":
-    "Матрица строится по проверке этого соединения, а не по названию модели. Запись не проверяется без явной операции.",
+    "Доступность функций зависит от режима USB. Для работы с файлами выберите на телефоне «Передача данных» или «Накопитель».",
   "conn.cancel": "Отмена",
   "conn.running": "Выполняется: {op}",
   "conn.progress": "{done} из {total}",
@@ -587,6 +602,21 @@ const ru = {
 export type MessageKey = keyof typeof ru;
 
 const en: Record<MessageKey, string> = {
+  "hero.label": "YOUR NOKIA. NEW POSSIBILITIES.",
+  "hero.title": "A home for your phone",
+  "hero.text":
+    "Files, apps and favourite music, together. No account or internet connection needed.",
+  "quick.files": "Transfer photos and music",
+  "quick.packages": "Build your app library",
+  "quick.backups": "Keep important files safe",
+  "connect.usb": "Connect your phone over USB",
+  "connect.mode": "Select data transfer mode",
+  "connect.open": "Choose Connect next to your phone",
+  "result.success": "Done",
+  "result.failed": "Could not complete",
+  "result.cancelled": "Cancelled",
+  "result.interrupted": "Interrupted",
+
   appName: "YESKIA",
   appTagline: "Client for Nokia / Symbian",
   skipToContent: "Skip to content",
@@ -605,8 +635,7 @@ const en: Record<MessageKey, string> = {
   "status.connected": "Connected: {name}",
   "status.mockOn": "Demo device enabled",
   "status.uiMock": "UI stub",
-  "banner.uiMock":
-    "UI stub: data does not come from the Rust core (running outside Tauri). Numbers do not describe real devices.",
+  "banner.uiMock": "Demo mode · Open YESKIA for Windows to connect your phone.",
   "tag.mock": "MOCK",
   "tag.real": "Real",
   "conn.disconnected": "Disconnected",

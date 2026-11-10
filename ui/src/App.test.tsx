@@ -17,9 +17,9 @@ async function goConnection() {
 }
 
 describe("Главная", () => {
-  it("помечает UI-заглушку и mock-устройство, цифры демо-данных тоже", async () => {
+  it("показывает короткую отметку демо-режима без технического текста", async () => {
     await open();
-    expect(screen.getByText(/UI-заглушка: данные не от Rust-ядра/)).toBeInTheDocument();
+    expect(screen.getByText(/Демо-режим/)).toBeInTheDocument();
     expect(screen.getAllByText("MOCK").length).toBeGreaterThan(0);
     expect(screen.getByText("демо-данные")).toBeInTheDocument();
   });
@@ -84,11 +84,28 @@ describe("Подключение", () => {
     await screen.findByRole("button", { name: "Отключить" });
   }
 
-  it("подключает, выполняет идентификацию и показывает evidence", async () => {
+  it("подключает и показывает понятный результат без технических evidence", async () => {
     await connect();
     await userEvent.click(screen.getByRole("button", { name: "Идентификация" }));
-    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("success"));
-    expect(screen.getByText(/не подтверждает работу на реальном телефоне/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("Готово"));
+    expect(
+      screen.queryByText(/не подтверждает работу на реальном телефоне/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("использует корень реального устройства вместо диска демо-телефона", async () => {
+    class RealDevice extends MockBackend {
+      async listDevices() {
+        return (await super.listDevices()).map((d) => ({ ...d, origin: "real" as const }));
+      }
+    }
+    const backend = new RealDevice();
+    const start = vi.spyOn(backend, "startOperation");
+    await connect(backend);
+    await userEvent.click(screen.getByRole("button", { name: "Список файлов" }));
+    await waitFor(() =>
+      expect(start).toHaveBeenCalledWith(expect.any(String), { type: "files.list", path: "/" }),
+    );
   });
 
   it("показывает ошибку записи один раз, без автоповтора", async () => {
@@ -96,7 +113,9 @@ describe("Подключение", () => {
     backend.failNextWrite = true;
     await connect(backend);
     await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
-    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("failed"));
+    await waitFor(() =>
+      expect(screen.getByTestId("outcome")).toHaveTextContent("Не удалось выполнить"),
+    );
     const writes = (await backend.recentOperations(10)).filter(
       (j) => j.operation === "files.write",
     );
@@ -151,7 +170,7 @@ describe("Подключение", () => {
     await connect(backend);
     await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));
     await userEvent.click(await screen.findByRole("button", { name: "Отмена" }));
-    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("cancelled"));
+    await waitFor(() => expect(screen.getByTestId("outcome")).toHaveTextContent("Отменено"));
     expect(screen.getByText(/Исход записи на устройстве неизвестен/)).toBeInTheDocument();
   });
 
@@ -234,7 +253,9 @@ describe("Диагностика (Doctor)", () => {
     expect(screen.getByText(/0421 \(Nokia\) — модель не подтверждена/)).toBeInTheDocument();
     expect(screen.getAllByText("не подтверждено")).toHaveLength(2);
     expect(screen.getByText(/MTP\/WPD не равно PC Suite/)).toBeInTheDocument();
-    expect(screen.getByText(/В отчёт не входят/)).toBeInTheDocument();
+    expect(screen.queryByText(/В отчёт не входят/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Разработчик" }));
+    expect(await screen.findByText(/В отчёт не входят/)).toBeInTheDocument();
   });
 
   it("проверка занятости COM-порта включается явно", async () => {
@@ -252,21 +273,20 @@ describe("Диагностика (Doctor)", () => {
 });
 
 describe("Графика телефонов", () => {
-  it("до подключения — нейтральная иллюстрация без заявления модели", async () => {
+  it("показывает иллюстрацию N95 уже в карточке найденного телефона", async () => {
     await open();
-    expect(
-      screen.getAllByRole("img", { name: "Условная иллюстрация телефона" }).length,
-    ).toBeGreaterThan(0);
-    expect(screen.queryByRole("img", { name: /Иллюстрация телефона Nokia/ })).toBeNull();
+    const image = screen.getByRole("img", { name: "Иллюстрация телефона Nokia N95" });
+    expect(image).toHaveAttribute("src", expect.stringContaining("nokia-n95.webp"));
+    expect(screen.getAllByText("Отключено").length).toBeGreaterThan(0);
   });
 
-  it("после подтверждения модели показывается её иллюстрация, помеченная как не фото производителя", async () => {
+  it("после подтверждения модели показывает графику без технической подписи", async () => {
     await open();
     await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
     await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
     await screen.findByRole("button", { name: "Отключить" });
     const img = await screen.findAllByRole("img", { name: "Иллюстрация телефона Nokia N95" });
     expect(img[0]).toHaveAttribute("src");
-    expect(screen.getAllByText(/не фото производителя/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/не фото производителя/)).not.toBeInTheDocument();
   });
 });

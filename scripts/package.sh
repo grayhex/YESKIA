@@ -26,9 +26,12 @@ YESKIA — портативная сборка.
 * Нужен Microsoft Edge WebView2 Runtime (входит в Windows 11). Приложение ничего не скачивает и не обновляется само.
 * Сборка не подписана издателем: Windows SmartScreen может предупредить о неизвестном издателе.
 TXT
+cp docs/release/BETA_TESTING.md "$OUT/portable/YESKIA/BETA_TESTING.md"
 PORTABLE_NAME="YESKIA_${VERSION}_x64-portable.zip"
 powershell.exe -NoProfile -Command "Compress-Archive -Path '$OUT/portable/YESKIA' -DestinationPath '$OUT/$PORTABLE_NAME' -Force"
 rm -rf "$OUT/portable"
+
+cp docs/release/BETA_TESTING.md "$OUT/BETA_TESTING.md"
 
 # 3. Уведомления, SBOM, заметки, манифест обновления, контрольные суммы
 node scripts/release.mjs notices --out "$OUT/THIRD_PARTY_NOTICES.md"
@@ -37,5 +40,5 @@ node scripts/release.mjs notes --version "$VERSION" --out "$OUT/RELEASE_NOTES.md
 node scripts/release.mjs manifest --installer "$OUT/$INSTALLER_NAME" --version "$VERSION" --out "$OUT/update.json"
 node scripts/release.mjs checksums --out "$OUT/SHA256SUMS.txt" \
   "$OUT/$INSTALLER_NAME" "$OUT/$PORTABLE_NAME" "$OUT/THIRD_PARTY_NOTICES.md" "$OUT/sbom.cdx.json" \
-  "$OUT/RELEASE_NOTES.md" "$OUT/update.json"
+  "$OUT/RELEASE_NOTES.md" "$OUT/update.json" "$OUT/BETA_TESTING.md"
 echo "Готово: $OUT"; ls -l "$OUT"

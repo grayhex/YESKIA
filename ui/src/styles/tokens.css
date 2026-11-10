@@ -3,11 +3,11 @@
   --nk-blue: #124191;
   --nk-blue-dark: #0c2d66;
   --nk-blue-bright: #1b57bd;
-  --nk-blue-tint: #dbe6f7;
+  --nk-blue-tint: #eaf0fc;
   --surface: #ffffff;
-  --surface-alt: #f1f2f4;
+  --surface-alt: #f4f6fa;
   --surface-sunken: #e6e8ec;
-  --border: #c3c8d0;
+  --border: #e0e5ed;
   --border-strong: #8a93a1;
   --text: #1a2230;
   --text-muted: #566070;
@@ -33,7 +33,7 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
 
-  --radius: 2px;
+  --radius: 12px;
   --nav-width: 13rem;
   --header-gradient: linear-gradient(#1b57bd, #124191);
 }

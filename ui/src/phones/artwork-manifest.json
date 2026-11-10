@@ -1,0 +1,61 @@
+{
+  "repository": "https://github.com/grayhex/s60modern",
+  "commit": "efaf53d1390e6d6d380f52427cae1ede91de7212",
+  "directory": "symport/web_assets/phones",
+  "files": [
+    {
+      "source": "nokia-e52-silver.png",
+      "asset": "nokia-e52.webp",
+      "source_sha256": "2c943a60ba01866e0c44090629b7a0cc02de601c9b1ad9b8e710a0f40f0a3737",
+      "asset_sha256": "021479b8f09b03ed5b5d9fca31e3291d888bf299de07272ed4e7c3d680445e0e"
+    },
+    {
+      "source": "nokia-e72.png",
+      "asset": "nokia-e72.webp",
+      "source_sha256": "ce06802b2b0070fb42892ce46007085918a16558750bd79b1150c593e748bc1d",
+      "asset_sha256": "8e3fdfd309f95716951605b0e148910a7ef3b7980da7c89d4c5eafb2a77857c0"
+    },
+    {
+      "source": "nokia-n95.webp",
+      "asset": "nokia-n95.webp",
+      "source_sha256": "f62be744aadec68d3c24fae0627230362ccb006cd16fbc02194d8bf6fbec1d52",
+      "asset_sha256": "f62be744aadec68d3c24fae0627230362ccb006cd16fbc02194d8bf6fbec1d52"
+    },
+    {
+      "source": "nokia-n95-8gb.webp",
+      "asset": "nokia-n95-8gb.webp",
+      "source_sha256": "78c6c33c7091eb9f806e15fa3091ab8f2cf9a9a9a7ee5dac18dec755353bb1f1",
+      "asset_sha256": "78c6c33c7091eb9f806e15fa3091ab8f2cf9a9a9a7ee5dac18dec755353bb1f1"
+    },
+    {
+      "source": "nokia-n97-mini.png",
+      "asset": "nokia-n97-mini.webp",
+      "source_sha256": "e7198f49560a2470fffeee0e8f73570df4f82befb3329424814d18c406bce120",
+      "asset_sha256": "a80bf7cad02df8ea73212cccb928d51b0a19b8d359c189795b696846177be17c"
+    },
+    {
+      "source": "nokia-n8.webp",
+      "asset": "nokia-n8.webp",
+      "source_sha256": "d9c2c78c2bb1b2da4098c3ab35bc5cb4364e8ab630107a1e00109f8661c482e5",
+      "asset_sha256": "d9c2c78c2bb1b2da4098c3ab35bc5cb4364e8ab630107a1e00109f8661c482e5"
+    },
+    {
+      "source": "nokia-e7.webp",
+      "asset": "nokia-e7.webp",
+      "source_sha256": "84902a9e5876111d075bd5e93b6ef72d0e41aa3bff9d8b0e020e5b32aa19fc57",
+      "asset_sha256": "84902a9e5876111d075bd5e93b6ef72d0e41aa3bff9d8b0e020e5b32aa19fc57"
+    },
+    {
+      "source": "nokia-e7-open.webp",
+      "asset": "nokia-e7-open.webp",
+      "source_sha256": "edb516a03eb68297dd6a4f4748c051eba3192a8e77c04739c7d70e0c7cfc42f3",
+      "asset_sha256": "edb516a03eb68297dd6a4f4748c051eba3192a8e77c04739c7d70e0c7cfc42f3"
+    },
+    {
+      "source": "nokia-7610.webp",
+      "asset": "nokia-7610.webp",
+      "source_sha256": "bc2457d524e99dc1a14a62f674a9731de8a66db484be14612ce690432f0eceb1",
+      "asset_sha256": "bc2457d524e99dc1a14a62f674a9731de8a66db484be14612ce690432f0eceb1"
+    }
+  ]
+}

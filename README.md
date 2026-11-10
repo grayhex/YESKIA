@@ -20,3 +20,5 @@
 - Сборка на Windows: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 Структура: `crates/yeskia-core` (ядро), `crates/yeskia-discovery` (Windows PnP/WPD/Doctor), `crates/yeskia-lab` (лаборатория совместимости), `src-tauri` (оболочка), `ui` (React).
+
+- Первое закрытое бета-тестирование: [подключение телефона и отчёт](docs/release/BETA_TESTING.md).

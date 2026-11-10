@@ -1,7 +1,7 @@
 import { useI18n } from "../i18n";
 import { findPhone } from "../phones/registry";
 
-/** Условная оригинальная иллюстрация. Фото моделей Nokia не используются (права/ТЗ). */
+/** Иллюстрации моделей из s60modern; происхождение — docs/ASSETS.md. */
 export function PhoneIllustration({ model }: { model?: string | null }) {
   const { t } = useI18n();
   const phone = findPhone(model);
@@ -10,7 +10,6 @@ export function PhoneIllustration({ model }: { model?: string | null }) {
     return (
       <figure className="phone phone-model" style={{ margin: 0 }}>
         <img src={phone.image} alt={t("phone.modelAlt", { name: phone.name })} />
-        <figcaption>{t("phone.modelNote", { name: phone.name })}</figcaption>
       </figure>
     );
   }
@@ -46,7 +45,6 @@ export function PhoneIllustration({ model }: { model?: string | null }) {
           )),
         )}
       </svg>
-      <figcaption>{t("phone.note")}</figcaption>
     </figure>
   );
 }

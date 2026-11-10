@@ -4,7 +4,6 @@ import e52 from "../assets/phones/nokia-e52.webp";
 import e72 from "../assets/phones/nokia-e72.webp";
 import n95 from "../assets/phones/nokia-n95.webp";
 import n958gb from "../assets/phones/nokia-n95-8gb.webp";
-import n95family from "../assets/phones/nokia-n95-family.svg";
 import n97mini from "../assets/phones/nokia-n97-mini.webp";
 import n8 from "../assets/phones/nokia-n8.webp";
 import e7 from "../assets/phones/nokia-e7.webp";
@@ -62,7 +61,7 @@ export const PHONES: PhoneModel[] = [
     id: "nokia-n95",
     name: "Nokia N95",
     family: "Nseries",
-    aliases: ["n95-1", "n95-3", "n95-5", "n95 nam", "n95 china"],
+    aliases: ["n95", "n95-1", "n95-3", "n95-5", "n95 nam", "n95 china"],
     image: n95,
     artwork: { width: 1000, height: 1868, screen: { x: 145, y: 264, width: 711, height: 948 } },
     provenance: "reference-based",
@@ -78,18 +77,6 @@ export const PHONES: PhoneModel[] = [
     artwork: { width: 1000, height: 1868, screen: { x: 102, y: 240, width: 795, height: 1060 } },
     provenance: "reference-based",
     rightsVerified: false,
-    source: "https://en.wikipedia.org/wiki/Nokia_N95",
-  },
-  {
-    // Общее «N95» без указания варианта: схематичная графика, а не конкретный корпус.
-    id: "nokia-n95-family",
-    name: "Nokia N95",
-    family: "Nseries",
-    aliases: ["n95"],
-    image: n95family,
-    artwork: { width: 1000, height: 1868, screen: { x: 154, y: 272, width: 692, height: 923 } },
-    provenance: "schematic",
-    rightsVerified: true,
     source: "https://en.wikipedia.org/wiki/Nokia_N95",
   },
   {
@@ -147,7 +134,7 @@ export function normalizeModel(raw: string): string {
 }
 
 /**
- * Находит иллюстрацию по **подтверждённой** модели (результат идентификации по протоколу).
+ * Находит иллюстрацию по обозначению модели. Изображение не подтверждает подключение.
  * Только точные совпадения (обозначение или обозначение без регионального суффикса `-N`);
  * префиксов нет, чтобы не путать близкие модели. Неизвестная модель → `null` (нейтральная графика).
  */

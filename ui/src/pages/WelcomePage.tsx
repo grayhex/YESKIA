@@ -1,3 +1,4 @@
+import { PhoneHero } from "../components/PhoneHero";
 import { useState } from "react";
 import { Panel, StateMessage } from "../components/Ui";
 import { useI18n, type MessageKey } from "../i18n";
@@ -34,6 +35,7 @@ export function WelcomePage({
         {t("wel.step", { n: step + 1, total: 4 })}
       </p>
 
+      {step === 0 && <PhoneHero />}
       {step === 0 && (
         <Panel title={t("wel.s1.title")}>
           <p>{t("wel.s1.text")}</p>

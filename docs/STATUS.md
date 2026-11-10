@@ -21,13 +21,13 @@
 | SQLite-хранилище, журнал, `interrupted` после падения | `tested-on-host` | `storage::tests` (реальный файл SQLite) |
 | Редактирование IMEI/серийников | `tested-on-host` | `diagnostics::tests` |
 | Tauri-команды Rust → React | `implemented` | проверяется в CI на Windows (smoke-test + сборка); не запускалось на устройстве |
-| Реальные устройства (WPD/MTP, Mass Storage, PC Suite) | `unsupported` | issue #4–#6 |
+| Реальные устройства | `implemented` / `not-tested` | WPD/MTP read-only, Mass Storage и AT реализованы; физические проверки не выполнены. PC Suite unsupported. |
 | Desktop UI: навигация, режимы, RU/EN, состояния (issue #2) | `tested-on-mock` | `ui/src/App.test.tsx` (vitest, UI-заглушка) |
 | Рендер в установленном Tauri на Windows 11, DPI 100/150% | `implemented` | скриншоты в `docs/screenshots` сняты в Chromium; ручная проверка на Windows не выполнена |
 | Матрица возможностей на соединении, evidence с fingerprint (issue #3) | `tested-on-mock` | `crates/yeskia-core/tests/engine.rs` |
 | Очередь, отмена, таймаут (в т.ч. залипший драйвер), hot unplug, partial write, несовпадение fingerprint | `tested-on-mock` | там же |
 | Безопасные пути, запрет silent overwrite, read-back SHA-256, `uncertain` | `tested-on-mock` / `tested-on-host` (пути, SQLite) | `paths::tests`, `engine.rs`, `storage::tests` |
-| Реальные адаптеры (WPD/MTP, Mass Storage, PC Suite, OBEX) | `unsupported` | #4–#6, #10; контракт трейтов готов |
+| Реальные адаптеры | `implemented` / `not-tested` | WPD/MTP, Mass Storage и AT: см. строки ниже; PC Suite и OBEX unsupported. |
 | Doctor: классификация PnP/WPD/COM, privacy-safe отчёт (issue #4) | `tested-on-mock` | `crates/yeskia-discovery/tests/doctor.rs` (поддельная топология) |
 | Windows-сборщик SetupAPI/CM/WPD, read-only | `implemented` | компиляция под Windows + запуск `--doctor` на раннере CI (без телефона) |
 | `PnpTransport` в Device Core: discovery, disconnect, fingerprint | `tested-on-mock` | `crates/yeskia-discovery/tests/adapter.rs` |

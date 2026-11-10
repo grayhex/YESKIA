@@ -17,14 +17,15 @@ describe("реестр графики телефонов", () => {
     ["Nokia E7-00", "nokia-e7"],
     ["Nokia 7610", "nokia-7610"],
     ["Nokia N97 mini", "nokia-n97-mini"],
-    ["Nokia N95 (MOCK)", "nokia-n95-family"],
+    ["Nokia N95 (MOCK)", "nokia-n95"],
   ])("«%s» → %s", (model, id) => {
     expect(findPhone(model)?.id).toBe(id);
   });
 
-  it("общее «N95» без варианта получает схематичную графику, а не конкретный корпус", () => {
+  it("N95 использует иллюстрацию телефона из s60modern, отличную от N95 8GB", () => {
     const p = findPhone("Nokia N95");
-    expect(p?.provenance).toBe("schematic");
+    expect(p?.image).toMatch(/nokia-n95\.webp/);
+    expect(p?.image).not.toBe(findPhone("Nokia N95 8GB")?.image);
   });
 
   it("неизвестные и пустые модели не получают картинку", () => {
