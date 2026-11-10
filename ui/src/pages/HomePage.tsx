@@ -1,3 +1,4 @@
+import { PhoneHero } from "../components/PhoneHero";
 import { DeviceCard } from "../components/DeviceCard";
 import { Metric, Panel, StateMessage } from "../components/Ui";
 import { useI18n } from "../i18n";
@@ -20,9 +21,20 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
   return (
     <>
       <h1>{t("home.title")}</h1>
+      <PhoneHero />
       <Panel>
         {selected ? (
-          <DeviceCard device={selected} />
+          <>
+            <DeviceCard device={selected} />
+            <div className="btn-row">
+              <button
+                className="btn"
+                onClick={() => go(selected.connection === "connected" ? "files" : "connection")}
+              >
+                {selected.connection === "connected" ? t("wel.s4.open") : t("home.goConnection")}
+              </button>
+            </div>
+          </>
         ) : (
           <StateMessage kind="empty" title={t("home.noDeviceTitle")}>
             <p>{t("home.noDeviceText")}</p>
@@ -33,6 +45,25 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
         )}
       </Panel>
 
+      <div className="quick-actions">
+        {(["files", "packages", "backups"] as const).map((page) => (
+          <button key={page} onClick={() => go(page)}>
+            <strong>{t(`nav.${page}`)}</strong>
+            <span>{t(`quick.${page}`)}</span>
+            <svg
+              aria-hidden="true"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path d="M5 19 19 5M5 5h14v14" />
+            </svg>
+          </button>
+        ))}
+      </div>
       <Panel title={t("home.metrics")}>
         <dl className="metrics">
           <Metric label={t("home.metric.devices")} value={devices.length} />
@@ -53,7 +84,7 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
         </dl>
       </Panel>
 
-      {system && (
+      {system && model.settings?.developer_mode && (
         <Panel title={t("home.system")}>
           <dl className="facts">
             <dt>{t("settings.platform")}</dt>

@@ -9,7 +9,8 @@ function DeviceReport({ d, developer }: { d: DoctorDevice; developer: boolean })
   return (
     <Panel>
       <h3>
-        {d.alias} · {d.vid}:{d.pid}
+        {d.alias}
+        {developer && ` · ${d.vid}:${d.pid}`}
       </h3>
       <p>
         <span
@@ -137,9 +138,11 @@ export function DoctorPage({ model, developer }: { model: AppModel; developer: b
               })}
             </StateMessage>
           )}
-          <p className="hint" style={{ marginLeft: 0 }}>
-            {t("doctor.excluded", { list: r.excluded.join(", ") })}
-          </p>
+          {developer && (
+            <p className="hint" style={{ marginLeft: 0 }}>
+              {t("doctor.excluded", { list: r.excluded.join(", ") })}
+            </p>
+          )}
         </>
       )}
     </>

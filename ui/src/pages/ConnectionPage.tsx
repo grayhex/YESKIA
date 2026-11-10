@@ -9,7 +9,7 @@ interface OpButton {
   operation: Operation;
   /** Запись допускается только на mock-устройстве: на реальном — пока нет сценария (#5). */
   mockOnly?: boolean;
-  request: () => OperationRequest;
+  request: (device: Device) => OperationRequest;
 }
 
 const OPS: OpButton[] = [
@@ -21,7 +21,7 @@ const OPS: OpButton[] = [
   {
     label: "conn.op.list",
     operation: "files.list",
-    request: () => ({ type: "files.list", path: "E:/" }),
+    request: (device) => ({ type: "files.list", path: device.origin === "mock" ? "E:/" : "/" }),
   },
   {
     label: "conn.op.write",
@@ -117,7 +117,7 @@ function Actions({ device, model }: { device: Device; model: AppModel }) {
             key={o.label}
             className="btn"
             disabled={model.busy}
-            onClick={() => model.run(device.id, o.request())}
+            onClick={() => model.run(device.id, o.request(device))}
           >
             {t(o.label)}
           </button>
@@ -132,13 +132,34 @@ function Actions({ device, model }: { device: Device; model: AppModel }) {
   );
 }
 
-export function ConnectionPage({ model, developer }: { model: AppModel; developer: boolean }) {
+export function ConnectionPage({
+  model,
+  developer,
+  go,
+}: {
+  model: AppModel;
+  developer: boolean;
+  go: (page: "doctor" | "files") => void;
+}) {
   const { t } = useI18n();
   const { devices, busy, result, active } = model;
 
   return (
     <>
       <h1>{t("conn.title")}</h1>
+      <div className="connection-guide">
+        <ol>
+          {(["connect.usb", "connect.mode", "connect.open"] as MessageKey[]).map((key, i) => (
+            <li key={key}>
+              <span>{i + 1}</span>
+              {t(key)}
+            </li>
+          ))}
+        </ol>
+        <button className="btn btn-secondary" onClick={() => go("doctor")}>
+          {t("wel.driver.doctor")}
+        </button>
+      </div>
       <div className="btn-row">
         <button className="btn btn-secondary" disabled={busy} onClick={() => model.refresh()}>
           {t("conn.refresh")}
@@ -171,7 +192,7 @@ export function ConnectionPage({ model, developer }: { model: AppModel; develope
         const connected = d.connection === "connected";
         return (
           <Panel key={d.id}>
-            <DeviceCard device={d} detailed />
+            <DeviceCard device={d} detailed={developer} />
             <div className="btn-row">
               {connected ? (
                 <button
@@ -187,7 +208,18 @@ export function ConnectionPage({ model, developer }: { model: AppModel; develope
                 </button>
               )}
             </div>
-            {connected && <Actions device={d} model={model} />}
+            {connected && (
+              <>
+                {d.matrix?.entries.some(
+                  (e) => e.operation === "files.list" && e.availability !== "unsupported",
+                ) && (
+                  <button className="btn" onClick={() => go("files")}>
+                    {t("wel.s4.open")}
+                  </button>
+                )}
+                <Actions device={d} model={model} />
+              </>
+            )}
             {d.matrix && <Matrix matrix={d.matrix} developer={developer} />}
           </Panel>
         );
@@ -196,7 +228,9 @@ export function ConnectionPage({ model, developer }: { model: AppModel; develope
       {result && (
         <Panel title={t("conn.result")}>
           <p data-testid="outcome">
-            {result.operation_id} · {result.operation} · {result.outcome}
+            {developer
+              ? `${result.operation_id} · ${result.operation} · ${result.outcome}`
+              : `${t(`op.${result.operation}` as MessageKey)} · ${t(`result.${result.outcome}` as MessageKey)}`}
             {result.origin === "mock" && " · MOCK"}
           </p>
           {result.uncertain && (
@@ -206,19 +240,21 @@ export function ConnectionPage({ model, developer }: { model: AppModel; develope
           )}
           {result.error && (
             <p>
-              {result.error.code}: {result.error.message}
+              {developer && `${result.error.code}: `}
+              {result.error.message}
               {result.error.action !== "none" && (
                 <> — {t(`action.${result.error.action}` as MessageKey)}</>
               )}
             </p>
           )}
-          {result.evidence.map((e, i) => (
-            <p key={i}>
-              <em>
-                {t("conn.evidence")}: {e.summary}
-              </em>
-            </p>
-          ))}
+          {developer &&
+            result.evidence.map((e, i) => (
+              <p key={i}>
+                <em>
+                  {t("conn.evidence")}: {e.summary}
+                </em>
+              </p>
+            ))}
           {developer && <pre className="result">{JSON.stringify(result.data, null, 2)}</pre>}
         </Panel>
       )}
