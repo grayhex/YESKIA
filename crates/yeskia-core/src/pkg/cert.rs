@@ -386,13 +386,9 @@ fn fill_chain(
 }
 
 /// Inspect a standalone public DER/PEM certificate at a supplied Unix timestamp.
-pub fn inspect_file(path: &std::path::Path, at: i64) -> crate::Result<CertInfo> {
+pub fn load_public_der(path: &std::path::Path) -> crate::Result<Vec<u8>> {
     use std::io::Read;
-    let invalid = || {
-        crate::Error::InvalidArgument(
-            "Выберите один публичный сертификат DER или PEM до 512 КБ".into(),
-        )
-    };
+    let invalid = || crate::Error::InvalidArgument("CERT_INVALID".into());
     let mut data = Vec::new();
     std::fs::File::open(path)?
         .take(MAX_CHAIN_BYTES as u64 + 1)
@@ -413,7 +409,22 @@ pub fn inspect_file(path: &std::path::Path, at: i64) -> crate::Result<CertInfo> 
     if !rest.is_empty() {
         return Err(invalid());
     }
+    let _ = cert;
+    Ok(der)
+}
+
+pub fn inspect_file(path: &std::path::Path, at: i64) -> crate::Result<CertInfo> {
+    let der = load_public_der(path)?;
+    let (_, cert) = X509Certificate::from_der(&der)
+        .map_err(|_| crate::Error::InvalidArgument("CERT_INVALID".into()))?;
     Ok(metadata(&cert, at))
+}
+pub fn checked_der(path: &std::path::Path, fingerprint: &str) -> crate::Result<Vec<u8>> {
+    let der = load_public_der(path)?;
+    if format!("{:x}", Sha256::digest(&der)) != fingerprint {
+        return Err(crate::Error::FingerprintMismatch);
+    }
+    Ok(der)
 }
 
 #[cfg(test)]

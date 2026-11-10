@@ -78,3 +78,6 @@ pub fn run_doctor(options: &CollectOptions) -> DoctorReport {
     });
     analyze(&snap, now_ms())
 }
+
+#[cfg(all(windows, feature = "engine"))]
+pub mod windows_obex;

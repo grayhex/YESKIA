@@ -10,9 +10,6 @@ it("читает контакты, ищет и экспортирует толь
     { native_id: "2", name: "Борис", phones: ["456"] },
   ]);
   const save = vi.spyOn(backend, "savePersonalSnapshot").mockResolvedValue();
-  vi.spyOn(backend, "pickFile")
-    .mockResolvedValueOnce("C:\\python.exe")
-    .mockResolvedValueOnce("C:\\gammu.ini");
   const pick = vi
     .spyOn(backend, "pickSavePath")
     .mockResolvedValueOnce(null)
@@ -22,11 +19,18 @@ it("читает контакты, ищет и экспортирует толь
   await userEvent.click(
     within(screen.getByRole("navigation")).getByRole("button", { name: "Контакты" }),
   );
+  expect(screen.queryByText(/Python/)).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Прочитать телефон/ })).toBeDisabled();
-  await userEvent.click(screen.getByRole("button", { name: "Python…" }));
-  await userEvent.click(screen.getByRole("button", { name: "Профиль…" }));
+  await userEvent.click(
+    within(screen.getByRole("navigation")).getByRole("button", { name: "Подключение" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
+  await screen.findByRole("button", { name: "Отключить" });
+  await userEvent.click(
+    within(screen.getByRole("navigation")).getByRole("button", { name: "Контакты" }),
+  );
   await userEvent.click(screen.getByRole("button", { name: /Прочитать телефон/ }));
-  expect(read).toHaveBeenCalledWith("C:\\python.exe", "C:\\gammu.ini", "contacts");
+  expect(read).toHaveBeenCalledWith(expect.any(String), "contacts");
   await screen.findByRole("option", { name: /Анна/ });
   await userEvent.type(screen.getByRole("textbox", { name: "Поиск записей" }), "456");
   expect(screen.queryByRole("option", { name: /Анна/ })).not.toBeInTheDocument();
@@ -50,4 +54,45 @@ it("каталог открыт по умолчанию, ищет карточк
   expect(screen.getByRole("heading", { name: "Opera Mini (Java ME)" })).toBeInTheDocument();
   expect(screen.queryByText("Наборы приложений")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Установить/ })).not.toBeInTheDocument();
+});
+
+it("переводит подключение и сертификаты на английский и требует подтверждения передачи", async () => {
+  const backend = new MockBackend();
+  vi.spyOn(backend, "pickFile").mockResolvedValue("C:\\root.cer");
+  vi.spyOn(backend, "inspectCertificate").mockResolvedValue({
+    subject: "CN=Test",
+    issuer: "CN=Issuer",
+    serial: "01",
+    sha256: "a".repeat(64),
+    not_before: "2025-01-01",
+    not_after: "2030-01-01",
+    validity: "valid",
+    key_type: "RSA",
+    self_issued: false,
+  });
+  const install = vi.spyOn(backend, "installPhoneCertificate").mockResolvedValue();
+  render(<App backend={backend} />);
+  await screen.findByText("Nokia N95 (MOCK)");
+  const nav = within(screen.getByRole("navigation"));
+  await userEvent.click(nav.getByRole("button", { name: "Подключение" }));
+  await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
+  await screen.findByRole("button", { name: "Отключить" });
+  await userEvent.click(screen.getByRole("button", { name: "EN" }));
+  expect(await screen.findByRole("heading", { name: "Phone and connection" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Diagnostics" })).toBeInTheDocument();
+  await userEvent.click(nav.getByRole("button", { name: "Certificates" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open certificate" }));
+  expect(await screen.findByText("Issuer", { selector: "dt" })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Install on phone" }));
+  const dialog = await screen.findByRole("dialog");
+  expect(within(dialog).getByText(/SHA-256/)).toBeInTheDocument();
+  expect(install).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  expect(install).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Install on phone" }));
+  await userEvent.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "Send to phone" }),
+  );
+  expect(install).toHaveBeenCalledWith(expect.any(String), "C:\\root.cer", "a".repeat(64), true);
+  expect(await screen.findByText(/Certificate delivered/)).toBeInTheDocument();
 });

@@ -147,7 +147,7 @@ describe("Подключение", () => {
     await connect();
     const row = () => screen.getByText("Запись файла").closest("tr")!;
     expect(row()).toHaveTextContent("Не проверено");
-    expect(screen.getByText("Чтение контактов").closest("tr")).toHaveTextContent(
+    expect(screen.getByText("Число контактов (AT)").closest("tr")).toHaveTextContent(
       "Не поддерживается",
     );
     await userEvent.click(screen.getByRole("button", { name: "Тестовая запись" }));

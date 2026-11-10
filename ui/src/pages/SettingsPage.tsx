@@ -1,4 +1,3 @@
-import { PersonalExport } from "../components/PersonalExport";
 import { Panel } from "../components/Ui";
 import { UpdatePanel } from "../components/UpdatePanel";
 import { useI18n } from "../i18n";
@@ -56,7 +55,6 @@ export function SettingsPage({ model }: { model: AppModel }) {
           {t("settings.uninstallNote")}
         </p>
       </Panel>
-      <PersonalExport backend={model.backend} />
       {system && <UpdatePanel backend={model.backend} version={system.app_version} />}
     </div>
   );
