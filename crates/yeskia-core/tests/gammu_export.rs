@@ -64,3 +64,29 @@ fn timeout_terminates_the_process_and_cleans_up() {
     assert_eq!(count_scratch(&dir), 0);
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn truncated_card_is_not_published_even_after_successful_process() {
+    let (dir, exe, config) = fixture("truncated", "printf 'BEGIN:VCARD\\nFN:Partial\\n' > \"$4\"");
+    let out = dir.join("contacts.vcf");
+    assert!(export(&exe, &config, &out, "contacts", Duration::from_secs(2)).is_err());
+    assert!(!out.exists());
+    assert_eq!(count_scratch(&dir), 0);
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn exports_complete_calendar_unchanged() {
+    let (dir, exe, config) = fixture(
+        "calendar",
+        "printf 'BEGIN:VCALENDAR\\nVERSION:2.0\\nBEGIN:VEVENT\\nSUMMARY:Test\\nEND:VEVENT\\nEND:VCALENDAR\\n' > \"$4\"",
+    );
+    let out = dir.join("calendar.ics");
+    export(&exe, &config, &out, "calendar", Duration::from_secs(2)).unwrap();
+    assert_eq!(
+        fs::read(&out).unwrap(),
+        b"BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:Test\nEND:VEVENT\nEND:VCALENDAR\n"
+    );
+    assert_eq!(count_scratch(&dir), 0);
+    fs::remove_dir_all(dir).unwrap();
+}
