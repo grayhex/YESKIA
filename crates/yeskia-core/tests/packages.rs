@@ -436,3 +436,75 @@ fn transfer_is_unavailable_without_a_proven_write_capability() {
     assert_eq!(err.code(), ErrorCode::CapabilityUnsupported);
     assert_eq!(mock.started_writes(), 0);
 }
+
+#[test]
+fn app_core_transfers_from_the_library_and_cleans_up_staging() {
+    use yeskia_core::app::AppCore;
+    let core = AppCore::in_memory();
+    let id = DeviceId::new(MOCK_DEVICE_ID);
+    core.engine.connect(&id).unwrap();
+    let it = core
+        .library()
+        .import("probe.sis", UNSIGNED, Provenance::default())
+        .unwrap();
+    let op = core
+        .start_package_transfer(&id, &it.id, "E:/Install/")
+        .unwrap();
+    let r = core.await_operation(&op).unwrap();
+    assert_eq!(r.outcome, Outcome::Success);
+    // повторная передача не перезаписывает
+    let op = core
+        .start_package_transfer(&id, &it.id, "E:/Install")
+        .unwrap();
+    let r = core.await_operation(&op).unwrap();
+    assert_eq!(r.error.unwrap().code, ErrorCode::AlreadyExists);
+    // нечитаемый пакет не уходит в очередь
+    let junk = core
+        .library()
+        .import("junk.sis", b"not a package at all", Provenance::default())
+        .unwrap();
+    assert!(core
+        .start_package_transfer(&id, &junk.id, "E:/Install")
+        .is_err());
+    assert!(core
+        .start_package_transfer(&id, &"0".repeat(64), "E:/Install")
+        .is_err());
+}
+
+#[test]
+fn app_core_imports_from_a_host_path_with_limits() {
+    use yeskia_core::app::AppCore;
+    let core = AppCore::in_memory();
+    let d = tmp("host-import");
+    let p = d.join("файл.sis");
+    std::fs::write(&p, SIGNED).unwrap();
+    let it = core
+        .library_import(&p.display().to_string(), Provenance::default())
+        .unwrap();
+    assert_eq!(it.name, "файл.sis");
+    assert!(core
+        .library_import("relative.sis", Provenance::default())
+        .is_err());
+    assert!(
+        core.library_import(&d.display().to_string(), Provenance::default())
+            .is_err(),
+        "папка"
+    );
+    assert!(core
+        .library_import(
+            &d.join("нет.sis").display().to_string(),
+            Provenance::default()
+        )
+        .is_err());
+    let rep = core
+        .library_inspect(
+            &it.id,
+            Target {
+                model: "nokia-e52".into(),
+                ..Target::default()
+            },
+            Some(AT),
+        )
+        .unwrap();
+    assert_eq!(rep["signatures"]["status"], "valid");
+}
