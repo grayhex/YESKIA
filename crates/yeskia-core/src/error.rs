@@ -26,6 +26,8 @@ pub enum ErrorCode {
     TransportError,
     StorageError,
     InvalidArgument,
+    /// Нужный внешний инструмент (FFmpeg) не найден или не подходит.
+    ToolMissing,
     Internal,
 }
 
@@ -97,6 +99,8 @@ pub enum Error {
     Storage(String),
     #[error("неверный аргумент: {0}")]
     InvalidArgument(String),
+    #[error("{0}")]
+    ToolMissing(String),
     #[error("внутренняя ошибка: {0}")]
     Internal(String),
 }
@@ -127,6 +131,7 @@ impl Error {
             Error::Transport(_) => ErrorCode::TransportError,
             Error::Storage(_) => ErrorCode::StorageError,
             Error::InvalidArgument(_) => ErrorCode::InvalidArgument,
+            Error::ToolMissing(_) => ErrorCode::ToolMissing,
             Error::Internal(_) => ErrorCode::Internal,
         }
     }
