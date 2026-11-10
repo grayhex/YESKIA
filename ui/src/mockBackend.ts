@@ -35,6 +35,7 @@ import type {
   ThemeReport,
   ThemeSource,
   ToolInfo,
+  UpdateCheck,
 } from "./types";
 
 const err = (code: ErrorCode, message: string) => ({
@@ -97,13 +98,14 @@ export class MockBackend implements Backend {
   readonly isUiMock = true;
   private connected = false;
   private matrix: CapabilityMatrix | null = null;
-  private settings: Settings = {
+  settings: Settings = {
     language: "ru",
     developer_mode: false,
     use_mock_device: true,
     log_to_file: false,
     backup_root: null,
     ffmpeg_dir: null,
+    onboarded: true,
   };
   private journal: JournalEntry[] = [];
   private seq = 1;
@@ -203,6 +205,7 @@ export class MockBackend implements Backend {
       is_windows: false,
       logical_cpus: 1,
       data_dir: "(ui mock)",
+      portable: false,
       network_required: false,
     };
   }
@@ -658,6 +661,31 @@ export class MockBackend implements Backend {
   }
 
   savedReports: { name: string; json: string }[] = [];
+  /** Результат проверки обновления и признак блокировки (тестовые хуки). */
+  updateSample: UpdateCheck | null = null;
+  updateBlockedBy: string[] = [];
+  launched: string[] = [];
+  async updateCheck(installer: string): Promise<UpdateCheck> {
+    if (!this.updateSample)
+      throw err("VERIFICATION_FAILED", "запись не подтверждена обратным чтением");
+    return { ...this.updateSample, installer };
+  }
+  async updateBlockers() {
+    return [...this.updateBlockedBy];
+  }
+  async updateLaunch(
+    installer: string,
+    _m: string,
+    _s: string | null,
+    confirm: boolean,
+    acceptUnsigned: boolean,
+  ) {
+    if (!confirm) throw err("INVALID_ARGUMENT", "нужно явное подтверждение запуска");
+    if (this.updateBlockedBy.length) throw err("OPERATION_FAILED", "обновление отложено");
+    if (this.updateSample?.trust === "unsigned-source" && !acceptUnsigned)
+      throw err("INVALID_ARGUMENT", "источник не подписан");
+    this.launched.push(installer);
+  }
   async pickMediaFile() {
     return this.nextMediaFile;
   }

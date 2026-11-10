@@ -1,0 +1,48 @@
+name: Release artifacts
+
+# Только ручной запуск владельцем. Сборка НИЧЕГО не публикует: артефакты остаются во вкладке запуска,
+# GitHub Release создаёт владелец вручную после проверки (и ручной проверки на устройстве).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия для имён файлов и манифеста обновления (1.2.3); по умолчанию — из tauri.conf.json"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows installer + portable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ui:build
+      - name: Сборка артефактов
+        shell: bash
+        run: bash scripts/package.sh "${{ inputs.version }}"
+      - name: Проверка установщика и портативной сборки без телефона
+        shell: bash
+        run: |
+          cd dist-release
+          sha256sum -c SHA256SUMS.txt
+          powershell.exe -NoProfile -Command "Expand-Archive -Path (Get-ChildItem 'YESKIA_*_x64-portable.zip').FullName -DestinationPath portable-check -Force"
+          env -u YESKIA_DATA_DIR ./portable-check/YESKIA/YESKIA.exe --smoke-test | grep -q '"storage_ok":true'
+          test -d portable-check/YESKIA/data
+          rm -rf portable-check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yeskia-windows-unsigned
+          path: dist-release/
+          if-no-files-found: error
+          retention-days: 30

@@ -8,15 +8,51 @@ use std::sync::Mutex;
 
 const SCHEMA_VERSION: i64 = 2;
 
-/// Каталог данных: `%APPDATA%\YESKIA` на Windows. `YESKIA_DATA_DIR` переопределяет.
+/// Идентификатор приложения (совпадает с `identifier` в tauri.conf.json). Установщик Tauri по галочке
+/// «удалить данные приложения» чистит именно `%APPDATA%\<id>` и `%LOCALAPPDATA%\<id>`.
+pub const APP_ID: &str = "dev.yeskia.app";
+/// Файл рядом с программой, включающий портативный режим (данные — в подпапке `data`).
+pub const PORTABLE_MARKER: &str = "yeskia.portable";
+
+/// Портативный режим: рядом с исполняемым файлом лежит `yeskia.portable` — данные в `<папка>\data`,
+/// ничего не пишется в профиль пользователя и реестр.
+pub fn portable_dir(exe_dir: &Path) -> Option<PathBuf> {
+    exe_dir
+        .join(PORTABLE_MARKER)
+        .is_file()
+        .then(|| exe_dir.join("data"))
+}
+
+fn exe_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()?
+        .parent()
+        .map(Path::to_path_buf)
+}
+
+/// `YESKIA_DATA_DIR` с непустым значением; пустая переменная считается незаданной.
+fn data_dir_override() -> Option<PathBuf> {
+    std::env::var_os("YESKIA_DATA_DIR")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
+pub fn is_portable() -> bool {
+    data_dir_override().is_none() && exe_dir().is_some_and(|d| portable_dir(&d).is_some())
+}
+
+/// Каталог данных. Порядок: `YESKIA_DATA_DIR` → портативный режим → `%APPDATA%\dev.yeskia.app`.
 pub fn data_dir() -> PathBuf {
-    if let Some(p) = std::env::var_os("YESKIA_DATA_DIR") {
-        return PathBuf::from(p);
+    if let Some(p) = data_dir_override() {
+        return p;
+    }
+    if let Some(p) = exe_dir().and_then(|d| portable_dir(&d)) {
+        return p;
     }
     #[cfg(windows)]
     {
         if let Some(p) = std::env::var_os("APPDATA") {
-            return PathBuf::from(p).join("YESKIA");
+            return PathBuf::from(p).join(APP_ID);
         }
     }
     if let Some(p) = std::env::var_os("XDG_DATA_HOME") {
@@ -26,6 +62,33 @@ pub fn data_dir() -> PathBuf {
         return PathBuf::from(p).join(".local/share/yeskia");
     }
     std::env::temp_dir().join("yeskia")
+}
+
+/// Хранилище резервных копий по умолчанию. На Windows (не портативный режим) — `Документы\YESKIA\Backups`
+/// **вне** каталога данных: удаление данных приложения при деинсталляции копии не затрагивает. В портативном
+/// режиме — рядом с программой (`data\backups`): пользователь переносит папку целиком.
+pub fn default_backup_root() -> PathBuf {
+    default_backup_root_for(
+        data_dir_override().is_some(),
+        exe_dir().and_then(|d| portable_dir(&d)),
+        std::env::var_os("USERPROFILE").map(PathBuf::from),
+        data_dir(),
+    )
+}
+
+pub fn default_backup_root_for(
+    data_dir_overridden: bool,
+    portable: Option<PathBuf>,
+    user_profile: Option<PathBuf>,
+    data_dir: PathBuf,
+) -> PathBuf {
+    if data_dir_overridden || portable.is_some() || !cfg!(windows) {
+        return data_dir.join("backups");
+    }
+    match user_profile {
+        Some(home) => home.join("Documents").join("YESKIA").join("Backups"),
+        None => data_dir.join("backups"),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,6 +103,8 @@ pub struct Settings {
     pub backup_root: Option<String>,
     /// Папка с `ffmpeg` и `ffprobe`; `None` — искать рядом с приложением и в PATH.
     pub ffmpeg_dir: Option<String>,
+    /// Первый запуск пройден (приветствие закрыто). Сбрасывается только вручную в настройках.
+    pub onboarded: bool,
 }
 
 impl Default for Settings {
@@ -51,6 +116,7 @@ impl Default for Settings {
             log_to_file: true,
             backup_root: None,
             ffmpeg_dir: None,
+            onboarded: false,
         }
     }
 }
@@ -280,6 +346,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn portable_mode_needs_the_marker_next_to_the_program() {
+        let d = std::env::temp_dir().join(format!("yeskia-portable-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        assert_eq!(portable_dir(&d), None, "без маркера режим обычный");
+        std::fs::write(d.join(PORTABLE_MARKER), b"").unwrap();
+        assert_eq!(portable_dir(&d), Some(d.join("data")));
+        // маркер-папка не считается маркером
+        let e = d.join("sub");
+        std::fs::create_dir_all(e.join(PORTABLE_MARKER)).unwrap();
+        assert_eq!(portable_dir(&e), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn default_backups_live_outside_the_app_data_dir_on_windows() {
+        let data = PathBuf::from("C:\\Users\\u\\AppData\\Roaming\\dev.yeskia.app");
+        let home = PathBuf::from("C:\\Users\\u");
+        let got = default_backup_root_for(false, None, Some(home.clone()), data.clone());
+        if cfg!(windows) {
+            assert_eq!(got, home.join("Documents").join("YESKIA").join("Backups"));
+            assert!(
+                !got.starts_with(&data),
+                "деинсталляция данных не удаляет копии"
+            );
+        } else {
+            assert_eq!(got, data.join("backups"));
+        }
+        // портативный режим и явный каталог данных — копии рядом с данными
+        let p = PathBuf::from("D:\\Tools\\YESKIA\\data");
+        assert_eq!(
+            default_backup_root_for(false, Some(p.clone()), Some(home.clone()), p.clone()),
+            p.join("backups")
+        );
+        assert_eq!(
+            default_backup_root_for(true, None, Some(home), data.clone()),
+            data.join("backups")
+        );
+        assert_eq!(
+            default_backup_root_for(false, None, None, data.clone()),
+            data.join("backups")
+        );
+    }
+
+    #[test]
     fn settings_roundtrip_and_default() {
         let s = Storage::open_in_memory().unwrap();
         assert_eq!(s.load_settings().unwrap(), Settings::default());
@@ -290,6 +401,7 @@ mod tests {
             log_to_file: false,
             backup_root: Some("D:\\Backups".into()),
             ffmpeg_dir: Some("D:\\Tools\\ffmpeg".into()),
+            onboarded: true,
         };
         s.save_settings(&new).unwrap();
         assert_eq!(s.load_settings().unwrap(), new);

@@ -16,6 +16,7 @@
 - Резервные копии файлов: [docs/BACKUPS.md](docs/BACKUPS.md)
 - Графика телефонов, происхождение и права: [docs/ASSETS.md](docs/ASSETS.md)
 - Интерфейс и скриншоты: [docs/UI.md](docs/UI.md)
+- Распространение (установщик, портативный режим, обновление, ручная проверка): [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)
 - Сборка на Windows: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 Структура: `crates/yeskia-core` (ядро), `crates/yeskia-discovery` (Windows PnP/WPD/Doctor), `crates/yeskia-lab` (лаборатория совместимости), `src-tauri` (оболочка), `ui` (React).

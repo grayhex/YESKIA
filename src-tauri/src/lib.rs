@@ -161,6 +161,48 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .map_err(|e| e.to_info())
 }
 
+// ---------- обновление из файла (приложение ничего не скачивает) ----------
+
+#[tauri::command]
+async fn update_check(
+    state: tauri::State<'_, State>,
+    installer: String,
+    manifest: String,
+    signature: Option<String>,
+) -> Cmd<yeskia_core::update::UpdateCheck> {
+    blocking(&state, move |c| {
+        c.update_check(&installer, &manifest, signature.as_deref())
+    })
+    .await
+}
+
+#[tauri::command]
+fn update_blockers(state: tauri::State<'_, State>) -> Vec<String> {
+    state.0.update_blockers()
+}
+
+/// Запуск установщика: только с подтверждением, после повторной проверки и без незавершённых записей.
+#[tauri::command]
+async fn update_launch(
+    state: tauri::State<'_, State>,
+    installer: String,
+    manifest: String,
+    signature: Option<String>,
+    confirm: bool,
+    accept_unsigned: bool,
+) -> Cmd<()> {
+    blocking(&state, move |c| {
+        c.update_launch(
+            &installer,
+            &manifest,
+            signature.as_deref(),
+            confirm,
+            accept_unsigned,
+        )
+    })
+    .await
+}
+
 // ---------- медиа и темы (локально) ----------
 
 /// FFmpeg: версия, лицензия, путь. Нет инструмента — ошибка `TOOL_MISSING`.
@@ -385,6 +427,27 @@ fn smoke_test(core: &AppCore) -> yeskia_core::Result<SmokeReport> {
     core.smoke()
 }
 
+/// Нативное окно с сообщением (до создания окна приложения). Только Windows.
+#[cfg(windows)]
+fn show_error(title: &str, text: &str) {
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+    let w = |s: &str| {
+        s.encode_utf16()
+            .chain(std::iter::once(0))
+            .collect::<Vec<u16>>()
+    };
+    let (t, x) = (w(title), w(text));
+    unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(x.as_ptr()),
+            PCWSTR(t.as_ptr()),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+}
+
 pub fn run() {
     // `yeskia-app --doctor [--com-busy]`: печатает privacy-safe отчёт JSON и завершается
     // (без окна; для чистого Windows 11 и для CI). Ничего не устанавливает и не пишет на устройство.
@@ -441,6 +504,21 @@ pub fn run() {
         }
     }
 
+    // WebView2 нужен для окна. Установщик его не скачивает и не ставит сам: при отсутствии — понятное
+    // сообщение с инструкцией (Windows 11 включает Runtime).
+    #[cfg(windows)]
+    if let Err(e) = tauri::webview_version() {
+        eprintln!("YESKIA: WebView2 недоступен: {e}");
+        show_error(
+            "YESKIA не может открыть окно",
+            "Не найден Microsoft Edge WebView2 Runtime. В Windows 11 он входит в систему; если его нет, \
+             установите его вручную с официальной страницы Microsoft \
+             (developer.microsoft.com/microsoft-edge/webview2) и запустите YESKIA снова.\n\n\
+             Приложение ничего не скачивает и не устанавливает само.",
+        );
+        std::process::exit(3);
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(State(core))
@@ -465,6 +543,9 @@ pub fn run() {
             host_job_progress,
             cancel_host_job,
             save_report,
+            update_check,
+            update_blockers,
+            update_launch,
             media_tool_info,
             media_probe,
             media_waveform,

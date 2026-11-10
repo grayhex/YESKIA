@@ -124,6 +124,9 @@ struct HostJob {
     rx: Mutex<Option<Receiver<HostJobResult>>>,
 }
 
+/// Запуск установщика (в тестах подменяется).
+type Launcher = Box<dyn Fn(&std::path::Path) -> Result<()> + Send + Sync>;
+
 pub struct AppCore {
     pub engine: Arc<Engine>,
     /// Каталог данных (None — режим в памяти): нужен для переключения файлового лога.
@@ -137,6 +140,9 @@ pub struct AppCore {
     staging: Mutex<HashMap<String, PathBuf>>,
     /// Найденный FFmpeg: ключ — настроенная папка.
     tools: Mutex<Option<(Option<String>, Arc<Toolchain>)>>,
+    /// Доверенные ключи обновлений и запуск установщика (подменяются в тестах).
+    update_keys: Vec<[u8; 32]>,
+    launcher: Launcher,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,6 +220,8 @@ impl AppCore {
             library,
             staging: Mutex::new(HashMap::new()),
             tools: Mutex::new(None),
+            update_keys: crate::update::TRUSTED_KEYS.to_vec(),
+            launcher: Box::new(crate::update::launch),
         }
     }
 
@@ -267,6 +275,103 @@ impl AppCore {
         if let Some(d) = dir {
             let _ = std::fs::remove_dir_all(d);
         }
+    }
+
+    // ---------- обновление из файла ----------
+
+    pub fn with_update_keys(mut self, keys: Vec<[u8; 32]>) -> Self {
+        self.update_keys = keys;
+        self
+    }
+
+    pub fn with_launcher(
+        mut self,
+        f: impl Fn(&std::path::Path) -> Result<()> + Send + Sync + 'static,
+    ) -> Self {
+        self.launcher = Box::new(f);
+        self
+    }
+
+    /// Что мешает обновлению прямо сейчас: незавершённые операции с телефоном и задания записи на диск.
+    pub fn update_blockers(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.engine.active_operations() > 0 {
+            out.push("device-operation".to_string());
+        }
+        let host_busy = self
+            .host_jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .any(|j| j.rx.lock().map(|r| r.is_some()).unwrap_or(true));
+        if host_busy {
+            out.push("host-job".to_string());
+        }
+        out
+    }
+
+    fn read_signature(path: Option<&str>) -> Result<Option<String>> {
+        let Some(p) = path.filter(|p| !p.trim().is_empty()) else {
+            return Ok(None);
+        };
+        let p = std::path::Path::new(p);
+        crate::fsutil::validate_host_path(p)?;
+        let meta = std::fs::metadata(crate::fsutil::long_path(p))
+            .map_err(|_| Error::HostAccess("файл подписи недоступен".into()))?;
+        if !meta.is_file() || meta.len() > 1024 {
+            return Err(Error::LimitExceeded(
+                "подпись — текстовый файл до 1 КиБ".into(),
+            ));
+        }
+        Ok(Some(std::fs::read_to_string(crate::fsutil::long_path(p))?))
+    }
+
+    /// Проверка файла обновления (ничего не запускает).
+    pub fn update_check(
+        &self,
+        installer: &str,
+        manifest: &str,
+        signature: Option<&str>,
+    ) -> Result<crate::update::UpdateCheck> {
+        crate::update::check(
+            std::path::Path::new(installer),
+            std::path::Path::new(manifest),
+            Self::read_signature(signature)?.as_deref(),
+            env!("CARGO_PKG_VERSION"),
+            &self.update_keys,
+        )
+    }
+
+    /// Запуск установщика. Условия: явное подтверждение; повторная проверка файла; для неподписанного
+    /// источника — отдельное согласие; нет незавершённых операций с телефоном и заданий записи.
+    pub fn update_launch(
+        &self,
+        installer: &str,
+        manifest: &str,
+        signature: Option<&str>,
+        confirm: bool,
+        accept_unsigned: bool,
+    ) -> Result<()> {
+        if !confirm {
+            return Err(Error::InvalidArgument(
+                "нужно явное подтверждение запуска".into(),
+            ));
+        }
+        let blockers = self.update_blockers();
+        if !blockers.is_empty() {
+            return Err(Error::OperationFailed(
+                "обновление отложено: завершите операции с телефоном и задания записи".into(),
+            ));
+        }
+        // повторная проверка непосредственно перед запуском: файл мог измениться после первой
+        let c = self.update_check(installer, manifest, signature)?;
+        if c.trust == crate::update::Trust::UnsignedSource && !accept_unsigned {
+            return Err(Error::InvalidArgument(
+                "источник не подписан: нужно отдельное согласие запустить неподписанный установщик"
+                    .into(),
+            ));
+        }
+        (self.launcher)(std::path::Path::new(installer))
     }
 
     // ---------- медиа и темы ----------
@@ -486,7 +591,7 @@ impl AppCore {
         Ok(
             match settings.backup_root.filter(|r| !r.trim().is_empty()) {
                 Some(r) => PathBuf::from(r),
-                None => crate::storage::data_dir().join("backups"),
+                None => crate::storage::default_backup_root(),
             },
         )
     }
