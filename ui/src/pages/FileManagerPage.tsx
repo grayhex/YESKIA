@@ -37,6 +37,7 @@ function usePaneData(load: (() => Promise<PaneEntry[]>) | null, deps: unknown[])
     if (!load) {
       setEntries([]);
       setError(null);
+      setLoading(false);
       return;
     }
     const mine = ++seq.current;
@@ -59,6 +60,9 @@ function usePaneData(load: (() => Promise<PaneEntry[]>) | null, deps: unknown[])
   }, deps);
   useEffect(() => {
     void reload();
+    return () => {
+      seq.current += 1;
+    };
   }, [reload]);
   return { entries, loading, error, reload };
 }
@@ -107,10 +111,11 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
     [backend, hostPath],
   );
 
+  const deviceId = device?.id;
   const listDevice = useCallback(
     async (path: string): Promise<PaneEntry[]> => {
-      if (!device) return [];
-      const opId = await backend.startOperation(device.id, { type: "files.list", path });
+      if (!deviceId) return [];
+      const opId = await backend.startOperation(deviceId, { type: "files.list", path });
       const r = await backend.awaitOperation(opId);
       if (r.outcome !== "success" || r.data?.type !== "entries") {
         throw (
@@ -125,7 +130,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
       }
       return r.data.entries;
     },
-    [backend, device],
+    [backend, deviceId],
   );
   const dev = usePaneData(deviceReady ? () => listDevice(devicePath) : null, [
     deviceReady,

@@ -201,6 +201,10 @@ const ru = {
   "finding.mtp_listing_failed": "Чтение объектов через WPD не удалось.",
   "finding.mtp_is_not_pc_suite": "MTP/WPD не равно PC Suite и не даёт доступа к контактам и SMS.",
   "finding.partial_data": "Часть данных собрать не удалось (см. этапы ниже).",
+  "nav.contacts": "Контакты",
+  "nav.sms": "Сообщения",
+  "nav.calendar": "Календарь",
+  "nav.certificates": "Сертификаты",
   "nav.files": "Файлы",
   "fm.title": "Файловый менеджер",
   "fm.intro":
@@ -810,6 +814,10 @@ const en: Record<MessageKey, string> = {
   "finding.mtp_listing_failed": "Reading objects through WPD failed.",
   "finding.mtp_is_not_pc_suite": "MTP/WPD is not PC Suite and gives no access to contacts or SMS.",
   "finding.partial_data": "Some data could not be collected (see stages below).",
+  "nav.contacts": "Contacts",
+  "nav.sms": "Messages",
+  "nav.calendar": "Calendar",
+  "nav.certificates": "Certificates",
   "nav.files": "Files",
   "fm.title": "File manager",
   "fm.intro":

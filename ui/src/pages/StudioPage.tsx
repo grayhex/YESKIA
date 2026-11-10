@@ -268,7 +268,7 @@ export function StudioPage({ model }: { model: AppModel }) {
       : null;
 
   return (
-    <>
+    <div className="compact-tools">
       <h1>{t("st.title")}</h1>
       <p role="note" className="banner banner-warn">
         {t("st.scope")}
@@ -643,7 +643,7 @@ export function StudioPage({ model }: { model: AppModel }) {
           </label>
         </Dialog>
       )}
-    </>
+    </div>
   );
 }
 

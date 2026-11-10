@@ -4,6 +4,10 @@ import { useI18n, type Lang, type MessageKey } from "../i18n";
 export type PageId =
   | "home"
   | "connection"
+  | "contacts"
+  | "sms"
+  | "calendar"
+  | "certificates"
   | "files"
   | "packages"
   | "studio"
@@ -20,6 +24,10 @@ export interface NavEntry {
 const iconPaths: Record<PageId, string> = {
   home: "M3 10 12 3l9 7v11h-6v-7H9v7H3Z",
   connection: "M8 3h8v18H8ZM10 6h4M11 18h2",
+  contacts: "M5 3h14v18H5ZM9 7h6M8 16c0-4 8-4 8 0M12 9v2",
+  sms: "M3 5h18v14H3ZM3 5l9 8 9-8",
+  calendar: "M3 5h18v16H3ZM7 2v6M17 2v6M3 10h18",
+  certificates: "M12 2 3 6v6c0 6 9 10 9 10s9-4 9-10V6ZM8 12l3 3 5-6",
   files: "M3 7h7l2 2h9v11H3ZM3 7V4h7l2 3",
   packages: "m3 7 9-4 9 4v10l-9 4-9-4ZM3 7l9 4 9-4M12 11v10",
   studio: "M9 18V5l11-2v13M9 7l11-2M9 18c0 3-6 4-6 1s6-4 6-1ZM20 16c0 3-6 4-6 1s6-4 6-1Z",

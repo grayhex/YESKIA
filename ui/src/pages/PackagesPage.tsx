@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
 import { Dialog } from "../fm/Dialog";
 import { formatSize } from "../fm/paths";
@@ -12,7 +12,6 @@ import type {
   InspectReport,
   LibraryItem,
   PackageFormat,
-  PackageSet,
   Progress,
   Provenance,
 } from "../types";
@@ -36,7 +35,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
   const deviceRoot = device?.origin === "mock" ? "E:/" : "/";
 
   const [items, setItems] = useState<LibraryItem[]>([]);
-  const [sets, setSets] = useState<PackageSet[]>([]);
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -45,7 +43,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
   const [format, setFormat] = useState<PackageFormat | "">("");
   const [modelId, setModelId] = useState("");
   const [onlyFit, setOnlyFit] = useState(false);
-  const [setFilter, setSetFilter] = useState<number | null>(null);
 
   // происхождение для импорта
   const [prov, setProv] = useState<Provenance>({
@@ -55,15 +52,12 @@ export function PackagesPage({ model }: { model: AppModel }) {
     rights: "unknown",
     note: "",
   });
-  const [newSet, setNewSet] = useState("");
 
   // отчёт, наборы, передача
   const [report, setReport] = useState<InspectReport | null>(null);
   const [reportPath, setReportPath] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [diagnosis, setDiagnosis] = useState<InspectRecommendation | null>(null);
-  const [addTo, setAddTo] = useState<LibraryItem | null>(null);
-  const [chosenSet, setChosenSet] = useState<number | "">("");
   const [sendItem, setSendItem] = useState<LibraryItem | null>(null);
   const [sendDir, setSendDir] = useState(deviceRoot);
   const [running, setRunning] = useState(false);
@@ -75,22 +69,19 @@ export function PackagesPage({ model }: { model: AppModel }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [list, s] = await Promise.all([
-        backend.libraryList({
+      setItems(
+        await backend.libraryList({
           text,
           format: format || null,
           model: modelId || null,
           only_fitting: onlyFit && !!modelId,
-          set: setFilter,
+          set: null,
         }),
-        backend.librarySets(),
-      ]);
-      setItems(list);
-      setSets(s);
+      );
     } catch (e) {
       setError(toErrorInfo(e));
     }
-  }, [backend, text, format, modelId, onlyFit, setFilter]);
+  }, [backend, text, format, modelId, onlyFit]);
   useEffect(() => void refresh(), [refresh]);
 
   const guard = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
@@ -124,13 +115,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
     guard(async () => {
       await backend.libraryRemove(it.id);
       if (report?.sha256 === it.id) setReport(null);
-      await refresh();
-    });
-
-  const createSet = () =>
-    guard(async () => {
-      await backend.libraryCreateSet(newSet);
-      setNewSet("");
       await refresh();
     });
 
@@ -183,10 +167,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
     }
   }
 
-  const selectedSet = useMemo(
-    () => sets.find((s) => s.id === setFilter) ?? null,
-    [sets, setFilter],
-  );
   const transferHint = !device
     ? t("pk.transferNoDevice")
     : !canTransfer
@@ -241,42 +221,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
         </div>
       </Panel>
 
-      <Panel title={t("pk.sets")}>
-        <div className="btn-row">
-          <label className="field">
-            {t("pk.setName")}{" "}
-            <input
-              value={newSet}
-              maxLength={300}
-              aria-label={t("pk.setName")}
-              onChange={(e) => setNewSet(e.target.value)}
-            />
-          </label>
-          <button className="btn btn-secondary" onClick={() => void createSet()}>
-            {t("pk.setCreate")}
-          </button>
-        </div>
-        <ul>
-          {sets.map((s) => (
-            <li key={s.id}>
-              {s.name} · {t("pk.setItems", { n: s.items.length })}{" "}
-              <button
-                className="btn btn-secondary"
-                onClick={() =>
-                  void guard(async () => {
-                    await backend.libraryDeleteSet(s.id);
-                    if (setFilter === s.id) setSetFilter(null);
-                    await refresh();
-                  })
-                }
-              >
-                {t("pk.setDelete")} «{s.name}»
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Panel>
-
       <Panel>
         <div className="btn-row" role="search">
           <label className="field">
@@ -317,21 +261,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
               ))}
             </select>
           </label>
-          <label className="field">
-            {t("pk.sets")}{" "}
-            <select
-              value={setFilter ?? ""}
-              aria-label={t("pk.sets")}
-              onChange={(e) => setSetFilter(e.target.value === "" ? null : Number(e.target.value))}
-            >
-              <option value="">{t("pk.setAll")}</option>
-              {sets.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
           <label>
             <input
               type="checkbox"
@@ -347,7 +276,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
             {t("pk.fitHint")}
           </p>
         )}
-        {selectedSet && <p className="hint">{selectedSet.name}</p>}
         {items.length === 0 ? (
           <p>{t("pk.empty")}</p>
         ) : (
@@ -396,16 +324,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
                       onClick={() => void inspect(it)}
                     >
                       {t("pk.inspect")}
-                    </button>{" "}
-                    <button
-                      className="btn btn-secondary"
-                      aria-label={`${t("pk.addToSet")} ${it.name}`}
-                      onClick={() => {
-                        setAddTo(it);
-                        setChosenSet(sets[0]?.id ?? "");
-                      }}
-                    >
-                      {t("pk.addToSet")}
                     </button>{" "}
                     <button
                       className="btn btn-secondary"
@@ -470,48 +388,6 @@ export function PackagesPage({ model }: { model: AppModel }) {
           onDiagnose={() => void diagnose()}
           diagnosis={diagnosis}
         />
-      )}
-
-      {addTo && (
-        <Dialog
-          title={t("pk.addToSetTitle")}
-          onClose={() => setAddTo(null)}
-          actions={[
-            { label: t("fm.consent.cancel"), onClick: () => setAddTo(null) },
-            {
-              label: t("pk.addToSet"),
-              primary: true,
-              onClick: () => {
-                const it = addTo;
-                setAddTo(null);
-                if (chosenSet !== "")
-                  void guard(async () => {
-                    await backend.librarySetAdd(chosenSet, it.id);
-                    await refresh();
-                  });
-              },
-            },
-          ]}
-        >
-          {sets.length === 0 ? (
-            <p>{t("pk.noSets")}</p>
-          ) : (
-            <label className="field">
-              {t("pk.chooseSet")}{" "}
-              <select
-                value={chosenSet}
-                aria-label={t("pk.chooseSet")}
-                onChange={(e) => setChosenSet(Number(e.target.value))}
-              >
-                {sets.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </Dialog>
       )}
 
       {sendItem && (

@@ -240,7 +240,12 @@ export function ConnectionPage({
                 <Actions device={d} model={model} />
               </>
             )}
-            {d.matrix && <Matrix matrix={d.matrix} developer={developer} />}
+            {d.matrix && (
+              <details>
+                <summary>{t("conn.matrix")}</summary>
+                <Matrix matrix={d.matrix} developer={developer} />
+              </details>
+            )}
           </Panel>
         );
       })}

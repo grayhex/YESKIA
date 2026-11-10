@@ -235,14 +235,15 @@ describe("Ошибки и счётчики", () => {
 describe("Диагностика (Doctor)", () => {
   async function openDoctor() {
     await open();
-    await userEvent.click(nav().getByRole("button", { name: "Диагностика" }));
+    await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
+    await userEvent.click(screen.getByRole("button", { name: "Диагностика" }));
     await screen.findByRole("heading", { name: "Диагностика подключения" });
   }
 
-  it("до запуска показывает пустое состояние и обещает режим «только чтение»", async () => {
+  it("до запуска показывает компактное пустое состояние", async () => {
     await openDoctor();
     expect(screen.getByText("Диагностика ещё не запускалась.")).toBeInTheDocument();
-    expect(screen.getByText(/Только чтение: ничего не устанавливается/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Запустить диагностику" })).toBeEnabled();
   });
 
   it("показывает состояние, ответ MTP и не выдаёт PC Suite/PIM за подтверждённые", async () => {
@@ -251,7 +252,7 @@ describe("Диагностика (Doctor)", () => {
     expect(await screen.findByText("Только WPD/MTP", { selector: ".tag" })).toBeInTheDocument();
     expect(screen.getByText("MTP отвечает (чтение объектов)")).toBeInTheDocument();
     expect(screen.getByText(/0421 \(Nokia\) — модель не подтверждена/)).toBeInTheDocument();
-    expect(screen.getAllByText("не подтверждено")).toHaveLength(2);
+    expect(screen.queryByText("не подтверждено")).not.toBeInTheDocument();
     expect(screen.getByText(/MTP\/WPD не равно PC Suite/)).toBeInTheDocument();
     expect(screen.queryByText(/В отчёт не входят/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Разработчик" }));
@@ -270,7 +271,8 @@ describe("Диагностика (Doctor)", () => {
     vi.spyOn(backend, "pickSavePath").mockResolvedValue(null);
     const save = vi.spyOn(backend, "exportDoctorReport");
     await open(backend);
-    await userEvent.click(nav().getByRole("button", { name: "Диагностика" }));
+    await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
+    await userEvent.click(screen.getByRole("button", { name: "Диагностика" }));
     await userEvent.click(screen.getByRole("button", { name: "Сохранить отчёт" }));
     await waitFor(() => expect(backend.pickSavePath).toHaveBeenCalled());
     expect(save).not.toHaveBeenCalled();

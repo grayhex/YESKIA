@@ -385,6 +385,37 @@ fn fill_chain(
     Ok(())
 }
 
+/// Inspect a standalone public DER/PEM certificate at a supplied Unix timestamp.
+pub fn inspect_file(path: &std::path::Path, at: i64) -> crate::Result<CertInfo> {
+    use std::io::Read;
+    let invalid = || {
+        crate::Error::InvalidArgument(
+            "Выберите один публичный сертификат DER или PEM до 512 КБ".into(),
+        )
+    };
+    let mut data = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_CHAIN_BYTES as u64 + 1)
+        .read_to_end(&mut data)?;
+    if data.len() > MAX_CHAIN_BYTES {
+        return Err(invalid());
+    }
+    let der = if data.starts_with(b"-----BEGIN CERTIFICATE-----") {
+        let (rest, pem) = x509_parser::pem::parse_x509_pem(&data).map_err(|_| invalid())?;
+        if pem.label != "CERTIFICATE" || rest.iter().any(|b| !b.is_ascii_whitespace()) {
+            return Err(invalid());
+        }
+        pem.contents
+    } else {
+        data
+    };
+    let (rest, cert) = X509Certificate::from_der(&der).map_err(|_| invalid())?;
+    if !rest.is_empty() {
+        return Err(invalid());
+    }
+    Ok(metadata(&cert, at))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

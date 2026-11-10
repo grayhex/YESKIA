@@ -31,6 +31,7 @@ async function openPackages(b = backendWithFiles()) {
   render(<App backend={b} />);
   await screen.findByText("Nokia N95 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Приложения" }));
+  await userEvent.click(screen.getByRole("button", { name: "Мои установщики" }));
   await screen.findByRole("heading", { name: "Приложения и пакеты" });
   return b;
 }
@@ -50,6 +51,7 @@ async function connect() {
   await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
   await screen.findByRole("button", { name: "Отключить" });
   await userEvent.click(nav().getByRole("button", { name: "Приложения" }));
+  await userEvent.click(screen.getByRole("button", { name: "Мои установщики" }));
   await screen.findByRole("heading", { name: "Приложения и пакеты" });
 }
 
@@ -129,21 +131,9 @@ describe("Приложения и пакеты", () => {
     expect(screen.getByText(/не доказательство/)).toBeInTheDocument();
   });
 
-  it("наборы: создать, добавить пакет, фильтровать, удалить", async () => {
-    const b = await openPackages();
-    await importAll(b);
-    await userEvent.type(screen.getByRole("textbox", { name: "Название набора" }), "Мои игры");
-    await userEvent.click(screen.getByRole("button", { name: "Создать набор" }));
-    expect(await screen.findByText(/Мои игры · Пакетов: 0/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "В набор… Игра.sis" }));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "В набор…" }));
-    expect(await screen.findByText(/Мои игры · Пакетов: 1/)).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Наборы приложений" }), "1");
-    await waitFor(() => expect(screen.queryByText("App")).not.toBeInTheDocument());
-    expect(screen.getByText("Игра")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Удалить набор «Мои игры»/ }));
-    await waitFor(() => expect(screen.queryByText(/Мои игры ·/)).not.toBeInTheDocument());
+  it("не предлагает наборы приложений", async () => {
+    await openPackages();
+    expect(screen.queryByText("Наборы приложений")).not.toBeInTheDocument();
   });
 
   it("передача на телефон недоступна без устройства и называет причину", async () => {

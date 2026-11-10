@@ -40,10 +40,7 @@ function DeviceReport({ d, developer }: { d: DoctorDevice; developer: boolean })
           {d.com_ports}
           {d.com_busy > 0 ? ` (${t("dstate.com_busy")}: ${d.com_busy})` : ""}
         </dd>
-        <dt>{t("doctor.pcSuite")}</dt>
-        <dd>{t("doctor.notProven")}</dd>
-        <dt>{t("doctor.pim")}</dt>
-        <dd>{t("doctor.notProven")}</dd>
+
         {developer && (
           <>
             <dt>{t("doctor.driver")}</dt>
@@ -59,12 +56,14 @@ function DeviceReport({ d, developer }: { d: DoctorDevice; developer: boolean })
           </>
         )}
       </dl>
-      <h3>{t("doctor.findings")}</h3>
-      <ul>
-        {d.findings.map((f) => (
-          <li key={f}>{t(`finding.${f}` as MessageKey)}</li>
-        ))}
-      </ul>
+      <details>
+        <summary>{t("doctor.findings")}</summary>
+        <ul>
+          {d.findings.map((f) => (
+            <li key={f}>{t(`finding.${f}` as MessageKey)}</li>
+          ))}
+        </ul>
+      </details>
     </Panel>
   );
 }
@@ -78,18 +77,21 @@ export function DoctorPage({ model, developer }: { model: AppModel; developer: b
   return (
     <>
       <h1>{t("doctor.title")}</h1>
-      <p>{t("doctor.intro")}</p>
+
       <Panel>
-        <label className="field">
-          <input
-            type="checkbox"
-            checked={comBusy}
-            disabled={running}
-            onChange={(e) => setComBusy(e.target.checked)}
-          />{" "}
-          {t("doctor.com")}
-          <span className="hint">{t("doctor.comHint")}</span>
-        </label>
+        <details>
+          <summary>{t("doctor.com")}</summary>
+          <label className="field">
+            <input
+              type="checkbox"
+              checked={comBusy}
+              disabled={running}
+              onChange={(e) => setComBusy(e.target.checked)}
+            />{" "}
+            {t("doctor.com")}
+            <span className="hint">{t("doctor.comHint")}</span>
+          </label>
+        </details>
         <div className="btn-row">
           <button className="btn" disabled={running} onClick={() => model.runDoctor(options)}>
             {t("doctor.run")}
