@@ -11,3 +11,6 @@ lab-captures/
 *.pcap
 *.pcapng
 *.etl
+
+# Артефакты релиза (собираются scripts/package.sh)
+dist-release/

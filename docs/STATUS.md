@@ -50,3 +50,7 @@
 | AT-канал по COM (3GPP, только чтение): идентификация, число контактов/сообщений (issue #10) | `tested-on-mock` | `crates/yeskia-core/tests/at.rs` (кадрирование, ошибки, hot-unplug), `crates/yeskia-discovery/tests/serial.rs`; синтетические диалоги, не снятые с телефона |
 | AT-канал на реальном Nokia | `not-tested` | нужен собственный телефон; чек-лист в docs/protocol/AT_SERIAL.md |
 | Любой сервис протокола Nokia PC Suite (NPC) | `unsupported` | нет реальных трасс (#6); ничего не заявляется |
+| Сборка NSIS-установщика, портативного ZIP, SBOM, лицензий, контрольных сумм (issue #11) | `tested-on-host` | задача «Windows app build + smoke» в CI; не чистая Windows |
+| Обновление из файла: размер/SHA-256/Ed25519, откладывание при записи на телефон | `tested-on-host` | `crates/yeskia-core/tests/update.rs`; ключ издателя не настроен — источник «неподписанный» |
+| Первый запуск (Welcome → поиск → возможности → файлы) | `tested-on-mock` | `ui/src/Distribution.test.tsx` |
+| Запуск на чистой Windows 11, деинсталлятор, SmartScreen, телефоны | `not-tested` | docs/release/MANUAL_CHECK.md |

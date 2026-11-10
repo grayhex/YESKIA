@@ -30,15 +30,21 @@ fn exe_dir() -> Option<PathBuf> {
         .map(Path::to_path_buf)
 }
 
+/// `YESKIA_DATA_DIR` с непустым значением; пустая переменная считается незаданной.
+fn data_dir_override() -> Option<PathBuf> {
+    std::env::var_os("YESKIA_DATA_DIR")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+}
+
 pub fn is_portable() -> bool {
-    std::env::var_os("YESKIA_DATA_DIR").is_none()
-        && exe_dir().is_some_and(|d| portable_dir(&d).is_some())
+    data_dir_override().is_none() && exe_dir().is_some_and(|d| portable_dir(&d).is_some())
 }
 
 /// Каталог данных. Порядок: `YESKIA_DATA_DIR` → портативный режим → `%APPDATA%\dev.yeskia.app`.
 pub fn data_dir() -> PathBuf {
-    if let Some(p) = std::env::var_os("YESKIA_DATA_DIR") {
-        return PathBuf::from(p);
+    if let Some(p) = data_dir_override() {
+        return p;
     }
     if let Some(p) = exe_dir().and_then(|d| portable_dir(&d)) {
         return p;
@@ -63,7 +69,7 @@ pub fn data_dir() -> PathBuf {
 /// режиме — рядом с программой (`data\backups`): пользователь переносит папку целиком.
 pub fn default_backup_root() -> PathBuf {
     default_backup_root_for(
-        std::env::var_os("YESKIA_DATA_DIR").is_some(),
+        data_dir_override().is_some(),
         exe_dir().and_then(|d| portable_dir(&d)),
         std::env::var_os("USERPROFILE").map(PathBuf::from),
         data_dir(),

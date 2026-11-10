@@ -48,6 +48,8 @@ jobs:
       - run: npm --workspace ui run format:check
       - run: npm run ui:test
       - run: npm run ui:build
+      - name: Скрипты релиза (уведомления, SBOM, контрольные суммы)
+        run: node --test scripts/release.test.mjs
 
   windows-app:
     name: Windows app build + smoke
@@ -91,3 +93,32 @@ jobs:
           out=$(cargo run -q -p yeskia-lab -- inventory)
           echo "$out" | grep -q '"schema": "yeskia.lab.report/1"'
           ! echo "$out" | grep -qiE 'usb\\\\vid_|\\\\\\\\\?\\\\'
+      - name: Нет сетевых клиентов и серверов в сборке приложения
+        shell: bash
+        run: |
+          tree=$(cargo tree --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc -e normal --prefix none)
+          if echo "$tree" | grep -iE '^(reqwest|hyper|hyper-util|ureq|isahc|curl|attohttpc|surf|awc|actix-web|axum|warp|tiny_http|rouille) '; then
+            echo "В сборке приложения найден HTTP-клиент или сервер"; exit 1
+          fi
+          # CSP: только IPC, без внешних адресов
+          ! grep -E 'connect-src[^"]*https?://[^i"]' src-tauri/tauri.conf.json
+      - name: Установщик, портативная сборка, уведомления, SBOM, контрольные суммы
+        shell: bash
+        run: bash scripts/package.sh
+      - name: Проверка артефактов без телефона (чистая Windows без Rust/Node/Python — смотрите docs/DISTRIBUTION.md)
+        shell: bash
+        run: |
+          cd dist-release
+          sha256sum -c SHA256SUMS.txt
+          powershell.exe -NoProfile -Command "Expand-Archive -Path (Get-ChildItem 'YESKIA_*_x64-portable.zip').FullName -DestinationPath portable-check -Force"
+          env -u YESKIA_DATA_DIR ./portable-check/YESKIA/YESKIA.exe --smoke-test | grep -q '"storage_ok":true'
+          test -d portable-check/YESKIA/data
+          # портативный режим не пишет в профиль пользователя
+          rm -rf portable-check
+          grep -q 'не подписана' RELEASE_NOTES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yeskia-windows-unsigned
+          path: dist-release/
+          if-no-files-found: error
+          retention-days: 7

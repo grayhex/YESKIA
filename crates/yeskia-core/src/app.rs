@@ -124,6 +124,9 @@ struct HostJob {
     rx: Mutex<Option<Receiver<HostJobResult>>>,
 }
 
+/// Запуск установщика (в тестах подменяется).
+type Launcher = Box<dyn Fn(&std::path::Path) -> Result<()> + Send + Sync>;
+
 pub struct AppCore {
     pub engine: Arc<Engine>,
     /// Каталог данных (None — режим в памяти): нужен для переключения файлового лога.
@@ -139,7 +142,7 @@ pub struct AppCore {
     tools: Mutex<Option<(Option<String>, Arc<Toolchain>)>>,
     /// Доверенные ключи обновлений и запуск установщика (подменяются в тестах).
     update_keys: Vec<[u8; 32]>,
-    launcher: Box<dyn Fn(&std::path::Path) -> Result<()> + Send + Sync>,
+    launcher: Launcher,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -218,7 +221,7 @@ impl AppCore {
             staging: Mutex::new(HashMap::new()),
             tools: Mutex::new(None),
             update_keys: crate::update::TRUSTED_KEYS.to_vec(),
-            launcher: Box::new(|p| crate::update::launch(p)),
+            launcher: Box::new(crate::update::launch),
         }
     }
 

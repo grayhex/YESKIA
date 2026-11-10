@@ -295,3 +295,22 @@ fn a_running_host_job_blocks_the_update() {
     assert_eq!(r.outcome, yeskia_core::operations::Outcome::Success);
     assert!(core.update_blockers().is_empty());
 }
+
+#[test]
+fn node_signature_verifies_in_rust() {
+    // манифест подписан scripts/release.mjs (Node, Ed25519): совместимость с проверкой приложения
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/update");
+    let manifest = std::fs::read(dir.join("manifest.json")).unwrap();
+    let sig = std::fs::read_to_string(dir.join("manifest.sig")).unwrap();
+    let pk_hex = std::fs::read_to_string(dir.join("public-key.hex")).unwrap();
+    let pk: Vec<u8> = (0..32)
+        .map(|i| u8::from_str_radix(&pk_hex.trim()[2 * i..2 * i + 2], 16).unwrap())
+        .collect();
+    let key: [u8; 32] = pk.try_into().unwrap();
+    assert!(update::verify_signature(&manifest, Some(sig.trim()), &[key]).unwrap());
+    let mut forged = manifest.clone();
+    forged[12] ^= 1;
+    assert!(update::verify_signature(&forged, Some(sig.trim()), &[key]).is_err());
+    // без ключей подпись не считается проверенной (но и не ошибка)
+    assert!(!update::verify_signature(&manifest, Some(sig.trim()), &[]).unwrap());
+}

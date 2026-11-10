@@ -26,10 +26,11 @@ cargo run -p yeskia-app -- --smoke-test   # старт без окна, печа
 
 ## Smoke-test
 
-`yeskia-app --smoke-test` инициализирует хранилище в `%APPDATA%\YESKIA`, собирает системные
+`yeskia-app --smoke-test` инициализирует хранилище в `%APPDATA%\dev.yeskia.app`, собирает системные
 данные и проводит цепочку connect → identify → disconnect на mock-устройстве; код возврата 0 при успехе.
 Каталог можно перенаправить `YESKIA_DATA_DIR`.
 
 ## Данные пользователя
 
-`%APPDATA%\YESKIA\yeskia.sqlite` (настройки, журнал) и `logs\yeskia.log` (без IMEI/серийников).
+`%APPDATA%\dev.yeskia.app\yeskia.sqlite` (настройки, журнал) и `logs\yeskia.log` (без IMEI/серийников);
+портативный режим (файл `yeskia.portable` рядом с exe) — подпапка `data`. Подробности: [DISTRIBUTION.md](DISTRIBUTION.md).

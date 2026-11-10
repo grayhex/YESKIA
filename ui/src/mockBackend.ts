@@ -98,7 +98,7 @@ export class MockBackend implements Backend {
   readonly isUiMock = true;
   private connected = false;
   private matrix: CapabilityMatrix | null = null;
-  private settings: Settings = {
+  settings: Settings = {
     language: "ru",
     developer_mode: false,
     use_mock_device: true,
