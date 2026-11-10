@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": {
+      "../build-support/THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../docs/licenses/s60modern.txt": "licenses/s60modern.txt",
+      "../docs/ASSETS.md": "licenses/PHONE_ARTWORK.md"
+    }
+  }
+}

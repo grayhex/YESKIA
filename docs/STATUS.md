@@ -41,7 +41,7 @@
 | Протоколы PC Suite (NPC) | `unsupported` | ни одна функция не заявляется без адаптера YESKIA, проверенного на телефоне |
 | Файловые резервные копии: create/verify/restore-plan/apply только новых (issue #7) | `tested-on-host` / `tested-on-mock` | `crates/yeskia-core/tests/backup*.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/Backups.test.tsx` |
 | Резервная копия с реального телефона/карты | `not-tested` | нужен физический телефон; это файловая копия, не полный backup (docs/BACKUPS.md) |
-| Библиотека пакетов, инспектор SIS/SISX/JAR/JAD, подписи, наборы (issue #8) | `tested-on-host` | `crates/yeskia-core/tests/pkg.rs`, `packages.rs`; golden-сверка со SymPort; `ui/src/Packages.test.tsx` |
+| Библиотека пакетов, инспектор SIS/SISX/JAR/JAD и подписи (issue #8) | `tested-on-host` | `crates/yeskia-core/tests/pkg.rs`, `packages.rs`; golden-сверка со SymPort; `ui/src/Packages.test.tsx` |
 | Передача пакета на телефон (`packages.transfer`) | `tested-on-mock` | запись файла с read-back, не установка; на реальном телефоне/карте `not-tested` |
 | Установка пакетов на телефоне, доверие сертификатам телефона | `not-tested` | инспектор не утверждает совместимость (`compatible` не выдаётся) |
 | Рингтоны и подготовка медиа через внешний FFmpeg (issue #9) | `tested-on-host` | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs`; без FFmpeg — `TOOL_MISSING` |
@@ -50,7 +50,7 @@
 | AT-канал по COM (3GPP, только чтение): идентификация, число контактов/сообщений (issue #10) | `tested-on-mock` | `crates/yeskia-core/tests/at.rs` (кадрирование, ошибки, hot-unplug), `crates/yeskia-discovery/tests/serial.rs`; синтетические диалоги, не снятые с телефона |
 | AT-канал на реальном Nokia | `not-tested` | нужен собственный телефон; чек-лист в docs/protocol/AT_SERIAL.md |
 | Любой сервис протокола Nokia PC Suite (NPC) | `unsupported` | нет реальных трасс (#6); ничего не заявляется |
-| Сборка NSIS-установщика, портативного ZIP, SBOM, лицензий, контрольных сумм (issue #11) | `tested-on-host` | задача «Windows app build + smoke» в CI; не чистая Windows |
-| Обновление из файла: размер/SHA-256/Ed25519, откладывание при записи на телефон | `tested-on-host` | `crates/yeskia-core/tests/update.rs`; ключ издателя не настроен — источник «неподписанный» |
+| Один NSIS-установщик со встроенными уведомлениями о лицензиях (issue #11) | `tested-on-host` | задача «Windows app build + smoke» в CI; не чистая Windows |
+| Обновление через setup.exe | `not-tested` для перехода между релизами | NSIS распознаёт текущую установку; CI проверяет переустановку и `/UPDATE` той же версии; ручной переход между релизами — docs/release/MANUAL_CHECK.md |
 | Первый запуск (Welcome → поиск → возможности → файлы) | `tested-on-mock` | `ui/src/Distribution.test.tsx` |
 | Запуск на чистой Windows 11, деинсталлятор, SmartScreen, телефоны | `not-tested` | docs/release/MANUAL_CHECK.md |

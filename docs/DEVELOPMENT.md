@@ -1,15 +1,15 @@
 # Windows dev/build
 
-Требуется: Windows 11 x64, [Rust stable](https://rustup.rs) (MSVC), Node.js 20+, WebView2 Runtime
+Требуется: Windows 11 x64, [Rust stable](https://rustup.rs) (MSVC), Node.js 22, WebView2 Runtime
 (есть в Windows 11), Visual Studio Build Tools (C++).
 
 ```bash
 npm install            # ставит ui/ и Tauri CLI
 npm run tauri dev      # dev-режим (Vite + окно)
-npm run tauri build    # release-сборка + NSIS-установщик (src-tauri/target/release/bundle)
+bash scripts/package.sh # один NSIS-установщик в dist-release/
 ```
 
-Во время работы приложение не использует сеть, браузер и Docker.
+Данные телефона обрабатываются локально. Кнопка обновления открывает страницу релизов в браузере.
 
 ## Проверки (то же делает CI)
 
