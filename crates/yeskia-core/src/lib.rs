@@ -21,6 +21,7 @@ pub mod paths;
 pub mod pkg;
 pub mod storage;
 pub mod system;
+pub mod theme;
 pub mod transport;
 pub mod volume;
 
