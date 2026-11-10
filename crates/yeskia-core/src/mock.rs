@@ -342,6 +342,11 @@ impl FileProvider for MockTransport {
             .ok_or_else(|| Error::OperationFailed("файл не найден".into()))
     }
 
+    fn create_dir(&self, _id: &DeviceId, _path: &str, ctx: &OperationContext) -> Result<()> {
+        ctx.checkpoint()?; // в mock папки неявные
+        Ok(())
+    }
+
     fn read_to(
         &self,
         id: &DeviceId,

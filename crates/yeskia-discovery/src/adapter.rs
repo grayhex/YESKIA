@@ -364,6 +364,19 @@ impl FileProvider for PnpTransport {
         }
     }
 
+    fn create_dir(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<()> {
+        ctx.checkpoint()?;
+        let r = self.find(id)?;
+        match self.service(&r) {
+            Service::MassStorage(letters) => {
+                let (p, path) = self.volume_for(&letters, path)?;
+                p.create_dir(id, &path, ctx)
+            }
+            // WPD в этой версии строго read-only.
+            _ => Err(Error::CapabilityUnsupported("files.write".into())),
+        }
+    }
+
     fn read(&self, id: &DeviceId, path: &str, ctx: &OperationContext) -> Result<Vec<u8>> {
         let mut v = Vec::new();
         self.read_to(id, path, &mut v, ctx)?;

@@ -13,3 +13,4 @@ thiserror.workspace = true
 rusqlite.workspace = true
 sha2 = "0.10"
 getrandom = "0.2"
+fs2 = "0.4"

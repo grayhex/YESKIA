@@ -1,7 +1,8 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useI18n, type Lang, type MessageKey } from "../i18n";
 
-export type PageId = "home" | "connection" | "files" | "doctor" | "journal" | "settings";
+export type PageId =
+  "home" | "connection" | "files" | "backups" | "doctor" | "journal" | "settings";
 
 export interface NavEntry {
   id: PageId;

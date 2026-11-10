@@ -71,6 +71,12 @@ pub trait FileProvider: Send + Sync {
         ctx: &OperationContext,
     ) -> Result<()>;
 
+    /// Создаёт папку (родитель должен существовать). Существующая папка — не ошибка. По умолчанию
+    /// адаптер создавать папки не умеет.
+    fn create_dir(&self, _id: &DeviceId, _path: &str, _ctx: &OperationContext) -> Result<()> {
+        Err(Error::CapabilityUnsupported("files.write".into()))
+    }
+
     /// Потоковое чтение в `sink`. Реализация между блоками вызывает `ctx.checkpoint()` и
     /// `ctx.report_progress()`. По умолчанию читает файл целиком (годится для малых файлов).
     fn read_to(

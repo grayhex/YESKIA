@@ -36,6 +36,8 @@ pub struct Settings {
     pub developer_mode: bool,
     pub use_mock_device: bool,
     pub log_to_file: bool,
+    /// Хранилище резервных копий (папка Windows); `None` — `<каталог данных>\\backups`.
+    pub backup_root: Option<String>,
 }
 
 impl Default for Settings {
@@ -45,6 +47,7 @@ impl Default for Settings {
             developer_mode: false,
             use_mock_device: false,
             log_to_file: true,
+            backup_root: None,
         }
     }
 }
@@ -282,6 +285,7 @@ mod tests {
             developer_mode: true,
             use_mock_device: true,
             log_to_file: false,
+            backup_root: Some("D:\\Backups".into()),
         };
         s.save_settings(&new).unwrap();
         assert_eq!(s.load_settings().unwrap(), new);

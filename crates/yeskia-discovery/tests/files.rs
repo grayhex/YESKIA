@@ -403,3 +403,170 @@ fn no_pim_and_no_phone_c_drive_without_a_proven_transport() {
         .unwrap();
     assert_eq!(r.outcome, Outcome::Failed);
 }
+
+// ---------- резервные копии поверх обнаружения ----------
+
+fn backup_dir(tag: &str) -> PathBuf {
+    tmpdir(&format!("bk-{tag}")).join("копия")
+}
+
+fn create_backup(e: &Engine, id: &DeviceId, path: &str, dest: &Path) -> OperationResult {
+    e.run(
+        id,
+        OperationRequest::BackupCreate {
+            path: path.into(),
+            dest: dest.display().to_string(),
+            label: "тест".into(),
+            exclude: vec![],
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn wpd_read_only_device_can_be_backed_up_but_never_restored_to() {
+    let (t, _) = wpd_phone();
+    let (e, _, id) = engine_with(t, vec![]);
+    e.connect(&id).unwrap();
+    let dest = backup_dir("wpd");
+    let r = create_backup(&e, &id, "/Phone memory", &dest);
+    assert_eq!(r.outcome, Outcome::Success, "{:?}", r.error);
+    match r.data.unwrap() {
+        OperationData::BackupCreated {
+            files,
+            verified,
+            complete,
+            ..
+        } => {
+            assert_eq!((files, verified, complete), (2, true, true))
+        }
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(
+        std::fs::read(dest.join("files/DCIM/фото.jpg")).unwrap(),
+        vec![9u8; 3000]
+    );
+    assert!(!r.uncertain, "чтение устройства — не запись");
+
+    // план читает устройство — допустим; применение требует записи — недоступно
+    let plan = e
+        .run(
+            &id,
+            OperationRequest::BackupRestore {
+                backup: dest.display().to_string(),
+                path: "/Phone memory".into(),
+                only: None,
+                apply: false,
+            },
+        )
+        .unwrap();
+    assert_eq!(plan.outcome, Outcome::Success, "{:?}", plan.error);
+    let err = e
+        .submit(
+            &id,
+            OperationRequest::BackupRestore {
+                backup: dest.display().to_string(),
+                path: "/Phone memory".into(),
+                only: None,
+                apply: true,
+            },
+        )
+        .err()
+        .unwrap();
+    assert_eq!(err.code(), ErrorCode::CapabilityUnsupported);
+}
+
+#[test]
+fn wpd_backup_aborts_cleanly_when_the_cable_is_pulled() {
+    let (mut t, usb) = wpd_phone();
+    t.read_delay_ms = 60;
+    let (e, src, id) = engine_with(t, vec![]);
+    e.connect(&id).unwrap();
+    let dest = backup_dir("wpd-unplug");
+    let e2 = Arc::clone(&e);
+    let (id2, d2) = (id.clone(), dest.clone());
+    let th = std::thread::spawn(move || create_backup(&e2, &id2, "/Phone memory", &d2));
+    std::thread::sleep(Duration::from_millis(150));
+    src.with(|t| t.remove(&usb));
+    let r = th.join().unwrap();
+    assert_eq!(
+        r.error.as_ref().unwrap().code,
+        ErrorCode::DeviceDisconnected
+    );
+    let list = yeskia_core::backup::list_backups(dest.parent().unwrap());
+    assert!(
+        list.iter().all(|b| b.interrupted && !b.complete),
+        "{list:?}"
+    );
+}
+
+#[test]
+fn mass_storage_full_cycle_backup_verify_dry_run_restore_apply() {
+    let card = tmpdir("bk-card");
+    std::fs::create_dir_all(card.join("Музыка")).unwrap();
+    std::fs::write(card.join("Музыка/трек.mp3"), vec![5u8; 70_000]).unwrap();
+    std::fs::write(card.join("заметка.txt"), "текст").unwrap();
+    let (e, _, id) = engine_with(mass_phone(&['F']), vec![('F', card.clone())]);
+    e.connect(&id).unwrap();
+
+    let dest = backup_dir("ms");
+    let r = create_backup(&e, &id, "F:/", &dest);
+    assert_eq!(r.outcome, Outcome::Success, "{:?}", r.error);
+    assert!(yeskia_core::backup::verify(&dest, &ctl()).unwrap().ok);
+
+    // восстановление на «новую» карту: dry-run, затем запись только новых
+    let card2 = tmpdir("bk-card2");
+    std::fs::write(card2.join("заметка.txt"), "ДРУГОЕ").unwrap(); // конфликт
+    let (e2, _, id2) = engine_with(mass_phone(&['G']), vec![('G', card2.clone())]);
+    e2.connect(&id2).unwrap();
+    let plan = e2
+        .run(
+            &id2,
+            OperationRequest::BackupRestore {
+                backup: dest.display().to_string(),
+                path: "G:/".into(),
+                only: None,
+                apply: false,
+            },
+        )
+        .unwrap();
+    match plan.data.unwrap() {
+        OperationData::BackupPlan { counts, .. } => {
+            assert_eq!((counts.new, counts.conflict), (1, 1))
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(!card2.join("Музыка").exists(), "dry-run ничего не пишет");
+    let ap = e2
+        .run(
+            &id2,
+            OperationRequest::BackupRestore {
+                backup: dest.display().to_string(),
+                path: "G:/".into(),
+                only: None,
+                apply: true,
+            },
+        )
+        .unwrap();
+    assert_eq!(ap.outcome, Outcome::Success, "{:?}", ap.error);
+    assert_eq!(
+        std::fs::read(card2.join("Музыка/трек.mp3")).unwrap(),
+        vec![5u8; 70_000]
+    );
+    assert_eq!(
+        std::fs::read_to_string(card2.join("заметка.txt")).unwrap(),
+        "ДРУГОЕ",
+        "конфликт не перезаписан"
+    );
+}
+
+fn ctl() -> yeskia_core::backup::Control<'static> {
+    fn ok() -> yeskia_core::error::Result<()> {
+        Ok(())
+    }
+    fn np(_: yeskia_core::backup::BackupProgress) {}
+    yeskia_core::backup::Control {
+        check: &ok,
+        progress: &np,
+    }
+}

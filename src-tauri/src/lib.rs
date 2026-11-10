@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 use yeskia_core::app::{AppCore, SmokeReport};
+use yeskia_core::app::{HostJobRequest, HostJobResult};
+use yeskia_core::backup::BackupInfo;
 use yeskia_core::device::{Device, DeviceId};
 use yeskia_core::diagnostics::LogEntry;
 use yeskia_core::error::{Error, ErrorInfo};
@@ -156,6 +158,47 @@ async fn export_doctor_report(options: DoctorOptions) -> Cmd<ExportedReport> {
     .map_err(|e| e.to_info())
 }
 
+/// Резервные копии в хранилище (папка пользователя или `<данные>/backups`).
+#[tauri::command]
+async fn backup_list(state: tauri::State<'_, State>) -> Cmd<Vec<BackupInfo>> {
+    blocking(&state, |c| c.backup_list()).await
+}
+
+/// Запускает задание без устройства (копия папки компьютера, проверка, восстановление в папку).
+#[tauri::command]
+fn start_host_job(state: tauri::State<'_, State>, request: HostJobRequest) -> Cmd<String> {
+    state.0.start_host_job(request).map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+async fn await_host_job(state: tauri::State<'_, State>, job_id: String) -> Cmd<HostJobResult> {
+    blocking(&state, move |c| c.await_host_job(&job_id)).await
+}
+
+#[tauri::command]
+fn host_job_progress(state: tauri::State<'_, State>, job_id: String) -> Option<Progress> {
+    state.0.host_job_progress(&job_id)
+}
+
+#[tauri::command]
+fn cancel_host_job(state: tauri::State<'_, State>, job_id: String) -> bool {
+    state.0.cancel_host_job(&job_id)
+}
+
+/// Сохраняет отчёт (JSON) в `<данные>/reports/<имя>.json`; имя — только безопасное имя файла.
+#[tauri::command]
+fn save_report(name: String, json: String) -> Cmd<String> {
+    let go = || -> yeskia_core::Result<String> {
+        yeskia_core::fsutil::validate_file_name(&name)?;
+        let dir = data_dir().join("reports");
+        std::fs::create_dir_all(&dir)?;
+        let path = dir.join(format!("{name}.json"));
+        std::fs::write(&path, json)?;
+        Ok(path.display().to_string())
+    };
+    go().map_err(|e| e.to_info())
+}
+
 /// Диски и быстрые папки пользователя (левая панель файлового менеджера).
 #[tauri::command]
 fn host_roots() -> Vec<HostRoot> {
@@ -273,6 +316,12 @@ pub fn run() {
             get_diagnostics,
             run_doctor,
             export_doctor_report,
+            backup_list,
+            start_host_job,
+            await_host_job,
+            host_job_progress,
+            cancel_host_job,
+            save_report,
             host_roots,
             host_list_dir,
             host_create_dir,

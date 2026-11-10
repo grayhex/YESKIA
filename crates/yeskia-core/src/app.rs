@@ -1,19 +1,89 @@
 //! `AppCore` — собранное приложение без UI: хранилище, журнал, транспорты, движок.
 //! Tauri-команды — тонкая обёртка над этим типом, поэтому всё тестируется без WebView.
 
+use crate::backup::{self, BackupInfo};
 use crate::device::DeviceId;
 use crate::diagnostics::Diagnostics;
 use crate::engine::{Engine, OperationHandle};
 use crate::error::Result;
+use crate::error::{Error, ErrorInfo};
 use crate::mock::{MockTransport, MOCK_DEVICE_ID};
-use crate::operations::{OperationRequest, OperationResult, Outcome, Progress};
+use crate::operations::{
+    CancellationToken, OperationRequest, OperationResult, Outcome, Progress, ProgressCell,
+};
 use crate::storage::{Settings, Storage};
 use crate::system::SystemInfo;
 use crate::transport::DeviceTransport;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver};
 use std::sync::{Arc, Mutex};
+
+/// Задание без устройства (копии папок компьютера, проверка, восстановление в папку).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum HostJobRequest {
+    /// Копия папки компьютера в хранилище копий (каталог создаётся ядром).
+    #[serde(rename = "backup.create_local")]
+    BackupCreateLocal {
+        source: String,
+        label: String,
+        #[serde(default)]
+        exclude: Vec<String>,
+    },
+    /// `name` — имя копии в хранилище (не путь).
+    #[serde(rename = "backup.verify")]
+    BackupVerify { name: String },
+    #[serde(rename = "backup.restore_local")]
+    BackupRestoreLocal {
+        name: String,
+        target: String,
+        #[serde(default)]
+        only: Option<String>,
+        #[serde(default)]
+        apply: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum HostJobData {
+    BackupCreated {
+        name: String,
+        files: u64,
+        bytes: u64,
+        skipped: u64,
+        complete: bool,
+        verified: bool,
+    },
+    BackupVerified {
+        report: backup::VerifyReport,
+    },
+    BackupPlan {
+        counts: backup::PlanCounts,
+        items: Vec<backup::PlanItem>,
+        truncated: bool,
+    },
+    BackupApplied {
+        report: backup::ApplyReport,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostJobResult {
+    pub job_id: String,
+    pub outcome: Outcome,
+    pub data: Option<HostJobData>,
+    pub error: Option<ErrorInfo>,
+}
+
+struct HostJob {
+    token: CancellationToken,
+    progress: Arc<ProgressCell>,
+    rx: Mutex<Option<Receiver<HostJobResult>>>,
+}
 
 pub struct AppCore {
     pub engine: Arc<Engine>,
@@ -22,6 +92,7 @@ pub struct AppCore {
     mock: MockTransport,
     /// Принятые, но ещё не ожидаемые операции (для пары start/await из UI).
     handles: Mutex<HashMap<String, OperationHandle>>,
+    host_jobs: Mutex<HashMap<String, Arc<HostJob>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,11 +152,13 @@ impl AppCore {
             data_dir: None,
             mock,
             handles: Mutex::new(HashMap::new()),
+            host_jobs: Mutex::new(HashMap::new()),
         }
     }
 
     /// Ставит операцию в очередь и возвращает её id (для отмены/прогресса до завершения).
     pub fn start_operation(&self, id: &DeviceId, request: OperationRequest) -> Result<String> {
+        let request = self.resolve_backup_paths(request)?;
         let handle = self.engine.submit(id, request)?;
         let op_id = handle.operation_id().to_string();
         self.handles
@@ -121,6 +194,175 @@ impl AppCore {
 
     pub fn operation_progress(&self, operation_id: &str) -> Option<Progress> {
         self.engine.progress(operation_id)
+    }
+
+    // ---------- резервные копии ----------
+
+    /// Хранилище копий: настройка пользователя или `<каталог данных>/backups`.
+    pub fn backup_root(&self) -> Result<PathBuf> {
+        let settings = self.get_settings()?;
+        Ok(
+            match settings.backup_root.filter(|r| !r.trim().is_empty()) {
+                Some(r) => PathBuf::from(r),
+                None => crate::storage::data_dir().join("backups"),
+            },
+        )
+    }
+
+    pub fn backup_list(&self) -> Result<Vec<BackupInfo>> {
+        Ok(backup::list_backups(&self.backup_root()?))
+    }
+
+    /// Каталог копии по **имени в хранилище**. Пути от клиента не принимаются.
+    fn backup_dir(&self, name: &str) -> Result<PathBuf> {
+        crate::fsutil::validate_file_name(name)
+            .map_err(|_| Error::UnsafePath("недопустимое имя копии".into()))?;
+        Ok(self.backup_root()?.join(name))
+    }
+
+    /// Для операций устройства: каталог новой копии назначает ядро, существующая копия — по имени.
+    fn resolve_backup_paths(&self, request: OperationRequest) -> Result<OperationRequest> {
+        Ok(match request {
+            OperationRequest::BackupCreate {
+                path,
+                label,
+                exclude,
+                ..
+            } => {
+                let name = backup::backup_dir_name(crate::now_ms(), &label);
+                OperationRequest::BackupCreate {
+                    path,
+                    dest: self.backup_root()?.join(name).display().to_string(),
+                    label,
+                    exclude,
+                }
+            }
+            OperationRequest::BackupRestore {
+                backup,
+                path,
+                only,
+                apply,
+            } => OperationRequest::BackupRestore {
+                backup: self.backup_dir(&backup)?.display().to_string(),
+                path,
+                only,
+                apply,
+            },
+            other => other,
+        })
+    }
+
+    /// Запускает задание без устройства в отдельном потоке (одно за раз).
+    pub fn start_host_job(&self, request: HostJobRequest) -> Result<String> {
+        let mut jobs = self.host_jobs.lock().unwrap_or_else(|e| e.into_inner());
+        if jobs
+            .values()
+            .any(|j| j.rx.lock().map(|r| r.is_some()).unwrap_or(false))
+        {
+            return Err(Error::QueueFull);
+        }
+        let job_id = format!("job-{}", crate::now_ms());
+        let (tx, rx) = mpsc::channel();
+        let job = Arc::new(HostJob {
+            token: CancellationToken::new(),
+            progress: Arc::new(ProgressCell::default()),
+            rx: Mutex::new(Some(rx)),
+        });
+        // внутри потока нужны путь хранилища и каталоги — разрешаем их заранее
+        let root = self.backup_root()?;
+        let plan = match &request {
+            HostJobRequest::BackupCreateLocal { label, .. } => {
+                Some(root.join(backup::backup_dir_name(crate::now_ms(), label)))
+            }
+            HostJobRequest::BackupVerify { name }
+            | HostJobRequest::BackupRestoreLocal { name, .. } => Some(self.backup_dir(name)?),
+        };
+        jobs.insert(job_id.clone(), Arc::clone(&job));
+        let id2 = job_id.clone();
+        std::thread::spawn(move || {
+            let token = job.token.clone();
+            let check = || {
+                if token.is_cancelled() {
+                    Err(Error::Cancelled)
+                } else {
+                    Ok(())
+                }
+            };
+            let progress =
+                |p: backup::BackupProgress| job.progress.set(p.files_done, p.files_total);
+            let ctl = backup::Control {
+                check: &check,
+                progress: &progress,
+            };
+            let r = run_host_job(request, plan, &root, &ctl);
+            let (outcome, data, error) = match r {
+                Ok(d) => (Outcome::Success, Some(d), None),
+                Err(Error::Cancelled) => {
+                    (Outcome::Cancelled, None, Some(Error::Cancelled.to_info()))
+                }
+                Err(e) => (Outcome::Failed, None, Some(e.to_info())),
+            };
+            let _ = tx.send(HostJobResult {
+                job_id: id2,
+                outcome,
+                data,
+                error,
+            });
+        });
+        Ok(job_id)
+    }
+
+    /// Блокирует до результата задания.
+    pub fn await_host_job(&self, job_id: &str) -> Result<HostJobResult> {
+        let job = self
+            .host_jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(job_id)
+            .cloned()
+            .ok_or_else(|| Error::InvalidArgument("неизвестное задание".into()))?;
+        let rx = job
+            .rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+            .ok_or_else(|| Error::InvalidArgument("результат задания уже получен".into()))?;
+        let r = rx
+            .recv()
+            .map_err(|_| Error::Internal("задание завершилось без результата".into()))?;
+        self.host_jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(job_id);
+        Ok(r)
+    }
+
+    pub fn host_job_progress(&self, job_id: &str) -> Option<Progress> {
+        self.host_jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(job_id)
+            .map(|j| j.progress.get())
+    }
+
+    pub fn cancel_host_job(&self, job_id: &str) -> bool {
+        match self
+            .host_jobs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(job_id)
+        {
+            Some(j) => {
+                j.token.cancel();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Mock-транспорт для тестов (управление отключением, паузами и сбоями).
+    pub fn mock_handle(&self) -> MockTransport {
+        self.mock.clone()
     }
 
     pub fn system_info(&self) -> SystemInfo {
@@ -167,6 +409,75 @@ impl AppCore {
                 "failed".into()
             },
         })
+    }
+}
+
+fn run_host_job(
+    request: HostJobRequest,
+    dir: Option<PathBuf>,
+    root: &std::path::Path,
+    ctl: &backup::Control,
+) -> Result<HostJobData> {
+    const PLAN_ITEMS_LIMIT: usize = 500;
+    match request {
+        HostJobRequest::BackupCreateLocal {
+            source,
+            label,
+            exclude,
+        } => {
+            std::fs::create_dir_all(crate::fsutil::long_path(root))?;
+            let dest = dir.ok_or_else(|| Error::Internal("нет каталога копии".into()))?;
+            let opts = backup::Options {
+                exclude,
+                ..Default::default()
+            };
+            let s = backup::create_from_folder(
+                std::path::Path::new(&source),
+                &dest,
+                &label,
+                &opts,
+                ctl,
+            )?;
+            Ok(HostJobData::BackupCreated {
+                name: dest
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                files: s.files,
+                bytes: s.bytes,
+                skipped: s.skipped,
+                complete: s.complete,
+                verified: s.verified,
+            })
+        }
+        HostJobRequest::BackupVerify { .. } => {
+            let dir = dir.ok_or_else(|| Error::Internal("нет каталога копии".into()))?;
+            Ok(HostJobData::BackupVerified {
+                report: backup::verify(&dir, ctl)?,
+            })
+        }
+        HostJobRequest::BackupRestoreLocal {
+            target,
+            only,
+            apply,
+            ..
+        } => {
+            let dir = dir.ok_or_else(|| Error::Internal("нет каталога копии".into()))?;
+            let store = backup::FolderStore::new(std::path::Path::new(&target))?;
+            if apply {
+                Ok(HostJobData::BackupApplied {
+                    report: backup::restore_apply(&dir, &store, only.as_deref(), ctl)?,
+                })
+            } else {
+                let plan = backup::restore_plan(&dir, &store, only.as_deref(), ctl)?;
+                let truncated = plan.items.len() > PLAN_ITEMS_LIMIT;
+                Ok(HostJobData::BackupPlan {
+                    counts: plan.counts,
+                    items: plan.items.into_iter().take(PLAN_ITEMS_LIMIT).collect(),
+                    truncated,
+                })
+            }
+        }
     }
 }
 

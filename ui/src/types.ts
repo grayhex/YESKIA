@@ -14,6 +14,9 @@ export type ErrorCode =
   | "ALREADY_EXISTS"
   | "UNSAFE_PATH"
   | "HOST_ACCESS"
+  | "BACKUP_INVALID"
+  | "LIMIT_EXCEEDED"
+  | "INSUFFICIENT_SPACE"
   | "VERIFICATION_FAILED"
   | "TRANSPORT_ERROR"
   | "STORAGE_ERROR"
@@ -99,6 +102,8 @@ export type OperationRequest =
   | { type: "files.write"; path: string; data: number[]; overwrite: OverwritePolicy }
   | { type: "files.download"; path: string; dest: string; overwrite: OverwritePolicy }
   | { type: "files.upload"; source: string; path: string; overwrite: OverwritePolicy }
+  | { type: "backup.create"; path: string; dest: string; label: string; exclude: string[] }
+  | { type: "backup.restore"; backup: string; path: string; only: string | null; apply: boolean }
   | { type: "contacts.read" }
   | { type: "sms.read" };
 
@@ -108,6 +113,24 @@ export type OperationData =
   | { type: "file_read"; bytes: number; sha256: string }
   | { type: "written"; bytes: number; sha256: string; verified: boolean; replaced: boolean }
   | { type: "downloaded"; bytes: number; sha256: string; verified: boolean; replaced: boolean }
+  | {
+      type: "backup_created";
+      files: number;
+      bytes: number;
+      skipped: number;
+      complete: boolean;
+      verified: boolean;
+    }
+  | { type: "backup_plan"; counts: PlanCounts; items: PlanItem[]; truncated: boolean }
+  | {
+      type: "backup_applied";
+      written: number;
+      identical: number;
+      conflicts: number;
+      blocked: number;
+      raced: number;
+      bytes: number;
+    }
   | { type: "pim_count"; count: number };
 
 export interface OperationResult {
@@ -144,6 +167,8 @@ export interface Settings {
   developer_mode: boolean;
   use_mock_device: boolean;
   log_to_file: boolean;
+  /** Папка хранилища резервных копий; `null` — по умолчанию в каталоге данных. */
+  backup_root: string | null;
 }
 
 export interface JournalEntry {
@@ -248,4 +273,83 @@ export interface HostRoot {
   label: string;
   path: string;
   kind: "drive" | "folder";
+}
+
+export interface BackupInfo {
+  name: string;
+  label: string;
+  created_at_ms: number;
+  total_files: number;
+  total_bytes: number;
+  complete: boolean;
+  interrupted: boolean;
+  source_kind: string;
+  manifest_ok: boolean;
+}
+
+export type PlanStatus = "new" | "identical" | "conflict" | "blocked";
+
+export interface PlanItem {
+  path: string;
+  size: number;
+  status: PlanStatus;
+  reason: string | null;
+}
+
+export interface PlanCounts {
+  new: number;
+  identical: number;
+  conflict: number;
+  blocked: number;
+}
+
+export interface VerifyReport {
+  ok: boolean;
+  manifest_ok: boolean;
+  files_checked: number;
+  missing: string[];
+  corrupt: string[];
+  extra: string[];
+  unsafe_paths: string[];
+}
+
+export interface ApplyReport {
+  written: number;
+  identical: number;
+  conflicts: number;
+  blocked: number;
+  raced: number;
+  bytes: number;
+}
+
+export type HostJobRequest =
+  | { type: "backup.create_local"; source: string; label: string; exclude: string[] }
+  | { type: "backup.verify"; name: string }
+  | {
+      type: "backup.restore_local";
+      name: string;
+      target: string;
+      only: string | null;
+      apply: boolean;
+    };
+
+export type HostJobData =
+  | {
+      type: "backup_created";
+      name: string;
+      files: number;
+      bytes: number;
+      skipped: number;
+      complete: boolean;
+      verified: boolean;
+    }
+  | { type: "backup_verified"; report: VerifyReport }
+  | { type: "backup_plan"; counts: PlanCounts; items: PlanItem[]; truncated: boolean }
+  | { type: "backup_applied"; report: ApplyReport };
+
+export interface HostJobResult {
+  job_id: string;
+  outcome: "success" | "failed" | "cancelled";
+  data: HostJobData | null;
+  error: ErrorInfo | null;
 }
