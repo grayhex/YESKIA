@@ -42,6 +42,44 @@ pub trait DeviceTransport: DiscoveryProvider {
 
     fn identity(&self, id: &DeviceId, ctx: &OperationContext) -> Result<Identity>;
 
+    fn agent_query(
+        &self,
+        _id: &DeviceId,
+        _query: &yeskia_agent_protocol::Query,
+        _confirm: bool,
+        _ctx: &OperationContext,
+    ) -> Result<yeskia_agent_protocol::Response> {
+        Err(Error::CapabilityUnsupported(
+            "yeskia-agent-extension".into(),
+        ))
+    }
+    fn agent_ping(&self, _id: &DeviceId, _ctx: &OperationContext) -> Result<crate::adbian::Reply> {
+        Err(Error::CapabilityUnsupported("adbian".into()))
+    }
+    /// Agent adapter uses the Engine queue, cancellation and uncertain-write handling.
+    fn agent_command(
+        &self,
+        _id: &DeviceId,
+        _line: &str,
+        _confirm: bool,
+        _ctx: &OperationContext,
+    ) -> Result<crate::adbian::Reply> {
+        Err(Error::CapabilityUnsupported("adbian".into()))
+    }
+    fn agent_put(
+        &self,
+        _id: &DeviceId,
+        _source: &str,
+        _path: &str,
+        _confirm: bool,
+        _ctx: &OperationContext,
+    ) -> Result<(u64, String)> {
+        Err(Error::CapabilityUnsupported("adbian".into()))
+    }
+    fn evidence_source(&self) -> &'static str {
+        "probe"
+    }
+
     fn files(&self) -> Option<&dyn FileProvider> {
         None
     }

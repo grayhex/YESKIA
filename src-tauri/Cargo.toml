@@ -19,6 +19,7 @@ tauri-plugin-dialog = "2"
 serde.workspace = true
 serde_json.workspace = true
 yeskia-core = { path = "../crates/yeskia-core" }
+yeskia-adbian = { path = "../crates/yeskia-adbian" }
 yeskia-discovery = { path = "../crates/yeskia-discovery" }
 
 [target.'cfg(windows)'.dependencies]

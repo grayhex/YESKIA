@@ -1,0 +1,15 @@
+{
+  "schema": "yeskia.agent.research-plan/1",
+  "origin": "synthetic",
+  "hardware_verified": false,
+  "pins": "../upstream.lock.json",
+  "cases": [
+    {"id":"F01","domain":"filesystem","evidence":"crates/yeskia-adbian/tests/adapter.rs","status":"tested-on-mock"},
+    {"id":"S01","domain":"system-api","evidence":"crates/yeskia-agent-protocol/src/lib.rs","status":"tested-on-mock"},
+    {"id":"T01","domain":"host-phone-correlation","evidence":"ui/src/deviceRouting.test.ts","status":"plan; host route selection tested only"}
+  ],
+  "phone_model": null,
+  "firmware": null,
+  "signing_state": null,
+  "nokia_pc_suite_capture": null
+}

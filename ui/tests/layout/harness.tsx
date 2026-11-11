@@ -10,8 +10,13 @@ import "../../src/styles/fluent.css";
 const params = new URLSearchParams(location.search);
 const scenario = params.get("scenario") ?? "connected";
 class LayoutBackend extends MockBackend {
+  async agentSetLab(id:string,armed:boolean,acknowledge:boolean) {
+    if(scenario!=="agent") return super.agentSetLab(id,armed,acknowledge);
+    if(armed && !acknowledge) throw new Error("synthetic Lab profile needs consent");
+  }
   async listDevices() {
     const devices = await super.listDevices();
+    if (scenario === "agent") return devices.map(device => ({...device,id:"adbian-synthetic-layout",display_name:"Synthetic E72 · preview",transport:"bluetooth" as const,identified_model:null}));
     if (scenario !== "readonly") return devices;
     return devices.map((device) => ({
       ...device,
@@ -31,7 +36,8 @@ const backend = new LayoutBackend();
 backend.settings.language = params.get("lang") === "en" ? "en" : "ru";
 backend.settings.use_mock_device = scenario !== "empty";
 backend.settings.onboarded = scenario !== "welcome";
-if (["connected", "readonly", "long"].includes(scenario)) await backend.connectDevice("mock-e72");
+backend.settings.developer_mode = scenario === "agent";
+if (["connected", "readonly", "long", "agent"].includes(scenario)) await backend.connectDevice("mock-e72");
 if (scenario === "long") {
   for (let i = 0; i < 100; i++) {
     const name = `file-${i.toString().padStart(3, "0")}.jpg`;

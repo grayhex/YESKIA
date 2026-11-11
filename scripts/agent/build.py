@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import platform
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -18,7 +19,7 @@ def run(*args, cwd=None):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["prepare", "check", "build"])
+    p.add_argument("action", choices=["prepare", "check", "build", "build-helper"])
     p.add_argument("workspace", type=Path, help="external build directory (SDK + ADBian siblings)")
     args = p.parse_args()
     base = args.workspace.resolve()
@@ -53,18 +54,38 @@ def main():
     if source.count("cargo +nightly build") != 1:
         raise RuntimeError("Upstream build entry changed; audit it before updating the lock")
     launcher = sdk / "tools/.yeskia-symbuild"
-    launcher.write_text(source.replace("cargo +nightly build", f"cargo +{LOCK['rust_device_toolchain']} build"))
     manifest = {"schema": LOCK["schema"], "pins": LOCK, "rustc": version, "artifacts": [], "phone_verified": False}
+    env = os.environ.copy()
+    apps = [("rshelld", "sisx"), ("rshell", "sis"), ("rfprobe", "sis")]
+    if args.action == "build-helper":
+        stamp = json.loads((base / "yeskia-helper-source.json").read_text())
+        digest = hashlib.sha256()
+        for entry in stamp["files"]:
+            path = (base / entry["file"]).resolve()
+            if not path.is_relative_to(base):
+                raise RuntimeError("Invalid helper source path")
+            data = path.read_bytes()
+            if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                raise RuntimeError("Staged helper source changed; restage and review")
+            digest.update(entry["file"].encode())
+            digest.update(data)
+        if digest.hexdigest() != stamp["source_sha256"]:
+            raise RuntimeError("Helper source stamp mismatch")
+        env["YESKIA_AGENT_BUILD"] = stamp["source_sha256"]
+        manifest["helper_source_sha256"] = stamp["source_sha256"]
+        apps = [("yeskiaagent", "sis")]
+    launcher.write_text(source.replace("cargo +nightly build", f"cargo +{LOCK['rust_device_toolchain']} build --locked"))
     try:
-        for app, suffix in [("rshelld", "sisx"), ("rshell", "sis"), ("rfprobe", "sis")]:
-            appdir = base / "ADBian/apps" / app
-            subprocess.run(["bash", str(launcher), str(appdir), "clean"], check=True)
-            subprocess.run(["bash", str(launcher), str(appdir)], check=True)
+        for app, suffix in apps:
+            appdir = base / "YESKIA-Agent" if args.action == "build-helper" else base / "ADBian/apps" / app
+            subprocess.run(["bash", str(launcher), str(appdir), "clean"], check=True, env=env)
+            subprocess.run(["bash", str(launcher), str(appdir)], check=True, env=env)
             artifact = appdir / f"build/{app}.{suffix}"
             manifest["artifacts"].append({"file": str(artifact.relative_to(base)), "bytes": artifact.stat().st_size,
                                            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()})
-        (base / "yeskia-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        print("Built all three packages; hashes: yeskia-build.json. Installation remains unverified.")
+        manifest_name = "yeskia-helper-build.json" if args.action == "build-helper" else "yeskia-build.json"
+        (base / manifest_name).write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"Built {len(apps)} packages; hashes: {manifest_name}. Installation remains unverified.")
     finally:
         launcher.unlink(missing_ok=True)
 
@@ -72,6 +93,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+    except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)

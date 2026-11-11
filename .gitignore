@@ -21,3 +21,7 @@ __pycache__/
 
 # Внутренние ресурсы установщика
 /build-support/
+
+# Private phone-agent experiments and recovery artifacts
+agent-captures/
+agent-local/

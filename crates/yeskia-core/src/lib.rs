@@ -3,6 +3,7 @@
 //! Модули: `device`, `transport`, `operations`, `storage`, `catalog`,
 //! `inspector`, `diagnostics`, `engine`.
 
+pub mod adbian;
 pub mod app;
 pub mod at;
 pub mod backup;

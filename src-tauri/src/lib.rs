@@ -20,6 +20,7 @@ use yeskia_discovery::{CollectOptions, DoctorReport};
 type Cmd<T> = Result<T, ErrorInfo>;
 
 struct State(Arc<AppCore>);
+struct AgentState(Arc<yeskia_adbian::AdbianTransport>);
 struct NativeState(Arc<yeskia_discovery::adapter::PnpTransport>);
 static PIM_ACTIVE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 static PIM_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -64,6 +65,19 @@ fn start_operation(
     id: String,
     request: OperationRequest,
 ) -> Cmd<String> {
+    if matches!(
+        &request,
+        OperationRequest::AgentCommand { .. }
+            | OperationRequest::AgentPut { .. }
+            | OperationRequest::AgentQuery { .. }
+    ) && !state
+        .0
+        .get_settings()
+        .map_err(|e| e.to_info())?
+        .developer_mode
+    {
+        return Err(Error::InvalidArgument("LAB_DEVELOPER_MODE_REQUIRED".into()).to_info());
+    }
     state
         .0
         .start_operation(&DeviceId::new(id), request)
@@ -95,7 +109,14 @@ fn get_settings(state: tauri::State<'_, State>) -> Cmd<Settings> {
 }
 
 #[tauri::command]
-fn save_settings(state: tauri::State<'_, State>, settings: Settings) -> Cmd<Settings> {
+fn save_settings(
+    state: tauri::State<'_, State>,
+    agent: tauri::State<'_, AgentState>,
+    settings: Settings,
+) -> Cmd<Settings> {
+    if !settings.developer_mode {
+        agent.0.disarm_all();
+    }
     state.0.save_settings(&settings).map_err(|e| e.to_info())
 }
 
@@ -162,6 +183,68 @@ async fn export_doctor_report(options: DoctorOptions, path: String) -> Cmd<Expor
     })
     .await
     .map_err(|e| Error::Internal(e.to_string()).to_info())?
+    .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+fn agent_cancel_connect(agent: tauri::State<'_, AgentState>, id: String) -> Cmd<()> {
+    agent
+        .0
+        .cancel_connect(&DeviceId::new(id))
+        .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+fn agent_set_lab(
+    state: tauri::State<'_, State>,
+    agent: tauri::State<'_, AgentState>,
+    id: String,
+    armed: bool,
+    acknowledge: bool,
+) -> Cmd<()> {
+    if armed
+        && !state
+            .0
+            .get_settings()
+            .map_err(|e| e.to_info())?
+            .developer_mode
+    {
+        return Err(Error::InvalidArgument("LAB_DEVELOPER_MODE_REQUIRED".into()).to_info());
+    }
+    agent
+        .0
+        .set_lab(&DeviceId::new(id), armed, acknowledge)
+        .map_err(|e| e.to_info())
+}
+
+#[tauri::command]
+async fn agent_package_info(path: String) -> Cmd<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || -> yeskia_core::Result<serde_json::Value> {
+        let p = std::path::Path::new(&path);
+        yeskia_core::fsutil::validate_host_path(p)?;
+        let name = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| Error::InvalidArgument("ADBIAN_PACKAGE_NAME".into()))?;
+        yeskia_core::fsutil::validate_file_name(name)?;
+        if !matches!(
+            p.extension()
+                .and_then(|v| v.to_str())
+                .map(str::to_ascii_lowercase)
+                .as_deref(),
+            Some("sis" | "sisx" | "jar" | "jad")
+        ) {
+            return Err(Error::InvalidArgument("ADBIAN_PACKAGE_TYPE".into()));
+        }
+        let size = std::fs::metadata(p)?.len();
+        if size == 0 || size > yeskia_core::adbian::MAX_PUT as u64 {
+            return Err(Error::LimitExceeded("ADBIAN_PUT_1_MIB".into()));
+        }
+        let (bytes, sha256) = yeskia_core::fsutil::hash_file(p, None)?;
+        Ok(serde_json::json!({"name":name,"bytes":bytes,"sha256":sha256}))
+    })
+    .await
+    .map_err(|_| Error::Internal("ADBIAN_PACKAGE_CHECK".into()).to_info())?
     .map_err(|e| e.to_info())
 }
 
@@ -601,7 +684,18 @@ pub fn run() {
     }
     let native = Arc::new(transport);
     let pnp: Arc<dyn yeskia_core::transport::DeviceTransport> = native.clone();
-    let core = match AppCore::init_with(&data_dir(), vec![pnp]) {
+    let salt = match yeskia_core::storage::Storage::open(&data_dir().join("yeskia.sqlite"))
+        .and_then(|s| s.install_salt())
+    {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("YESKIA: {}", e.to_info().message);
+            std::process::exit(1);
+        }
+    };
+    let agent = Arc::new(yeskia_adbian::AdbianTransport::system(salt));
+    let agent_transport: Arc<dyn yeskia_core::transport::DeviceTransport> = agent.clone();
+    let core = match AppCore::init_with(&data_dir(), vec![pnp, agent_transport]) {
         Ok(c) => Arc::new(c),
         Err(e) => {
             eprintln!(
@@ -645,7 +739,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(State(core))
         .manage(NativeState(native))
+        .manage(AgentState(agent))
         .invoke_handler(tauri::generate_handler![
+            agent_cancel_connect,
+            agent_set_lab,
+            agent_package_info,
             get_system_info,
             list_devices,
             connect_device,

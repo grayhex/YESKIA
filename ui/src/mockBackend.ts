@@ -95,6 +95,19 @@ interface Pending {
  * матрица строится при подключении, запись — «не проверено» до первой записи.
  */
 export class MockBackend implements Backend {
+  async agentCancelConnect(id: string): Promise<void> {
+    void id;
+  }
+  async agentSetLab(_id: string, _armed: boolean, _acknowledge: boolean): Promise<void> {
+    void _id;
+    void _armed;
+    void _acknowledge;
+    throw new Error("Bluetooth agent is unavailable in UI preview");
+  }
+  async agentPackageInfo(_path: string): Promise<import("./types").AgentPackage> {
+    void _path;
+    throw new Error("Select a real package in the desktop app");
+  }
   readonly isUiMock = true;
   private connected = false;
   private matrix: CapabilityMatrix | null = null;

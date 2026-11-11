@@ -32,6 +32,10 @@ export function useAppModel(backend: Backend) {
   const [doctorRunning, setDoctorRunning] = useState(false);
   const [exportedPath, setExportedPath] = useState<string | null>(null);
   const busyRef = useRef(false);
+  const heartbeatDevices = useRef<Device[]>([]);
+  useEffect(() => {
+    heartbeatDevices.current = devices;
+  }, [devices]);
   const sessionStartMs = useRef(Date.now());
 
   const refresh = useCallback(async () => {
@@ -62,6 +66,39 @@ export function useAppModel(backend: Backend) {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
+
+  // Heartbeats use the same device queue and never replay a failed phone operation.
+  useEffect(() => {
+    let alive = true;
+    const inFlight = new Set<string>();
+    const timer = setInterval(() => {
+      if (busyRef.current) return;
+      for (const device of heartbeatDevices.current) {
+        if (
+          !device.id.startsWith("adbian-") ||
+          device.connection !== "connected" ||
+          inFlight.has(device.id)
+        )
+          continue;
+        inFlight.add(device.id);
+        void (async () => {
+          try {
+            const operation = await backend.startOperation(device.id, { type: "agent.ping" });
+            await backend.awaitOperation(operation);
+          } catch {
+            /* Queue/full/disconnect is reflected by the next device refresh. */
+          } finally {
+            inFlight.delete(device.id);
+            if (alive) void refresh();
+          }
+        })();
+      }
+    }, 15000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [backend, refresh]);
 
   const guarded = useCallback(
     async (fn: () => Promise<void>) => {

@@ -4654,6 +4654,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "yeskia-adbian"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.17",
+ "serde",
+ "serde_json",
+ "sha2",
+ "windows",
+ "yeskia-agent-protocol",
+ "yeskia-core",
+]
+
+[[package]]
+name = "yeskia-agent-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "yeskia-app"
 version = "0.1.0"
 dependencies = [
@@ -4663,6 +4684,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "windows",
+ "yeskia-adbian",
  "yeskia-core",
  "yeskia-discovery",
 ]
@@ -4683,6 +4705,7 @@ dependencies = [
  "sha2",
  "thiserror 2.0.21",
  "x509-parser",
+ "yeskia-agent-protocol",
  "zip",
 ]
 

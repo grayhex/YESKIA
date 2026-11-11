@@ -3,5 +3,6 @@
   "epoc": "95d9d7273c5483e44650c9a6f669f42d008ad826",
   "adbian": "f55f788ff34da21d80791eef82a75869e38d2bb2",
   "rust_device_toolchain": "nightly-2026-11-10",
-  "device_build_verified": false
+  "device_build_verified": false,
+  "device_target_cfg_verified": true
 }

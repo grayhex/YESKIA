@@ -31,6 +31,7 @@ const server = process.env.YESKIA_UI_URL
 const pages = [
   ["Главная", "Home"],
   ["Подключение", "Connection"],
+  ["Агент на телефоне", "Phone agent"],
   ["Файлы", "Files"],
   ["Контакты", "Contacts"],
   ["Сообщения", "Messages"],
@@ -42,6 +43,8 @@ const pages = [
   ["Настройки", "Settings"],
   ["Помощь", "Help"],
 ];
+const filesPage = pages.find(([ru]) => ru === "Файлы");
+const agentPage = pages.find(([ru]) => ru === "Агент на телефоне");
 const cases = [];
 for (const [width, height] of [
   [1500, 900],
@@ -59,9 +62,12 @@ for (const [width, height] of [
           lang,
           scenario: "connected",
           scale,
-          pages: [pages[0], pages[2]],
+          pages: [pages[0], filesPage],
         });
     }
+  for (const theme of ["light", "dark"]) for (const lang of ["ru", "en"]) {
+    cases.push({width,height,theme,lang,scenario:"agent",scale:1,pages:[agentPage]});
+  }
   for (const scenario of ["readonly", "long"])
     cases.push({
       width,
@@ -70,7 +76,7 @@ for (const [width, height] of [
       lang: "ru",
       scenario,
       scale: 1,
-      pages: [pages[2]],
+      pages: [filesPage],
     });
   cases.push({
     width,
@@ -244,6 +250,9 @@ try {
                 })
                 .getByText("readme.txt", { exact: true })
                 .waitFor();
+          }
+          if (names[0] === "Агент на телефоне" && c.scenario === "agent") {
+            await page.getByRole("button", {name:"Device Lab",exact:true}).click();
           }
           await checkLayout(page, c, names[1]);
           if (c.scenario === "readonly") {
