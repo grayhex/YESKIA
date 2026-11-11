@@ -285,9 +285,18 @@ try {
   server?.kill();
   mkdirSync(resolve(output, ".."), { recursive: true });
   // One record per line keeps the generated matrix readable in a PR diff.
-  writeFileSync(
-    output,
-    `{\n  "checks": [\n${checks.map((check) => `    ${JSON.stringify(check)}`).join(",\n")}\n  ],\n  "errors": ${JSON.stringify(errors)}\n}\n`,
-  );
+  const lines = [
+    "{",
+    '  "checks": [',
+    ...checks.map(
+      (check, index) =>
+        `    ${JSON.stringify(check)}${index < checks.length - 1 ? "," : ""}`,
+    ),
+    "  ],",
+    `  "errors": ${JSON.stringify(errors)}`,
+    "}",
+    "",
+  ];
+  writeFileSync(output, lines.join(String.fromCharCode(10)));
   console.log(JSON.stringify({ checks: checks.length, errors }, null, 2));
 }
