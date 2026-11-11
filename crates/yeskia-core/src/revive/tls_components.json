@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "reviewed": "2026-11-05",
+  "note": "Binaries are never stored in this repository. A component is downloaded only on request from its author's own host and only when size and SHA-256 equal the pin. The author's download URL is mutable: when the author publishes a new build the pin stops matching and the download is refused until the pin is re-verified.",
+  "components": {
+    "mbedtls-lib": {
+      "title": {"en": "MBedTLS library for Symbian", "ru": "Библиотека MBedTLS для Symbian"},
+      "role": "library",
+      "name": "MBedTLS.sis",
+      "url": "https://nnproject.cc/dl/mbedtls.sis",
+      "size": 926820,
+      "sha256": "d20d6d41c796d53fe1c0df413248c14a91e8c5b018ad8c71194e66bf60937a27",
+      "version": "1.4.4",
+      "released": "2026-10-21",
+      "author": "Shinovon (nnproject)",
+      "homepage": "https://nnproject.cc/tls/",
+      "source_repository": "https://github.com/shinovon/mbedtls-symbian",
+      "licence": {"spdx": "Apache-2.0", "url": "https://github.com/shinovon/mbedtls-symbian/blob/main/LICENSE", "note": "Licence of the source repository; the download page does not state a separate binary licence."},
+      "release_notes": "https://nnproject.cc/tls/",
+      "release_notes_text": "v1.4.4 (21.10.2026): CA root certificates updated to 2026-10-20; TLS 1.3 is the default option on installation.",
+      "package": {"uid": "0x20292b6b", "signed": false, "targets": ["0x101f7961", "0x1028315f", "0x20022e6d", "0x101f6300"]},
+      "depends_on": [],
+      "install": "sis-on-phone",
+      "risk": "medium",
+      "observed_at": "2026-11-05"
+    },
+    "ssl-patch": {
+      "title": {"en": "System SSL patch (symbian-tls)", "ru": "Патч системного SSL (symbian-tls)"},
+      "role": "system-replacement",
+      "name": "ssl.zip",
+      "url": "https://nnproject.cc/dl/ssl.zip",
+      "size": 9428,
+      "sha256": "62365db422253e87b0328058e160ab03c3a3501e7eeae064596727307be9b416",
+      "version": "21",
+      "released": "2026-10-09",
+      "author": "Shinovon (nnproject)",
+      "homepage": "https://nnproject.cc/tls/",
+      "source_repository": "https://github.com/shinovon/symbian-tls",
+      "licence": {"spdx": "EPL-2.0", "url": "https://github.com/shinovon/symbian-tls/blob/main/LICENSE", "note": "Licence of the source repository; the download page does not state a separate binary licence."},
+      "release_notes": "https://nnproject.cc/tls/",
+      "release_notes_text": "v21 (09.10.2026): session cache, TLS 1.3 session tickets, Java compatibility fixes. Note from the author: CA certificates are not integrated with the system store and unsupported system certificates show stub details.",
+      "contents": ["sys/bin/ssl.dll"],
+      "depends_on": ["mbedtls-lib"],
+      "install": "extract-to-system-drive",
+      "risk": "high",
+      "observed_at": "2026-11-05"
+    }
+  }
+}

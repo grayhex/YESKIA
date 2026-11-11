@@ -1958,3 +1958,144 @@ dl.facts {
     margin: 1px 0;
   }
 }
+
+/* Local contacts, TLS and first-run tools reuse Fluent surfaces and spacing. */
+.workbench-grid,
+.contact-grid,
+.preparation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4, 16px);
+  align-items: start;
+}
+.contact-grid {
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+}
+.preparation-grid {
+  grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.35fr);
+}
+.contact-grid > .panel,
+.preparation-grid > .panel,
+.workbench-grid > .panel {
+  min-width: 0;
+  margin: 0;
+}
+.contact-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-list-row > .record-row {
+  flex: 1;
+  min-width: 0;
+  text-align: start;
+}
+.contact-list-row > input {
+  flex: none;
+  width: auto;
+}
+.contact-editor {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.contact-editor label,
+.workbench-grid label,
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.contact-editor textarea {
+  min-height: 64px;
+  resize: vertical;
+  width: 100%;
+}
+.contact-editor input,
+.contact-editor textarea,
+.form-grid input,
+.form-grid select {
+  min-width: 0;
+  max-width: 100%;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.contact-values {
+  min-width: 0;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.contact-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+.contact-preview {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.contact-grid .record-list {
+  max-height: 650px;
+  overflow: auto;
+}
+.preparation-steps {
+  display: grid;
+  gap: 4px;
+}
+.preparation-steps .record-row {
+  text-align: start;
+  width: 100%;
+}
+.tls-component {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.workbench-grid .mono,
+.contact-grid .mono {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1000px) {
+  .workbench-grid,
+  .contact-grid,
+  .preparation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .contact-grid .record-list {
+    max-height: 300px;
+  }
+  .preparation-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  .form-grid,
+  .preparation-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .contact-value {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 1001px) {
+  .preparation-steps {
+    max-height: max(280px, calc(100dvh - 360px));
+    overflow: auto;
+  }
+  .contact-editor {
+    max-height: max(280px, calc(100dvh - 380px));
+    overflow: auto;
+    padding-inline-end: 8px;
+  }
+}

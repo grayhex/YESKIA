@@ -3,6 +3,8 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Lang = "ru" | "en";
 
 const ru = {
+  "nav.preparation": "Подготовка E72",
+  "nav.tls": "TLS / HTTPS Revival",
   "home.openFiles": "Открыть файлы",
   "fm.access.confirm": "Запись с подтверждением",
   "fm.access.readonly": "Только чтение",
@@ -648,6 +650,8 @@ const ru = {
 export type MessageKey = keyof typeof ru;
 
 const en: Record<MessageKey, string> = {
+  "nav.preparation": "Prepare E72",
+  "nav.tls": "TLS / HTTPS Revival",
   "home.openFiles": "Open files",
   "fm.access.confirm": "Write with confirmation",
   "fm.access.readonly": "Read only",

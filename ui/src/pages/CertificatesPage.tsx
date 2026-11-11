@@ -6,7 +6,13 @@ import type { AppModel } from "../useAppModel";
 import type { CertInfo, ErrorInfo } from "../types";
 import { toErrorInfo } from "../api";
 import { useWorkspaceCopy, type WorkspaceKey } from "../workspaceCopy";
-export function CertificatesPage({ model }: { model: AppModel }) {
+export function CertificatesPage({
+  model,
+  go,
+}: {
+  model: AppModel;
+  go?: (id: import("../components/Shell").PageId) => void;
+}) {
   const { c, error: localizeError } = useWorkspaceCopy();
   const [cert, setCert] = useState<CertInfo | null>(null);
   const [path, setPath] = useState("");
@@ -56,7 +62,14 @@ export function CertificatesPage({ model }: { model: AppModel }) {
         : String(v);
   return (
     <div className="workspace-page">
-      <h1>{c("cert.title")}</h1>
+      <div className="page-heading">
+        <h1>{c("cert.title")}</h1>
+        {go && (
+          <button className="btn btn-secondary" onClick={() => go("tls")}>
+            TLS / HTTPS Revival
+          </button>
+        )}
+      </div>
       <Panel title={c("cert.inspect")}>
         <p>{c("cert.intro")}</p>
         <div className="btn-row">

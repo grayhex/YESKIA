@@ -4,6 +4,8 @@ import { Icon, type IconName } from "./Icon";
 
 export type AccentTone = "blue" | "green" | "purple" | "amber" | "red" | "neutral";
 const themes: Record<PageId, { icon: IconName; tone: AccentTone }> = {
+  preparation: { icon: "phone", tone: "green" },
+  tls: { icon: "shield", tone: "blue" },
   agent: { icon: "activity", tone: "green" },
   home: { icon: "phone", tone: "blue" },
   connection: { icon: "usb", tone: "green" },

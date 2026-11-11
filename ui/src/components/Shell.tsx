@@ -4,6 +4,8 @@ import type { Device } from "../types";
 import { useI18n, type Lang, type MessageKey } from "../i18n";
 
 export type PageId =
+  | "preparation"
+  | "tls"
   | "agent"
   | "home"
   | "connection"
@@ -25,6 +27,8 @@ export interface NavEntry {
 }
 
 const navIcons: Record<PageId, IconName> = {
+  preparation: "phone",
+  tls: "shield",
   agent: "activity",
   home: "home",
   connection: "phone",
