@@ -35,7 +35,8 @@ jobs:
 
   ui:
     name: UI (TypeScript)
-    runs-on: ubuntu-latest
+    # This hosted image includes Chrome; do not depend on ubuntu-latest rollovers.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,8 +49,12 @@ jobs:
       - run: npm --workspace ui run format:check
       - run: npm run ui:test
       - run: npm run ui:build
-      - name: Chromium for layout regression checks
-        run: npx playwright install --with-deps chromium
+      - name: Use hosted Chrome for layout regression checks
+        shell: bash
+        run: |
+          chrome_path="$(command -v google-chrome-stable || command -v google-chrome)"
+          "$chrome_path" --version
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$chrome_path" >> "$GITHUB_ENV"
       - run: npm run ui:layout
       - name: Layout report
         if: always()
