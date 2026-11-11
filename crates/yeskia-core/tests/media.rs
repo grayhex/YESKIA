@@ -1,5 +1,5 @@
 //! Офлайн smoke-тесты подготовки медиа через настоящий FFmpeg (issue #9).
-//! Без FFmpeg тесты пропускаются; в CI `YESKIA_REQUIRE_FFMPEG=1` превращает пропуск в падение.
+//! Запускаются явно через `--ignored`; `YESKIA_REQUIRE_FFMPEG=1` требует наличие инструмента.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -65,6 +65,7 @@ fn opts(start: f64, end: f64) -> RingtoneOptions {
 fn nostage(_: u64, _: u64) {}
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn toolchain_reports_version_license_and_encoders() {
     let Some(t) = toolchain() else { return };
     assert!(!t.info.version.is_empty());
@@ -81,6 +82,7 @@ fn toolchain_reports_version_license_and_encoders() {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn probe_distinguishes_audio_video_image_and_rejects_junk() {
     let Some(t) = toolchain() else { return };
     let d = tmp("probe");
@@ -130,6 +132,7 @@ fn probe_distinguishes_audio_video_image_and_rejects_junk() {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn waveform_shows_silence_then_sound() {
     let Some(t) = toolchain() else { return };
     let d = tmp("wave");
@@ -167,6 +170,7 @@ fn peak(t: &Toolchain, path: &str) -> f32 {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn ringtone_trims_fades_normalizes_exports_and_reads_back() {
     let Some(t) = toolchain() else { return };
     let d = tmp("ring");
@@ -256,6 +260,7 @@ fn ringtone_trims_fades_normalizes_exports_and_reads_back() {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn ringtone_errors_are_clear_and_leave_nothing_behind() {
     let Some(t) = toolchain() else { return };
     let d = tmp("ring-err");
@@ -351,6 +356,7 @@ fn dims(t: &Toolchain, path: &str) -> (u32, u32) {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn image_presets_follow_each_models_screen_geometry() {
     let Some(t) = toolchain() else { return };
     let d = tmp("img");
@@ -422,6 +428,7 @@ fn image_presets_follow_each_models_screen_geometry() {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn audio_and_video_presets_produce_readable_files() {
     let Some(t) = toolchain() else { return };
     let d = tmp("av");

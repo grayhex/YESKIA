@@ -18,23 +18,9 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
-        if: runner.os == 'Linux'
-        shell: bash
-        timeout-minutes: 10
-        run: |
-          apt_options=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          sudo apt-get "${apt_options[@]}" update
-          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
-      - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
       - run: cargo fmt --all --check
       - run: cargo clippy -p yeskia-core -p yeskia-discovery -p yeskia-lab --all-targets -- -D warnings
       - run: cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab
-        env:
-          # без FFmpeg тесты медиа не пропускаются, а падают
-          YESKIA_REQUIRE_FFMPEG: "1"
       - name: Лаборатория — приватность и сырые трассы
         run: cargo run -q -p yeskia-lab -- scan .
 

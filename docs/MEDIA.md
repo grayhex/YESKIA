@@ -74,7 +74,7 @@ Reuse алгоритма из Python (`symport/audio/studio.py`, `symport/revive
 
 | Что | Где | Статус |
 | --- | --- | --- |
-| Обрезка рингтона, затухание (регрессия: `-ss` до `-i`), нормализация, экспорт, read-back, отмена, нет перезаписи, ошибки | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs` (настоящий FFmpeg; в CI обязателен) | `tested-on-host` |
+| Обрезка рингтона, затухание (регрессия: `-ss` до `-i`), нормализация, экспорт, read-back, отмена, нет перезаписи, ошибки | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs` (настоящий FFmpeg; необязательные тесты `--ignored`, см. DEVELOPMENT.md) | `tested-on-host` |
 | Раннер: таймаут, отмена, код выхода, лимит вывода, аргументы без оболочки | `media.rs` (модульные, unix) | `tested-on-host` |
 | Пресеты: геометрия E52 / E72 / 7610, пропорции | `tests/media.rs` | `tested-on-host` |
 | Темы SymPort E52 Clear (golden: 71 растр, 46 иконок), SIS, повреждения | `crates/yeskia-core/tests/theme.rs` | `tested-on-host` |

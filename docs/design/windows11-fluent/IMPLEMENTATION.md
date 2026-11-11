@@ -43,7 +43,7 @@
 - `npm run ui:layout` — воспроизводимая проверка Chromium; [фактический JSON-отчёт](../../screenshots/fluent/layout-report.json).
 - 1500×900 и 1366×768; RU/EN; light/dark; эффективные 100/150/200%; connected/empty/read-only, 100 файлов в каждой панели, onboarding, помощь и журнал разработчика.
 - Проверяются body/main/sidebar overflow, загрузка изображений, наличие SVG во всей навигации и четырёх акцентов, E72 и текстовое название; длинные списки обязаны прокручиваться внутри обеих панелей.
-- `cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab` с FFmpeg — 292 теста.
+- `cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab` — 283 теста; 9 интеграционных тестов FFmpeg запускаются только явно, см. [DEVELOPMENT.md](../../DEVELOPMENT.md).
 - `cargo fmt --all --check`, `cargo clippy -p yeskia-core -p yeskia-discovery -p yeskia-lab --all-targets -- -D warnings`.
 - `node --test scripts/release.test.mjs` — 9 тестов.
 

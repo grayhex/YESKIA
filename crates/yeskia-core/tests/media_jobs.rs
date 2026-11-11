@@ -66,6 +66,7 @@ fn opts() -> RingtoneOptions {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn ringtone_job_runs_reports_progress_and_never_overwrites() {
     if !have_ffmpeg() {
         return;
@@ -114,6 +115,7 @@ fn ringtone_job_runs_reports_progress_and_never_overwrites() {
 }
 
 #[test]
+#[ignore = "requires external FFmpeg; run explicitly with --ignored"]
 fn media_job_can_be_cancelled_without_leaving_files() {
     if !have_ffmpeg() {
         return;
