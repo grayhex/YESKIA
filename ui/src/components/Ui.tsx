@@ -1,12 +1,30 @@
+import { AccentIcon, useVisualTheme, type AccentTone } from "./Visual";
+import type { IconName } from "./Icon";
 import { useWorkspaceCopy } from "../workspaceCopy";
 import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
 import type { ConnectionState, ErrorInfo } from "../types";
 
-export function Panel({ title, children }: { title?: string; children: ReactNode }) {
+export function Panel({
+  title,
+  children,
+  icon,
+  tone,
+}: {
+  title?: string;
+  children: ReactNode;
+  icon?: IconName;
+  tone?: AccentTone;
+}) {
+  const theme = useVisualTheme();
   return (
     <section className="panel" aria-label={title}>
-      {title && <h2>{title}</h2>}
+      {title && (
+        <h2>
+          <AccentIcon name={icon ?? theme.icon} tone={tone ?? theme.tone} />
+          {title}
+        </h2>
+      )}
       {children}
     </section>
   );
@@ -41,6 +59,10 @@ export function StateMessage({
 }) {
   return (
     <div className={`state state-${kind}`} role={kind === "error" ? "alert" : "status"}>
+      <AccentIcon
+        name={kind === "error" ? "alert" : "info"}
+        tone={kind === "error" ? "red" : "neutral"}
+      />
       <h3>{title}</h3>
       {children}
     </div>
@@ -72,14 +94,21 @@ export function Metric({
   label,
   value,
   note,
+  icon,
+  tone = "blue",
 }: {
   label: string;
   value: ReactNode;
   note?: ReactNode;
+  icon?: IconName;
+  tone?: AccentTone;
 }) {
   return (
     <div className="metric">
-      <dt>{label}</dt>
+      <dt>
+        {label}
+        {icon && <AccentIcon name={icon} tone={tone} />}
+      </dt>
       <dd>
         {value} {note}
       </dd>

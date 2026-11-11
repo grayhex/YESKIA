@@ -2,16 +2,20 @@
   "name": "yeskia",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["ui"],
+  "workspaces": [
+    "ui"
+  ],
   "scripts": {
     "ui:dev": "npm --workspace ui run dev",
     "ui:build": "npm --workspace ui run build",
     "ui:test": "npm --workspace ui run test",
     "ui:lint": "npm --workspace ui run lint",
     "ui:typecheck": "npm --workspace ui run typecheck",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "ui:layout": "node scripts/check-layout.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "playwright": "^1.65.0"
   }
 }

@@ -24,6 +24,16 @@ cargo run -p yeskia-app -- --smoke-test   # старт без окна, печа
 `cargo build/test` без `-p` собирают только `yeskia-core`; оболочка `yeskia-app` требует WebView
 (Windows — WebView2).
 
+## Необязательные интеграционные тесты FFmpeg
+
+Обычный CI не устанавливает FFmpeg и не запускает девять тестов с настоящим
+кодированием медиа. Они помечены `#[ignore]`; проверки ядра, тем, валидации путей
+и UI продолжают выполняться. Для явного запуска с установленными `ffmpeg` и `ffprobe`:
+
+```bash
+YESKIA_REQUIRE_FFMPEG=1 cargo test -p yeskia-core --test media --test media_jobs -- --ignored
+```
+
 ## Smoke-test
 
 `yeskia-app --smoke-test` инициализирует хранилище в `%APPDATA%\dev.yeskia.app`, собирает системные

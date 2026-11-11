@@ -1,5 +1,5 @@
 import { useI18n } from "../i18n";
-import e52 from "../assets/phones/nokia-e52.webp";
+import e72 from "../assets/phones/nokia-e72.webp";
 import n8 from "../assets/phones/nokia-n8.webp";
 import e7 from "../assets/phones/nokia-e7-open.webp";
 
@@ -16,7 +16,7 @@ export function PhoneHero() {
       <div className="hero-phones" aria-hidden="true">
         <img src={e7} alt="" className="hero-e7" />
         <img src={n8} alt="" className="hero-n8" />
-        <img src={e52} alt="" className="hero-e52" />
+        <img src={e72} alt="" className="hero-e72" />
       </div>
     </section>
   );

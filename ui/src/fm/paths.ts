@@ -63,9 +63,9 @@ export function uniqueName(name: string, taken: Iterable<string>): string {
   return `${stem} (${Date.now()})${ext}`;
 }
 
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`;
-  const units = ["КБ", "МБ", "ГБ", "ТБ"];
+export function formatSize(bytes: number, lang: "ru" | "en" = "ru"): string {
+  if (bytes < 1024) return `${bytes} ${lang === "ru" ? "Б" : "B"}`;
+  const units = lang === "ru" ? ["КБ", "МБ", "ГБ", "ТБ"] : ["KB", "MB", "GB", "TB"];
   let v = bytes / 1024;
   let i = 0;
   while (v >= 1024 && i < units.length - 1) {
@@ -84,4 +84,16 @@ export function withName(path: string, name: string): string {
 export function baseName(path: string): string {
   const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return i < 0 ? path : path.slice(i + 1);
+}
+
+/** Ancestors derived from the actual pane path, bounded by the transport root. */
+export function pathBreadcrumbs(path: string, side: "host" | "device", root = "/"): string[] {
+  if (!path) return [];
+  const result = [path];
+  let parent = side === "host" ? parentHost(path) : parentDevice(path, root);
+  while (parent && !result.includes(parent)) {
+    result.push(parent);
+    parent = side === "host" ? parentHost(parent) : parentDevice(parent, root);
+  }
+  return result.reverse();
 }

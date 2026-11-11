@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Backend } from "./api";
+import { VisualProvider } from "./components/Visual";
+import { Icon } from "./components/Icon";
 import { ErrorMessage } from "./components/Ui";
 import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
 import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
@@ -29,14 +31,15 @@ export function App({ backend }: { backend: Backend }) {
     { id: "home", label: "nav.home" },
     { id: "connection", label: "nav.connection" },
     { id: "files", label: "nav.files" },
-    { id: "packages", label: "nav.packages" },
-    { id: "studio", label: "nav.studio" },
-    { id: "backups", label: "nav.backups" },
     { id: "contacts", label: "nav.contacts" },
     { id: "sms", label: "nav.sms" },
     { id: "calendar", label: "nav.calendar" },
+    { id: "packages", label: "nav.packages" },
+    { id: "studio", label: "nav.studio" },
     { id: "certificates", label: "nav.certificates" },
+    { id: "backups", label: "nav.backups" },
     ...(developer ? ([{ id: "journal", label: "nav.journal" }] as NavEntry[]) : []),
+    { id: "doctor", label: "nav.help" },
     { id: "settings", label: "nav.settings" },
   ];
   // Страница журнала доступна только в режиме «Разработчик».
@@ -75,42 +78,65 @@ export function App({ backend }: { backend: Backend }) {
           onMode={(d) => model.updateSettings({ developer_mode: d })}
           onLang={(l) => model.updateSettings({ language: l })}
         />
-        <SideNav items={nav} current={current} onSelect={select} />
-        <main id="main" className="content" tabIndex={-1} ref={mainRef}>
-          {model.isUiMock && (
-            <p role="alert" className="banner banner-warn">
-              {t("banner.uiMock")}
-            </p>
-          )}
-          {model.error && <ErrorMessage error={model.error} developer={developer} />}
-          {welcome && (
-            <WelcomePage
-              model={model}
-              go={select}
-              onFinish={() => void model.updateSettings({ onboarded: true })}
-            />
-          )}
-          {!welcome && current === "home" && <HomePage model={model} go={select} />}
-          {!welcome && current === "connection" && (
-            <DevicePage
-              key={page}
-              diagnostic={page === "doctor"}
-              model={model}
-              developer={developer}
-              go={select}
-            />
-          )}
-          {!welcome && current === "files" && <FileManagerPage model={model} go={select} />}
-          {!welcome && current === "packages" && <StorePage model={model} />}
-          {!welcome && current === "studio" && <StudioPage model={model} />}
-          {!welcome && current === "backups" && <BackupsPage model={model} />}
-          {!welcome && (current === "contacts" || current === "sms" || current === "calendar") && (
-            <PersonalPage key={current} domain={current} model={model} />
-          )}
-          {!welcome && current === "certificates" && <CertificatesPage model={model} />}
-          {!welcome && current === "journal" && <JournalPage model={model} />}
-          {!welcome && current === "settings" && <SettingsPage model={model} />}
-        </main>
+        <SideNav
+          items={nav}
+          current={current}
+          onSelect={select}
+          device={connected ?? model.devices[0]}
+        />
+        <div className="workspace-bar">
+          <div className="workspace-crumb">
+            <span>{t("nav.group.workspace")}</span>
+            <span aria-hidden="true">›</span>
+            <strong>{t(currentLabel)}</strong>
+          </div>
+          <button
+            className="btn btn-secondary"
+            disabled={model.busy}
+            onClick={() => void model.refresh()}
+          >
+            <Icon name="refresh" />
+            {t("fm.refresh")}
+          </button>
+        </div>
+        <VisualProvider page={current}>
+          <main data-page={current} id="main" className="content" tabIndex={-1} ref={mainRef}>
+            {model.isUiMock && (
+              <p role="alert" className="banner banner-warn">
+                {t("banner.uiMock")}
+              </p>
+            )}
+            {model.error && <ErrorMessage error={model.error} developer={developer} />}
+            {welcome && (
+              <WelcomePage
+                model={model}
+                go={select}
+                onFinish={() => void model.updateSettings({ onboarded: true })}
+              />
+            )}
+            {!welcome && current === "home" && <HomePage model={model} go={select} />}
+            {!welcome && current === "connection" && (
+              <DevicePage
+                key={page}
+                diagnostic={page === "doctor"}
+                model={model}
+                developer={developer}
+                go={select}
+              />
+            )}
+            {!welcome && current === "files" && <FileManagerPage model={model} go={select} />}
+            {!welcome && current === "packages" && <StorePage model={model} />}
+            {!welcome && current === "studio" && <StudioPage model={model} />}
+            {!welcome && current === "backups" && <BackupsPage model={model} />}
+            {!welcome &&
+              (current === "contacts" || current === "sms" || current === "calendar") && (
+                <PersonalPage key={current} domain={current} model={model} />
+              )}
+            {!welcome && current === "certificates" && <CertificatesPage model={model} />}
+            {!welcome && current === "journal" && <JournalPage model={model} />}
+            {!welcome && current === "settings" && <SettingsPage model={model} />}
+          </main>
+        </VisualProvider>
         <StatusBar>
           <span>{t("status.offline")}</span>
           <span>{t("status.devices", { n: model.devices.length })}</span>

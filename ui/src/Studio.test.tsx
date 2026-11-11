@@ -68,7 +68,7 @@ function setup() {
 
 async function open(b = setup()) {
   render(<App backend={b} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Медиа и темы" }));
   await screen.findByRole("heading", { name: "Медиа и темы" });
   return b;

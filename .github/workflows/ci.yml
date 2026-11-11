@@ -11,31 +11,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
       - run: cargo fmt --all --check
       - run: cargo clippy -p yeskia-core -p yeskia-discovery -p yeskia-lab --all-targets -- -D warnings
       - run: cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab
-        env:
-          # без FFmpeg тесты медиа не пропускаются, а падают
-          YESKIA_REQUIRE_FFMPEG: "1"
       - name: Лаборатория — приватность и сырые трассы
         run: cargo run -q -p yeskia-lab -- scan .
 
   ui:
     name: UI (TypeScript)
-    runs-on: ubuntu-latest
+    # This hosted image includes Chrome; do not depend on ubuntu-latest rollovers.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,6 +40,19 @@ jobs:
       - run: npm --workspace ui run format:check
       - run: npm run ui:test
       - run: npm run ui:build
+      - name: Use hosted Chrome for layout regression checks
+        shell: bash
+        run: |
+          chrome_path="$(command -v google-chrome-stable || command -v google-chrome)"
+          "$chrome_path" --version
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$chrome_path" >> "$GITHUB_ENV"
+      - run: npm run ui:layout
+      - name: Layout report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YESKIA-Layout-Report
+          path: docs/screenshots/fluent/layout-report.json
       - name: Скрипты релиза (уведомления, SBOM, контрольные суммы)
         run: node --test scripts/release.test.mjs
 

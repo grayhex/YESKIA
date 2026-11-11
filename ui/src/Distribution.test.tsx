@@ -43,7 +43,7 @@ describe("Первый запуск", () => {
     const b = await fresh();
     await userEvent.click(screen.getByRole("button", { name: "Начать" }));
     await userEvent.click(screen.getByRole("button", { name: "Искать телефон" }));
-    await userEvent.click(await screen.findByRole("button", { name: /Подключить: Nokia N95/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Подключить: Nokia E72/ }));
     await waitFor(() => expect(screen.getByTestId("wel-devices")).toHaveTextContent("Подключено"));
     await userEvent.click(screen.getByRole("button", { name: "Далее" }));
     const caps = await screen.findByTestId("wel-caps");
@@ -79,7 +79,7 @@ it("открывает страницу последнего выпуска", as
   const backend = new MockBackend();
   const open = vi.spyOn(backend, "openLatestRelease");
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Настройки" }));
   await userEvent.click(await screen.findByRole("button", { name: "Последний выпуск" }));
   expect(open).toHaveBeenCalledOnce();

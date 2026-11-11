@@ -1,3 +1,4 @@
+import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
 import { Dialog } from "../fm/Dialog";
@@ -269,7 +270,7 @@ export function BackupsPage({ model }: { model: AppModel }) {
     !!planFor && planFor.new > 0 && (tgtMode === "local" || (deviceWrite && !!device)) && !running;
 
   return (
-    <div className="compact-tools">
+    <div className="compact-tools backups-workspace">
       <h1>{t("bk.title")}</h1>
       <p role="note" className="banner banner-warn">
         {t("bk.scope")}
@@ -366,6 +367,7 @@ export function BackupsPage({ model }: { model: AppModel }) {
         </label>
         <div className="btn-row">
           <button className="btn" disabled={!!running} onClick={create}>
+            <Icon name="archive" />
             {t("bk.create")}
           </button>
         </div>

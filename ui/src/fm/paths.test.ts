@@ -1,4 +1,12 @@
-import { formatSize, joinDevice, joinHost, parentDevice, parentHost, uniqueName } from "./paths";
+import {
+  pathBreadcrumbs,
+  formatSize,
+  joinDevice,
+  joinHost,
+  parentDevice,
+  parentHost,
+  uniqueName,
+} from "./paths";
 
 describe("пути компьютера", () => {
   it("склеивает и поднимается по Windows-путям", () => {
@@ -44,4 +52,20 @@ describe("уникальные имена и размеры", () => {
     expect(formatSize(2048)).toBe("2.0 КБ");
     expect(formatSize(5 * 1024 * 1024 * 1024)).toBe("5.0 ГБ");
   });
+});
+
+it("breadcrumbs stay inside the device root and retain complete Windows paths", () => {
+  expect(pathBreadcrumbs("E:/Images/Фото", "device", "E:/")).toEqual([
+    "E:/",
+    "E:/Images",
+    "E:/Images/Фото",
+  ]);
+  expect(pathBreadcrumbs("F:/Images", "device")).toEqual(["/", "F:/", "F:/Images"]);
+  expect(pathBreadcrumbs("C:\\Users\\user", "host")).toEqual([
+    "C:\\",
+    "C:\\Users",
+    "C:\\Users\\user",
+  ]);
+  expect(pathBreadcrumbs("", "host")).toEqual([]);
+  expect(formatSize(1024, "en")).toBe("1.0 KB");
 });

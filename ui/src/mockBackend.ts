@@ -163,13 +163,13 @@ export class MockBackend implements Backend {
 
   private device(): Device {
     return {
-      id: "mock-n95",
-      display_name: "Nokia N95 (MOCK)",
+      id: "mock-e72",
+      display_name: "Nokia E72 (MOCK)",
       origin: "mock",
       transport: "mock",
       connection: this.connected ? "connected" : "disconnected",
       serial: "***09",
-      identified_model: this.connected ? "Nokia N95 (MOCK)" : null,
+      identified_model: this.connected ? "Nokia E72 (MOCK)" : null,
       matrix: this.connected ? this.matrix : null,
     };
   }
@@ -213,7 +213,7 @@ export class MockBackend implements Backend {
     return this.settings.use_mock_device ? [this.device()] : [];
   }
   async connectDevice(id: string) {
-    if (id !== "mock-n95" || !this.settings.use_mock_device)
+    if (id !== "mock-e72" || !this.settings.use_mock_device)
       throw err("DEVICE_NOT_FOUND", "устройство не найдено");
     if (this.connected) throw err("ALREADY_CONNECTED", "устройство уже подключено");
     this.connected = true;
@@ -273,7 +273,7 @@ export class MockBackend implements Backend {
     const uncertain = isWrite && !ok && !fileOp?.error;
     const result: OperationResult = {
       operation_id: operationId,
-      device_id: "mock-n95",
+      device_id: "mock-e72",
       operation: op,
       origin: "mock",
       outcome: cancelled ? "cancelled" : fail || fileOp?.error ? "failed" : "success",
@@ -282,7 +282,7 @@ export class MockBackend implements Backend {
         : fileOp?.data
           ? fileOp.data
           : p.request.type === "identity.read"
-            ? { type: "identity", model: "Nokia N95 (MOCK)", firmware: "mock-1.0" }
+            ? { type: "identity", model: "Nokia E72 (MOCK)", firmware: "mock-1.0" }
             : p.request.type === "files.list"
               ? { type: "entries", entries: [{ name: "Images", is_dir: true, size: 0 }] }
               : p.request.type === "files.write"
@@ -756,6 +756,7 @@ export class MockBackend implements Backend {
     if (model === "nokia-7610" || it.platform_uids.length === 0) return "unknown";
     const known: Record<string, string[]> = {
       "nokia-e52": ["0x101f7961", "0x102032be", "0x102752ae"],
+      "nokia-e72": ["0x101f7961", "0x102032be", "0x102752ae"],
       "nokia-n95": ["0x101f7961", "0x102032be"],
       "nokia-n97-mini": ["0x1028315f"],
     };

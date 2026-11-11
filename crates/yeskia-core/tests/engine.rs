@@ -918,10 +918,10 @@ fn model_is_known_only_after_protocol_identification_on_the_connection() {
         "до подключения модель не заявляется"
     );
     let d = e.connect(&id()).unwrap();
-    assert_eq!(d.identified_model.as_deref(), Some("Nokia N95 (MOCK)"));
+    assert_eq!(d.identified_model.as_deref(), Some("Nokia E72 (MOCK)"));
     assert_eq!(
         e.list_devices().unwrap()[0].identified_model.as_deref(),
-        Some("Nokia N95 (MOCK)")
+        Some("Nokia E72 (MOCK)")
     );
     e.disconnect(&id()).unwrap();
     assert!(e.list_devices().unwrap()[0].identified_model.is_none());
