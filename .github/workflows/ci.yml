@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -20,7 +20,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          apt_options=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
       - name: FFmpeg для smoke-тестов медиа (внешний инструмент)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
