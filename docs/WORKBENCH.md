@@ -110,7 +110,9 @@ optimistic edits/first-save undo/restart, manual merges, snapshot identity,
 malicious ZIP and changed pins, SIS identity/version/CRC, platform exclusions,
 manual proof rejection and context invalidation. UI tests cover explicit local
 save/undo, export path selection, manual confirmation, report privacy and TLS
-deep links/blocked automatic apply. Windows release CI remains required.
+deep links/blocked automatic apply. Local checks: 318 Rust tests, 135 UI tests and 334 browser layout checks passed.
+The native Tauri Rust layer also cross-checks for Windows GNU; Windows MSVC
+release/installer CI remains required.
 
 Owner has Windows 11 and a lab E72; this cloud environment is Linux x86-64 and
 has no remote connection to that phone. Actual TLS install/HTTPS/recovery,

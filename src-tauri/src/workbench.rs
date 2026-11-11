@@ -239,7 +239,7 @@ pub(crate) async fn contacts_phone_read(
         .map_err(|e| e.to_info())?;
     }
     Ok(
-        serde_json::json!({"book":book,"previous":old.value,"changes":changes,"hash":hash,"read_at_ms":yeskia_core::now_ms(),"source":kind,"write_status":contacts::writable_status()}),
+        serde_json::json!({"book":book,"previous":old.value,"changes":changes,"hash":hash,"read_at_ms":now_ms(),"source":kind,"write_status":contacts::writable_status()}),
     )
 }
 #[tauri::command]
@@ -372,34 +372,38 @@ pub(crate) fn observe_result(
         .map_err(|_| Error::Internal("TLS_LOCK".into()))?
         .remove(&result.operation_id)
     {
-        if let Some(yeskia_core::operations::OperationData::Written {
-            sha256,
-            verified: true,
-            ..
-        }) = &result.data
-        {
-            if *sha256 == tls.sha256
-                && result.outcome == yeskia_core::operations::Outcome::Success
-                && !result.uncertain
-            {
-                let key = yeskia_core::revive::progress_key(&tls.fingerprint, &tls.firmware);
-                let mut old = store.load::<yeskia_core::revive::Progress>(&key)?;
-                old.value.transferred.insert(
-                    tls.id,
-                    yeskia_core::revive::Observation {
-                        status: if result.origin == yeskia_core::device::DeviceOrigin::Real {
-                            "transferred-read-back-verified"
-                        } else {
-                            "transferred-on-mock"
-                        }
-                        .into(),
-                        source: "file-provider; package staging is not installation".into(),
-                        checked_at_ms: yeskia_core::now_ms(),
-                    },
-                );
-                store.save(&key, old.revision, old.value)?;
+        let verified = matches!(&result.data,Some(yeskia_core::operations::OperationData::Written{sha256,verified:true,..}) if *sha256==tls.sha256)
+            && result.outcome == yeskia_core::operations::Outcome::Success
+            && !result.uncertain;
+        let status = if result.uncertain {
+            "unknown-check-phone-before-retry"
+        } else if verified {
+            if result.origin == yeskia_core::device::DeviceOrigin::Real {
+                "transferred-read-back-verified"
+            } else {
+                "transferred-on-mock"
             }
-        }
+        } else {
+            "not-confirmed"
+        };
+        let key = yeskia_core::revive::progress_key(&tls.fingerprint, &tls.firmware);
+        let mut old = store.load::<yeskia_core::revive::Progress>(&key)?;
+        old.value.transferred.insert(
+            tls.id,
+            yeskia_core::revive::Observation {
+                status: status.into(),
+                source: "file-provider; package staging is not installation".into(),
+                checked_at_ms: now_ms(),
+            },
+        );
+        store.save(&key, old.revision, old.value)?;
     }
     Ok(())
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }

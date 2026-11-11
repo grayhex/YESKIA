@@ -20,17 +20,15 @@ it("читает контакты, ищет и экспортирует толь
       },
     ],
   };
-  const read = vi
-    .spyOn(backend.workbench, "phoneRead")
-    .mockResolvedValue({
-      book,
-      previous: { contacts: [] },
-      changes: [],
-      hash: "a".repeat(64),
-      source: "mock",
-      read_at_ms: 1,
-      write_status: "unsupported",
-    });
+  const read = vi.spyOn(backend.workbench, "phoneRead").mockResolvedValue({
+    book,
+    previous: { contacts: [] },
+    changes: [],
+    hash: "a".repeat(64),
+    source: "mock",
+    read_at_ms: 1,
+    write_status: "unsupported",
+  });
   const call = vi.spyOn(backend.workbench, "call");
   const pick = vi
     .spyOn(backend, "pickSavePath")
