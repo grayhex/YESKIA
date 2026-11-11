@@ -1,6 +1,30 @@
 import { useI18n } from "./i18n";
 import type { ErrorInfo } from "./types";
 const ru = {
+  "error.TLS_PIN_MISMATCH_REVIEW_UPSTREAM_VERSION":
+    "Хеш или размер отличается от проверенной версии. Импорт остановлен; нужна проверка новой версии автора.",
+  "error.TLS_UNSAFE_ZIP":
+    "Архив содержит небезопасный путь или ссылку. Используйте проверенный файл автора.",
+  "error.TLS_UNEXPECTED_ZIP": "В архиве неожиданные файлы. Импорт остановлен.",
+  "error.TLS_SIS_": "Пакет SIS не прошёл проверку UID, версии, платформы или контрольных сумм.",
+  "error.TLS_BROKEN_": "Пакет повреждён или имеет неподдерживаемую структуру.",
+  "error.LOCAL_EDIT_CONFLICT_RELOAD":
+    "Данные изменились в другом окне. Перезагрузите книгу перед сохранением.",
+  "error.CONTACT_IMPORT_INVALID":
+    "Файл контактов не разобран. Проверьте формат, кодировку и разделитель; книга не изменена.",
+  "error.CONTACT_DOCUMENT_INVALID":
+    "Карточка содержит недопустимые поля или превышает лимит. Проверьте введённые данные.",
+  "error.CONTACT_BOOK_LIMIT": "Превышен допустимый объём книги контактов.",
+  "error.PREPARATION_CONTEXT_CHANGED_RELOAD":
+    "Телефон или профиль изменился. Обновите состояние перед отметкой.",
+  "error.CHOOSE_NEW_EXPORT_FILENAME":
+    "Этот путь недоступен или файл уже существует. Выберите новое имя экспорта.",
+  "error.TLS_MODEL_MISMATCH": "Модель, прочитанная с телефона, не совпадает с выбранным профилем.",
+  "error.TLS_ORIGINAL_DLL_SNAPSHOT_REQUIRED":
+    "Сначала сохраните исходный DLL и подтвердите ручной снимок.",
+  "error.TLS_MBEDTLS_INSTALL_REPORT_REQUIRED":
+    "Сначала установите MBedTLS на телефоне и подтвердите этот шаг.",
+
   "device.title": "Телефон и подключение",
   "device.connection": "Подключение",
   "device.diagnostics": "Диагностика",
@@ -120,6 +144,30 @@ const ru = {
   "store.unavailable": "Загрузка пока недоступна.",
 };
 const en: Record<keyof typeof ru, string> = {
+  "error.TLS_PIN_MISMATCH_REVIEW_UPSTREAM_VERSION":
+    "Hash or size differs from the reviewed version. Import stopped; an upstream update needs review.",
+  "error.TLS_UNSAFE_ZIP":
+    "The archive contains an unsafe path or link. Use the reviewed author file.",
+  "error.TLS_UNEXPECTED_ZIP": "The archive contains unexpected files. Import stopped.",
+  "error.TLS_SIS_": "SIS UID, version, platform or checksum validation failed.",
+  "error.TLS_BROKEN_": "The package is damaged or has an unsupported structure.",
+  "error.LOCAL_EDIT_CONFLICT_RELOAD":
+    "Another window changed this data. Reload the book before saving.",
+  "error.CONTACT_IMPORT_INVALID":
+    "Contacts could not be parsed. Check format, encoding and delimiter; the book was not changed.",
+  "error.CONTACT_DOCUMENT_INVALID":
+    "The contact has invalid fields or exceeds a limit. Review the entered values.",
+  "error.CONTACT_BOOK_LIMIT": "The contact book exceeds its size limit.",
+  "error.PREPARATION_CONTEXT_CHANGED_RELOAD":
+    "The phone or profile changed. Refresh before recording a report.",
+  "error.CHOOSE_NEW_EXPORT_FILENAME":
+    "The path is inaccessible or the file exists. Choose a new export filename.",
+  "error.TLS_MODEL_MISMATCH": "The model read from the phone does not match the selected profile.",
+  "error.TLS_ORIGINAL_DLL_SNAPSHOT_REQUIRED":
+    "Preserve the original DLL and confirm the manual snapshot first.",
+  "error.TLS_MBEDTLS_INSTALL_REPORT_REQUIRED":
+    "Install MBedTLS on the phone and report that step first.",
+
   "device.title": "Phone and connection",
   "device.connection": "Connection",
   "device.diagnostics": "Diagnostics",

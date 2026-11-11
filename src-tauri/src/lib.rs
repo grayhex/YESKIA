@@ -17,6 +17,11 @@ use yeskia_core::storage::{data_dir, JournalEntry, Settings};
 use yeskia_core::system::SystemInfo;
 use yeskia_discovery::{CollectOptions, DoctorReport};
 
+mod workbench;
+use workbench::{
+    contacts_phone_read, local_workbench, preparation, tls_open_author, tls_stage, WorkbenchState,
+};
+
 type Cmd<T> = Result<T, ErrorInfo>;
 
 struct State(Arc<AppCore>);
@@ -64,6 +69,7 @@ fn start_operation(
     state: tauri::State<'_, State>,
     id: String,
     request: OperationRequest,
+    work: tauri::State<'_, WorkbenchState>,
 ) -> Cmd<String> {
     if matches!(
         &request,
@@ -78,10 +84,30 @@ fn start_operation(
     {
         return Err(Error::InvalidArgument("LAB_DEVELOPER_MODE_REQUIRED".into()).to_info());
     }
-    state
+    let context = if matches!(&request, OperationRequest::BackupCreate { .. }) {
+        work.active.lock().ok().and_then(|c| c.clone()).filter(|c| {
+            state.0.engine.list_devices().ok().is_some_and(|devices| {
+                devices.iter().any(|d| {
+                    d.id.as_str() == id
+                        && d.matrix
+                            .as_ref()
+                            .is_some_and(|m| m.device_fingerprint == c.fingerprint)
+                })
+            })
+        })
+    } else {
+        None
+    };
+    let operation = state
         .0
         .start_operation(&DeviceId::new(id), request)
-        .map_err(|e| e.to_info())
+        .map_err(|e| e.to_info())?;
+    if let Some(context) = context {
+        if let Ok(mut operations) = work.operations.lock() {
+            operations.insert(operation.clone(), context);
+        }
+    }
+    Ok(operation)
 }
 
 /// Ждёт результата ранее начатой операции (очередь, выполнение, таймаут).
@@ -89,8 +115,12 @@ fn start_operation(
 async fn await_operation(
     state: tauri::State<'_, State>,
     operation_id: String,
+    work: tauri::State<'_, WorkbenchState>,
 ) -> Cmd<OperationResult> {
-    blocking(&state, move |c| c.await_operation(&operation_id)).await
+    let result = blocking(&state, move |c| c.await_operation(&operation_id)).await?;
+    // Observation failure must never turn a completed phone write into a retry prompt.
+    let _ = workbench::observe_result(&work, &result);
+    Ok(result)
 }
 
 #[tauri::command]
@@ -740,7 +770,13 @@ pub fn run() {
         .manage(State(core))
         .manage(NativeState(native))
         .manage(AgentState(agent))
+        .manage(WorkbenchState::default())
         .invoke_handler(tauri::generate_handler![
+            local_workbench,
+            preparation,
+            contacts_phone_read,
+            tls_open_author,
+            tls_stage,
             agent_cancel_connect,
             agent_set_lab,
             agent_package_info,

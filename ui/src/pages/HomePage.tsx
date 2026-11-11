@@ -34,6 +34,9 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
   return (
     <>
       <div className="page-heading home-heading">
+        <button className="btn btn-secondary" onClick={() => go("preparation")}>
+          {lang === "ru" ? "Подготовка E72" : "Prepare E72"}
+        </button>
         <h1>{t("home.title")}</h1>
         <div className="btn-row">
           <button className="btn btn-secondary" onClick={() => go("connection")}>

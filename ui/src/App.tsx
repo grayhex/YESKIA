@@ -8,6 +8,9 @@ import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
 import { AgentPage } from "./pages/AgentPage";
 import { StorePage } from "./pages/StorePage";
 import { DevicePage } from "./pages/DevicePage";
+import { ContactsPage } from "./pages/ContactsPage";
+import { PreparationPage } from "./pages/PreparationPage";
+import { TlsPage } from "./pages/TlsPage";
 import { PersonalPage } from "./pages/PersonalPage";
 import { CertificatesPage } from "./pages/CertificatesPage";
 import { StudioPage } from "./pages/StudioPage";
@@ -47,7 +50,12 @@ export function App({ backend }: { backend: Backend }) {
   // Страница журнала доступна только в режиме «Разработчик».
   const current: PageId =
     page === "doctor" ? "connection" : page === "journal" && !developer ? "home" : page;
-  const currentLabel = nav.find((n) => n.id === current)!.label;
+  const currentLabel =
+    current === "preparation"
+      ? "nav.preparation"
+      : current === "tls"
+        ? "nav.tls"
+        : nav.find((n) => n.id === current)!.label;
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -82,7 +90,9 @@ export function App({ backend }: { backend: Backend }) {
         />
         <SideNav
           items={nav}
-          current={current}
+          current={
+            current === "preparation" ? "home" : current === "tls" ? "certificates" : current
+          }
           onSelect={select}
           device={connected ?? model.devices[0]}
         />
@@ -131,11 +141,15 @@ export function App({ backend }: { backend: Backend }) {
             {!welcome && current === "packages" && <StorePage model={model} />}
             {!welcome && current === "studio" && <StudioPage model={model} />}
             {!welcome && current === "backups" && <BackupsPage model={model} />}
-            {!welcome &&
-              (current === "contacts" || current === "sms" || current === "calendar") && (
-                <PersonalPage key={current} domain={current} model={model} />
-              )}
-            {!welcome && current === "certificates" && <CertificatesPage model={model} />}
+            {!welcome && (current === "sms" || current === "calendar") && (
+              <PersonalPage key={current} domain={current} model={model} />
+            )}
+            {!welcome && current === "contacts" && <ContactsPage model={model} />}
+            {!welcome && current === "preparation" && <PreparationPage model={model} go={select} />}
+            {!welcome && current === "tls" && <TlsPage model={model} go={select} />}
+            {!welcome && current === "certificates" && (
+              <CertificatesPage model={model} go={select} />
+            )}
             {!welcome && current === "journal" && <JournalPage model={model} />}
             {!welcome && current === "settings" && <SettingsPage model={model} />}
           </main>

@@ -162,7 +162,7 @@ async function checkLayout(page, c, screen) {
       "branding must remain text",
     );
   }
-  if (c.scale === 1) {
+  if (c.scale === 1 && !["Preparation", "TLS Revival", "Contact editor"].includes(screen)) {
     assert.ok(
       layout.mainY <= 2,
       `${c.width} ${c.lang} ${c.scenario} ${screen}: unnecessary main scroll (${layout.mainY}px)`,
@@ -268,6 +268,20 @@ try {
               )
               .waitFor();
           }
+        }
+        if (c.scenario === "connected") {
+          const nav=page.getByRole("navigation");
+          await nav.getByRole("button",{name:c.lang==="ru"?"Главная":"Home",exact:true}).click();
+          await page.getByRole("button",{name:c.lang==="ru"?"Подготовка E72":"Prepare E72",exact:true}).click();
+          await page.getByRole("heading",{name:c.lang==="ru"?"Подготовка E72":"Prepare E72",exact:true}).waitFor();
+          await checkLayout(page,c,"Preparation");
+          await nav.getByRole("button",{name:c.lang==="ru"?"Сертификаты":"Certificates",exact:true}).click();
+          await page.getByRole("button",{name:"TLS / HTTPS Revival",exact:true}).click();
+          await page.getByText(/d20d6d41c796d53f/).waitFor();
+          await checkLayout(page,c,"TLS Revival");
+          await nav.getByRole("button",{name:c.lang==="ru"?"Контакты":"Contacts",exact:true}).click();
+          await page.getByRole("button",{name:c.lang==="ru"?"Новый контакт":"New contact",exact:true}).click();
+          await checkLayout(page,c,"Contact editor");
         }
         if (c.scale === 1 && c.scenario === "connected") {
           await page

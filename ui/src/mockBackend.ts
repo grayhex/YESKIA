@@ -1,3 +1,4 @@
+import { MockWorkbench } from "./workbench";
 import type { Backend } from "./api";
 import type {
   AudioPreview,
@@ -95,6 +96,7 @@ interface Pending {
  * матрица строится при подключении, запись — «не проверено» до первой записи.
  */
 export class MockBackend implements Backend {
+  readonly workbench = new MockWorkbench();
   async agentCancelConnect(id: string): Promise<void> {
     void id;
   }

@@ -8,6 +8,7 @@ pub mod app;
 pub mod at;
 pub mod backup;
 pub mod catalog;
+pub mod contacts;
 pub mod device;
 pub mod diagnostics;
 pub mod engine;
@@ -21,12 +22,14 @@ pub mod mock;
 pub mod operations;
 pub mod paths;
 pub mod pkg;
+pub mod revive;
 pub mod storage;
 pub mod system;
 pub mod theme;
 pub mod transport;
 pub mod update;
 pub mod volume;
+pub mod workbench;
 
 pub use engine::Engine;
 pub use error::{Error, ErrorCode, ErrorInfo, Result};
@@ -45,3 +48,6 @@ pub mod pim_text;
 pub mod sms;
 
 pub mod opp;
+
+pub mod desk;
+pub mod preparation;

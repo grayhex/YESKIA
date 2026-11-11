@@ -2,14 +2,34 @@ import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 import { MockBackend } from "./mockBackend";
+import { emptyContact } from "./workbench";
 
 it("читает контакты, ищет и экспортирует только после выбора пути", async () => {
   const backend = new MockBackend();
-  const read = vi.spyOn(backend, "readPersonalData").mockResolvedValue([
-    { native_id: "1", name: "Анна", phones: ["123"] },
-    { native_id: "2", name: "Борис", phones: ["456"] },
-  ]);
-  const save = vi.spyOn(backend, "savePersonalSnapshot").mockResolvedValue();
+  const book = {
+    contacts: [
+      {
+        ...emptyContact(),
+        name: "Анна",
+        phones: [{ value: "123", label: "", params: [], components: [] }],
+      },
+      {
+        ...emptyContact(),
+        name: "Борис",
+        phones: [{ value: "456", label: "", params: [], components: [] }],
+      },
+    ],
+  };
+  const read = vi.spyOn(backend.workbench, "phoneRead").mockResolvedValue({
+    book,
+    previous: { contacts: [] },
+    changes: [],
+    hash: "a".repeat(64),
+    source: "mock",
+    read_at_ms: 1,
+    write_status: "unsupported",
+  });
+  const call = vi.spyOn(backend.workbench, "call");
   const pick = vi
     .spyOn(backend, "pickSavePath")
     .mockResolvedValueOnce(null)
@@ -30,17 +50,19 @@ it("читает контакты, ищет и экспортирует толь
     within(screen.getByRole("navigation")).getByRole("button", { name: "Контакты" }),
   );
   await userEvent.click(screen.getByRole("button", { name: /Прочитать телефон/ }));
-  expect(read).toHaveBeenCalledWith(expect.any(String), "contacts");
+  expect(read).toHaveBeenCalledWith(expect.any(String));
   await screen.findByRole("option", { name: /Анна/ });
   await userEvent.type(screen.getByRole("textbox", { name: "Поиск записей" }), "456");
   expect(screen.queryByRole("option", { name: /Анна/ })).not.toBeInTheDocument();
   expect(screen.getByRole("option", { name: /Борис/ })).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /Экспорт JSON/ }));
   expect(pick).toHaveBeenCalled();
-  expect(save).not.toHaveBeenCalled();
+  expect(call).not.toHaveBeenCalledWith(expect.objectContaining({ kind: "contacts_export" }));
   await userEvent.click(screen.getByRole("button", { name: /Экспорт JSON/ }));
   await waitFor(() =>
-    expect(save).toHaveBeenCalledWith("C:\\contacts.json", expect.stringContaining('"Анна"')),
+    expect(call).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "contacts_export", path: "C:\\contacts.json", book }),
+    ),
   );
 });
 

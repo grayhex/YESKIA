@@ -32,10 +32,12 @@ import type {
   ToolInfo,
   UpdateCheck,
 } from "./types";
+import { NativeWorkbench, type WorkbenchBackend } from "./workbench";
 import { MockBackend } from "./mockBackend";
 
 /** Строго типизированный контракт команд Tauri. */
 export interface Backend {
+  readonly workbench: WorkbenchBackend;
   /** true — данные не от Rust-ядра, а из UI-заглушки (браузер/тесты). */
   readonly isUiMock: boolean;
   agentCancelConnect(id: string): Promise<void>;
@@ -134,6 +136,7 @@ export function toErrorInfo(e: unknown): ErrorInfo {
 }
 
 export class TauriBackend implements Backend {
+  readonly workbench = new NativeWorkbench();
   readonly isUiMock = false;
   agentCancelConnect = (id: string) => invoke<void>("agent_cancel_connect", { id });
   agentSetLab = (id: string, armed: boolean, acknowledge: boolean) =>
