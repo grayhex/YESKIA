@@ -15,8 +15,8 @@
         "title": "YESKIA",
         "width": 1500,
         "height": 900,
-        "minWidth": 800,
-        "minHeight": 560,
+        "minWidth": 960,
+        "minHeight": 600,
         "dragDropEnabled": false
       }
     ],

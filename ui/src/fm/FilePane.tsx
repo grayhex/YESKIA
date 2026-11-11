@@ -1,7 +1,7 @@
-import { Icon } from "../components/Icon";
+import { Icon, type IconName } from "../components/Icon";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
-import { formatSize } from "./paths";
+import { baseName, formatSize, pathBreadcrumbs } from "./paths";
 import { useI18n } from "../i18n";
 import { StateMessage } from "../components/Ui";
 import type { ErrorInfo } from "../types";
@@ -22,6 +22,8 @@ interface Props {
   title: string;
   side: "host" | "device";
   pathLabel: string;
+  rootPath?: string;
+  onNavigate?: (path: string) => void;
   entries: PaneEntry[];
   loading: boolean;
   error: ErrorInfo | null;
@@ -42,6 +44,15 @@ interface Props {
 }
 
 const ext = (n: string) => (n.includes(".") ? n.slice(n.lastIndexOf(".") + 1).toLowerCase() : "");
+
+function fileIcon(entry: PaneEntry): IconName {
+  if (entry.is_dir) return "folder";
+  const extension = ext(entry.name);
+  if (/^(jpg|jpeg|png|webp|gif|bmp)$/.test(extension)) return "image";
+  if (/^(mp3|aac|wav|m4a|ogg|mid)$/.test(extension)) return "music";
+  if (/^(sis|sisx|jar|jad)$/.test(extension)) return "apps";
+  return "file";
+}
 
 export function FilePane(p: Props) {
   const { t, lang } = useI18n();
@@ -81,6 +92,8 @@ export function FilePane(p: Props) {
       wantFocus.current = false;
     }
   }, [focus, rows]);
+
+  const crumbs = pathBreadcrumbs(p.pathLabel, p.side, p.rootPath);
 
   const selectedEntries = rows.filter((r) => p.selection.has(r.name));
 
@@ -136,6 +149,7 @@ export function FilePane(p: Props) {
     }
     if (key === "Backspace") return act(() => p.canGoUp && p.onUp());
     if (key === "F5") return act(p.onRefresh);
+    if (key === "Escape") return act(() => p.onSelection(new Set()));
     if (mod && key.toLowerCase() === "a")
       return act(() => p.onSelection(new Set(rows.filter((r) => !r.disabled).map((r) => r.name))));
     if (mod && key.toLowerCase() === "c") return act(p.onCopy);
@@ -167,15 +181,36 @@ export function FilePane(p: Props) {
   return (
     <section className="pane" aria-label={p.title}>
       <div className="pane-head">
-        <h2>{p.title}</h2>
-        <div className="pane-path mono" title={p.pathLabel}>
-          {p.pathLabel}
+        <h2>
+          <Icon name={p.side === "host" ? "computer" : "phone"} />
+          {p.title}
+        </h2>
+        <div
+          className="pane-path"
+          role="group"
+          aria-label={t("fm.breadcrumbs", { side: p.title })}
+          title={p.pathLabel}
+        >
+          {crumbs.map((path, i) => (
+            <span key={path}>
+              {i > 0 && <span aria-hidden="true"> › </span>}
+              {i === crumbs.length - 1 || !p.onNavigate ? (
+                <span aria-current={i === crumbs.length - 1 ? "location" : undefined}>
+                  {baseName(path) || path}
+                </span>
+              ) : (
+                <button onClick={() => p.onNavigate?.(path)}>{baseName(path) || path}</button>
+              )}
+            </span>
+          ))}
         </div>
         <div className="btn-row">
           <button className="btn btn-secondary" disabled={!p.canGoUp} onClick={p.onUp}>
+            <Icon name="up" />
             {t("fm.up")}
           </button>
           <button className="btn btn-secondary" onClick={p.onRefresh}>
+            <Icon name="refresh" />
             {t("fm.refresh")}
           </button>
           {p.toolbar}
@@ -234,6 +269,7 @@ export function FilePane(p: Props) {
             <thead>
               <tr>
                 {header("name", t("fm.col.name"))}
+                {header("type", t("fm.col.type"))}
                 {header("size", t("fm.col.size"))}
                 {header("modified", t("fm.col.modified"))}
               </tr>
@@ -269,10 +305,17 @@ export function FilePane(p: Props) {
                   }}
                 >
                   <td>
-                    <Icon name={r.is_dir ? "folder" : "file"} />
+                    <span className={`file-glyph file-glyph-${fileIcon(r)}`}>
+                      <Icon name={fileIcon(r)} />
+                    </span>
                     {r.name}
                   </td>
-                  <td>{r.is_dir ? "" : formatSize(r.size)}</td>
+                  <td>
+                    {r.is_dir
+                      ? t("fm.type.folder")
+                      : ext(r.name).toUpperCase() || t("fm.type.file")}
+                  </td>
+                  <td>{r.is_dir ? "" : formatSize(r.size, lang)}</td>
                   <td>{r.modified_ms ? new Date(r.modified_ms).toLocaleDateString(lang) : ""}</td>
                 </tr>
               ))}

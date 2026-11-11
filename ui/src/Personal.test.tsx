@@ -15,7 +15,7 @@ it("читает контакты, ищет и экспортирует толь
     .mockResolvedValueOnce(null)
     .mockResolvedValueOnce("C:\\contacts.json");
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(
     within(screen.getByRole("navigation")).getByRole("button", { name: "Контакты" }),
   );
@@ -46,7 +46,7 @@ it("читает контакты, ищет и экспортирует толь
 
 it("каталог открыт по умолчанию, ищет карточки и не обещает установку", async () => {
   render(<App backend={new MockBackend()} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(
     within(screen.getByRole("navigation")).getByRole("button", { name: "Приложения" }),
   );
@@ -72,7 +72,7 @@ it("переводит подключение и сертификаты на а�
   });
   const install = vi.spyOn(backend, "installPhoneCertificate").mockResolvedValue();
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   const nav = within(screen.getByRole("navigation"));
   await userEvent.click(nav.getByRole("button", { name: "Подключение" }));
   await userEvent.click(screen.getByRole("button", { name: "Подключить" }));

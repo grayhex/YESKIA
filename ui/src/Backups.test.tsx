@@ -8,7 +8,7 @@ const nav = () => within(screen.getByRole("navigation"));
 
 async function openBackups(backend = new MockBackend()) {
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Резервные копии" }));
   await screen.findByRole("heading", { name: "Резервные копии файлов" });
   return backend;
@@ -125,7 +125,7 @@ describe("Резервные копии файлов", () => {
   it("с подключённым устройством копирует папку телефона", async () => {
     const backend = new MockBackend();
     render(<App backend={backend} />);
-    await screen.findByText("Nokia N95 (MOCK)");
+    await screen.findByText("Nokia E72 (MOCK)");
     await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
     await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
     await screen.findByRole("button", { name: "Отключить" });

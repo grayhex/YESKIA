@@ -29,7 +29,7 @@ function backendWithFiles() {
 
 async function openPackages(b = backendWithFiles()) {
   render(<App backend={b} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   await userEvent.click(nav().getByRole("button", { name: "Приложения" }));
   await userEvent.click(screen.getByRole("button", { name: "Мои установщики" }));
   await screen.findByRole("heading", { name: "Приложения и пакеты" });

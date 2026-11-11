@@ -5,7 +5,7 @@ import { App } from "./App";
 
 async function open(backend = new MockBackend()) {
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   return backend;
 }
 
@@ -20,6 +20,8 @@ describe("Главная", () => {
   it("показывает короткую отметку демо-режима без технического текста", async () => {
     await open();
     expect(screen.getByText(/Демо-режим/)).toBeInTheDocument();
+    expect(screen.getByText("YESKIA", { selector: ".brand-wordmark" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "YESKIA" })).toBeNull();
     expect(screen.getAllByText("MOCK").length).toBeGreaterThan(0);
     expect(screen.getByText("демо-данные")).toBeInTheDocument();
   });
@@ -286,10 +288,10 @@ describe("Диагностика (Doctor)", () => {
 });
 
 describe("Графика телефонов", () => {
-  it("показывает иллюстрацию N95 уже в карточке найденного телефона", async () => {
+  it("показывает иллюстрацию E72 уже в карточке найденного телефона", async () => {
     await open();
-    const image = screen.getByRole("img", { name: "Иллюстрация телефона Nokia N95" });
-    expect(image).toHaveAttribute("src", expect.stringContaining("nokia-n95.webp"));
+    const image = screen.getByRole("img", { name: "Иллюстрация телефона Nokia E72" });
+    expect(image).toHaveAttribute("src", expect.stringContaining("nokia-e72.webp"));
     expect(screen.getAllByText("Отключено").length).toBeGreaterThan(0);
   });
 
@@ -298,8 +300,43 @@ describe("Графика телефонов", () => {
     await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
     await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
     await screen.findByRole("button", { name: "Отключить" });
-    const img = await screen.findAllByRole("img", { name: "Иллюстрация телефона Nokia N95" });
+    const img = await screen.findAllByRole("img", { name: "Иллюстрация телефона Nokia E72" });
     expect(img[0]).toHaveAttribute("src");
     expect(screen.queryByText(/не фото производителя/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Fluent dashboard", () => {
+  it("does not offer file actions for a detected device without a capability matrix", async () => {
+    await open();
+    expect(screen.queryByRole("button", { name: "Открыть файловый менеджер" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Файлы Переносите/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Приложения Каталог/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Медиа и темы Рингтоны/ })).toBeInTheDocument();
+  });
+
+  it("shows actual session activity and only available quick actions", async () => {
+    await open();
+    await goConnection();
+    await userEvent.click(screen.getByRole("button", { name: "Подключить" }));
+    await screen.findByRole("button", { name: "Отключить" });
+    await userEvent.click(screen.getByRole("button", { name: "Идентификация" }));
+    await screen.findByTestId("outcome");
+    await userEvent.click(nav().getByRole("button", { name: "Главная" }));
+    const activity = screen.getByRole("heading", { name: "Журнал демо-сессии" }).parentElement!;
+    expect(within(activity).getByText("Чтение идентификации")).toBeInTheDocument();
+    expect(within(activity).getByText(/Готово/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Открыть файловый менеджер" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Приложения Каталог/ })).toBeInTheDocument();
+  });
+
+  it("keyboard navigation skips collapsed groups", async () => {
+    await open();
+    const summary = screen.getByText("РАБОЧЕЕ ПРОСТРАНСТВО", { selector: "summary" });
+    await userEvent.click(summary);
+    const settings = nav().getByRole("button", { name: "Настройки" });
+    settings.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(nav().getByRole("button", { name: "Помощь" })).toHaveFocus();
   });
 });

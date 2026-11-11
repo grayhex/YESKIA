@@ -8,7 +8,7 @@ use crate::transport::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-pub const MOCK_DEVICE_ID: &str = "mock-n95";
+pub const MOCK_DEVICE_ID: &str = "mock-e72";
 const DEFAULT_SERIAL: &str = "356938035643809";
 
 /// Сценарий сбоя следующей записи.
@@ -65,7 +65,7 @@ impl MockTransport {
             vec![0xFF, 0xD8, 0xFF, 0xD9],
         );
         let state = MockState {
-            model: "Nokia N95 (MOCK)".into(),
+            model: "Nokia E72 (MOCK)".into(),
             serial: DEFAULT_SERIAL.into(),
             unplugged: false,
             connected: HashSet::new(),

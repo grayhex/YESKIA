@@ -8,7 +8,7 @@ const nav = () => within(screen.getByRole("navigation"));
 
 async function openFiles(backend = new MockBackend(), connect = true) {
   render(<App backend={backend} />);
-  await screen.findByText("Nokia N95 (MOCK)");
+  await screen.findByText("Nokia E72 (MOCK)");
   if (connect) {
     await userEvent.click(nav().getByRole("button", { name: "Подключение" }));
     await userEvent.click(await screen.findByRole("button", { name: "Подключить" }));
@@ -339,7 +339,7 @@ describe("Файловый менеджер: источник буфера, пу
     const deep = Array.from({ length: 20 }, () => "d").join("/");
     b.deviceFiles[`E:/${deep}/f.txt`] = 1;
     await openFiles(b);
-    await userEvent.click(row("Телефон", "^d$"));
+    await userEvent.click(row("Телефон", "^d Папка$"));
     const phone = screen.getByRole("region", { name: "Телефон" });
     await userEvent.click(within(phone).getByRole("button", { name: "Скачать" }));
     expect(await screen.findByText(/Скачивание не начато/)).toBeInTheDocument();
@@ -369,4 +369,17 @@ it("фоновый опрос с новым объектом того же ус�
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("breadcrumbs navigate within the device root and clear stale selection", async () => {
+  await openFiles();
+  await within(grid("Телефон")).findByText("Images");
+  await userEvent.dblClick(row("Телефон", "Images"));
+  await within(grid("Телефон")).findByText("cat.jpg");
+  await userEvent.click(row("Телефон", "cat.jpg"));
+  const path = screen.getByRole("group", { name: "Путь: Телефон" });
+  await userEvent.click(within(path).getByRole("button", { name: "E:/" }));
+  expect(await within(grid("Телефон")).findByText("readme.txt")).toBeInTheDocument();
+  expect(within(grid("Телефон")).queryByRole("row", { selected: true })).toBeNull();
+  expect(within(path).queryByRole("button")).toBeNull();
 });

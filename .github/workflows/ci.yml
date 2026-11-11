@@ -48,6 +48,15 @@ jobs:
       - run: npm --workspace ui run format:check
       - run: npm run ui:test
       - run: npm run ui:build
+      - name: Chromium for layout regression checks
+        run: npx playwright install --with-deps chromium
+      - run: npm run ui:layout
+      - name: Layout report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YESKIA-Layout-Report
+          path: docs/screenshots/fluent/layout-report.json
       - name: Скрипты релиза (уведомления, SBOM, контрольные суммы)
         run: node --test scripts/release.test.mjs
 

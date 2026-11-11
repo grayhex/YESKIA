@@ -300,8 +300,17 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
   const statusKey = (i: TransferItem) => `fm.status.${i.status}` as MessageKey;
 
   return (
-    <>
-      <h1>{t("fm.title")}</h1>
+    <div className="files-workspace">
+      <div className="page-heading">
+        <h1>{t("fm.title")}</h1>
+        {deviceReady && (
+          <span className="access-pill" data-write={canWrite}>
+            <Icon name="shield" />
+            {device?.transport.toUpperCase()} ·{" "}
+            {t(canWrite ? "fm.access.confirm" : "fm.access.readonly")}
+          </span>
+        )}
+      </div>
       <p>{t("fm.intro")}</p>
       <p className="hint" style={{ marginLeft: 0 }}>
         {t("fm.shortcuts")}
@@ -312,11 +321,21 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
         </p>
       )}
 
+      {deviceReady && !canWrite && (
+        <p className="hint" style={{ marginLeft: 0 }}>
+          {t("fm.writeUnavailable")}
+        </p>
+      )}
+
       <div className="fm-grid">
         <FilePane
           title={t("fm.host.title")}
           side="host"
           pathLabel={hostPath ?? ""}
+          onNavigate={(path) => {
+            setHostPath(path);
+            setHostSel(new Set());
+          }}
           entries={host.entries}
           loading={host.loading}
           error={host.error}
@@ -372,6 +391,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                   }
                 }}
               >
+                <Icon name="folder" />
                 {t("fm.host.choose")}
               </button>
               <button
@@ -384,6 +404,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                     .catch((e) => setNotice(toErrorInfo(e).message))
                 }
               >
+                <Icon name="computer" />
                 {t("fm.reveal")}
               </button>
             </>
@@ -395,6 +416,11 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
             title={t("fm.device.title")}
             side="device"
             pathLabel={devicePath}
+            rootPath={rootOfDevice}
+            onNavigate={(path) => {
+              setDevicePath(path);
+              setDevSel(new Set());
+            }}
             entries={dev.entries}
             loading={dev.loading}
             error={dev.error}
@@ -428,6 +454,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                   disabled={devSel.size === 0 || transfers.busy}
                   onClick={() => void download(deviceItems([...devSel]), hostPath)}
                 >
+                  <Icon name="download" />
                   {t("fm.download")}
                 </button>
                 <button
@@ -435,6 +462,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                   disabled={devSel.size !== 1 || transfers.busy}
                   onClick={() => void downloadAs([...devSel][0])}
                 >
+                  <Icon name="download" />
                   {t("fm.downloadAs")}
                 </button>
                 {canWrite && (
@@ -444,6 +472,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                       disabled={hostSel.size === 0 || transfers.busy}
                       onClick={() => upload(hostItems([...hostSel]))}
                     >
+                      <Icon name="upload" />
                       {t("fm.upload")}
                     </button>
                     <button
@@ -451,6 +480,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
                       disabled={transfers.busy}
                       onClick={() => void pickAndUpload()}
                     >
+                      <Icon name="plus" />
                       {t("fm.uploadPick")}
                     </button>
                   </>
@@ -479,14 +509,8 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
         )}
       </div>
 
-      {deviceReady && !canWrite && (
-        <p className="hint" style={{ marginLeft: 0 }}>
-          {t("fm.writeUnavailable")}
-        </p>
-      )}
-
       {transfers.items.length > 0 && (
-        <Panel title={t("fm.transfers")}>
+        <Panel title={t("fm.transfers")} icon="download" tone="blue">
           <ul className="transfer-list" aria-label={t("fm.transfers")}>
             {transfers.items.map((i) => (
               <li key={i.id} data-status={i.status}>
@@ -566,7 +590,7 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
           <p>{t("fm.consent.text", { device: device?.display_name ?? "" })}</p>
         </Dialog>
       )}
-    </>
+    </div>
   );
 }
 

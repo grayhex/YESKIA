@@ -1,3 +1,4 @@
+import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
 import { Dialog } from "../fm/Dialog";
@@ -314,6 +315,7 @@ export function StudioPage({ model }: { model: AppModel }) {
       <Panel title={t("st.source")}>
         <div className="btn-row">
           <button className="btn" disabled={!!running} onClick={() => void chooseFile()}>
+            <Icon name="folder" />
             {t("st.pickFile")}
           </button>
           <span className="mono">{file ?? t("st.noFile")}</span>
@@ -439,6 +441,7 @@ export function StudioPage({ model }: { model: AppModel }) {
                   disabled={!!running || !tool}
                   onClick={() => void ringtone()}
                 >
+                  <Icon name="music" />
                   {t("st.ringtoneCreate")}
                 </button>
               </div>
@@ -477,6 +480,7 @@ export function StudioPage({ model }: { model: AppModel }) {
               disabled={!!running || !tool || !preset || (preset.kind === "image" && !modelId)}
               onClick={() => void prepare()}
             >
+              <Icon name="image" />
               {t("st.prepareCreate")}
             </button>
           </div>

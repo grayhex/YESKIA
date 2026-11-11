@@ -1,3 +1,4 @@
+import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
 import { Dialog } from "../fm/Dialog";
@@ -186,7 +187,7 @@ export function PackagesPage({ model }: { model: AppModel }) {
         </p>
       )}
 
-      <Panel title={t("pk.import")}>
+      <Panel title={t("pk.import")} icon="plus" tone="purple">
         <details>
           <summary>{t("pk.provenance")}</summary>
           <p className="hint" style={{ marginLeft: 0 }}>
@@ -216,6 +217,7 @@ export function PackagesPage({ model }: { model: AppModel }) {
         </details>
         <div className="btn-row">
           <button className="btn" onClick={() => void importFiles()}>
+            <Icon name="plus" />
             {t("pk.import")}
           </button>
         </div>
