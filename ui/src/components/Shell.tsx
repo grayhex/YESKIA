@@ -4,6 +4,7 @@ import type { Device } from "../types";
 import { useI18n, type Lang, type MessageKey } from "../i18n";
 
 export type PageId =
+  | "agent"
   | "home"
   | "connection"
   | "contacts"
@@ -24,6 +25,7 @@ export interface NavEntry {
 }
 
 const navIcons: Record<PageId, IconName> = {
+  agent: "activity",
   home: "home",
   connection: "phone",
   contacts: "contacts",
@@ -65,6 +67,7 @@ export function SideNav({
       ids: [
         "home",
         "connection",
+        "agent",
         "files",
         "contacts",
         "sms",

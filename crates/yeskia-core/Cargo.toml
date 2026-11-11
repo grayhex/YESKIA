@@ -7,6 +7,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+yeskia-agent-protocol = { path = "../yeskia-agent-protocol" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

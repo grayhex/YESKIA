@@ -64,3 +64,16 @@
 | Передача сертификата для установки через OPP | `tested-on-mock` | SHA-256 перед отправкой, подтверждение UI, потерянный ответ без повтора. Завершение установки и доверие подтверждаются на телефоне. |
 | Чтение/передача на E72 после Rust-переноса | `not-tested` | Нужна повторная аппаратная проверка; результат исходного Python-адаптера автоматически не переносится. |
 | Soft UI и английский текст подключения/сертификатов | `tested-on-host` | Проверки UI и браузерная проверка светлой/тёмной темы. Логотип сохранён. |
+
+## ADBian / YESKIA Agent (#30–36)
+
+| Capability | Status | Evidence / limits |
+| --- | --- | --- |
+| ADBian framing, bounded transfers, error/EOF/cancel/no replay | `tested-on-mock` | core `tests/adbian.rs`, synthetic golden fixtures |
+| Windows Classic Bluetooth paired discovery / SPP SDP / RFCOMM | `implemented` | native WinSock/Bluetooth code and Windows CI; physical E72 pending |
+| Agent FileProvider, Lab arming, shared Engine queue, sideload | `tested-on-mock` | `yeskia-adbian/tests/adapter.rs`, UI `Agent.test.tsx`; not a phone test |
+| Per-operation file/PIM transport routing | `tested-on-mock` | `ui/src/deviceRouting.test.ts`; no inferred cross-transport identity merge |
+| Versioned helper protocol / bounded AppArc-page encoding | `tested-on-mock` | `yeskia-agent-protocol` fake-system tests; PIM flags false |
+| EPOC helper AppArc bridge / SIS / physical system service | `implemented` / `not-tested` | own no_std/C++ source; no Nokia SDK/SIS build or phone evidence |
+| Agent contacts/calendar/tasks/SMS exports | `unsupported` | API audit only; separate implementation and hardware read tests remain |
+| E72 bootstrap / update / autostart / research cases | `not-tested` on hardware | [acceptance ledger](agent/ACCEPTANCE.md), [Windows check](agent/WINDOWS_E72_CHECK.md) |

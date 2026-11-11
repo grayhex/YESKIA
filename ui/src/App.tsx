@@ -5,6 +5,7 @@ import { Icon } from "./components/Icon";
 import { ErrorMessage } from "./components/Ui";
 import { Header, SideNav, StatusBar, type NavEntry, type PageId } from "./components/Shell";
 import { I18nProvider, makeTranslate, normalizeLang } from "./i18n";
+import { AgentPage } from "./pages/AgentPage";
 import { StorePage } from "./pages/StorePage";
 import { DevicePage } from "./pages/DevicePage";
 import { PersonalPage } from "./pages/PersonalPage";
@@ -30,6 +31,7 @@ export function App({ backend }: { backend: Backend }) {
   const nav: NavEntry[] = [
     { id: "home", label: "nav.home" },
     { id: "connection", label: "nav.connection" },
+    { id: "agent", label: "nav.agent" },
     { id: "files", label: "nav.files" },
     { id: "contacts", label: "nav.contacts" },
     { id: "sms", label: "nav.sms" },
@@ -124,6 +126,7 @@ export function App({ backend }: { backend: Backend }) {
                 go={select}
               />
             )}
+            {!welcome && current === "agent" && <AgentPage model={model} />}
             {!welcome && current === "files" && <FileManagerPage model={model} go={select} />}
             {!welcome && current === "packages" && <StorePage model={model} />}
             {!welcome && current === "studio" && <StudioPage model={model} />}

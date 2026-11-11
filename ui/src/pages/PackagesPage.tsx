@@ -1,3 +1,4 @@
+import { selectDeviceForOperation } from "../deviceRouting";
 import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
@@ -30,7 +31,7 @@ interface TransferResult {
 export function PackagesPage({ model }: { model: AppModel }) {
   const { t } = useI18n();
   const { backend } = model;
-  const device = model.devices.find((d) => d.connection === "connected") ?? null;
+  const device = selectDeviceForOperation(model.devices, "packages.transfer") ?? null;
   const transferEntry = device?.matrix?.entries.find((e) => e.operation === "packages.transfer");
   const canTransfer = !!device && !!transferEntry && transferEntry.availability !== "unsupported";
   const deviceRoot = device?.origin === "mock" ? "E:/" : "/";

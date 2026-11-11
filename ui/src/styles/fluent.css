@@ -1874,3 +1874,87 @@ dl.facts {
     margin-top: 0;
   }
 }
+
+/* Agent workspace uses the same panels, tokens, dialogs and controls as the desktop. */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.agent-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.agent-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.agent-scroll > p,
+.agent-scroll > .panel {
+  margin: 0;
+}
+.agent-workspace > h1,
+.agent-workspace > p {
+  margin: 0;
+}
+.agent-workspace label {
+  display: grid;
+  gap: 8px;
+}
+.agent-workspace label.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 0;
+}
+.agent-command {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 18px 0;
+}
+.agent-command label {
+  flex: 1;
+  min-width: 0;
+}
+.agent-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.agent-workspace pre,
+.agent-hash {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.agent-history {
+  max-height: 440px;
+  overflow: auto;
+}
+.agent-history article {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.agent-steps {
+  padding-left: 22px;
+  line-height: 1.7;
+}
+@media (max-width: 1050px) {
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Keep the extra Agent route visible in the desktop sidebar, including Developer mode. */
+@media (min-width: 1000px) and (min-height: 851px) {
+  .nav-item {
+    padding-block: 7px;
+  }
+  .side-nav li {
+    margin: 1px 0;
+  }
+}

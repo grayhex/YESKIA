@@ -19,8 +19,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy -p yeskia-core -p yeskia-discovery -p yeskia-lab --all-targets -- -D warnings
-      - run: cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab
+      - run: cargo clippy -p yeskia-core -p yeskia-discovery -p yeskia-lab -p yeskia-adbian -p yeskia-agent-protocol --all-targets -- -D warnings
+      - run: cargo test -p yeskia-core -p yeskia-discovery -p yeskia-lab -p yeskia-adbian -p yeskia-agent-protocol
       - name: Лаборатория — приватность и сырые трассы
         run: cargo run -q -p yeskia-lab -- scan .
 

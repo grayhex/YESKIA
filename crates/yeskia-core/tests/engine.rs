@@ -470,25 +470,41 @@ fn operations_on_a_device_run_fifo_one_at_a_time() {
     let a = e
         .submit(&id(), write_req("E:/a.bin", &[1], OverwritePolicy::Never))
         .unwrap();
-    let b = e.submit(&id(), OperationRequest::IdentityRead).unwrap();
+    let b = e
+        .submit(&id(), write_req("E:/a.bin", &[2], OverwritePolicy::Replace))
+        .unwrap();
     let c = e
-        .submit(&id(), OperationRequest::FilesList { path: "E:/".into() })
+        .submit(
+            &id(),
+            OperationRequest::FilesRead {
+                path: "E:/a.bin".into(),
+            },
+        )
         .unwrap();
     assert_eq!(e.queued_operations(&id()), 3);
-    let finished = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut ts = Vec::new();
-    for (name, h) in [("a", a), ("b", b), ("c", c)] {
-        let f = Arc::clone(&finished);
-        ts.push(std::thread::spawn(move || {
-            let r = h.wait();
-            f.lock().unwrap().push(name);
-            r
-        }));
+    // Observe dependent device effects, not observer-thread wakeup order after wait().
+    let threads: Vec<_> = [a, b, c]
+        .into_iter()
+        .map(|h| std::thread::spawn(move || h.wait()))
+        .collect();
+    let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+    for r in &results {
+        assert_eq!(r.outcome, Outcome::Success);
     }
-    for t in ts {
-        assert_eq!(t.join().unwrap().outcome, Outcome::Success);
-    }
-    assert_eq!(*finished.lock().unwrap(), vec!["a", "b", "c"]);
+    assert!(matches!(
+        results[0].data,
+        Some(OperationData::Written {
+            replaced: false,
+            ..
+        })
+    ));
+    assert!(matches!(
+        results[1].data,
+        Some(OperationData::Written { replaced: true, .. })
+    ));
+    assert!(
+        matches!(&results[2].data,Some(OperationData::FileRead {sha256,..}) if sha256==&yeskia_core::fsutil::sha256_hex(&[2]))
+    );
 }
 
 #[test]

@@ -43,7 +43,25 @@ export interface ErrorInfo {
 export type SupportStatus =
   "unsupported" | "implemented" | "tested-on-mock" | "tested-on-host" | "verified-on-device";
 
+export interface AgentReply {
+  ok: boolean;
+  text: string;
+  data: number[];
+}
+export interface AgentPackage {
+  name: string;
+  bytes: number;
+  sha256: string;
+}
+
 export type Operation =
+  | "agent.stop"
+  | "files.mkdir"
+  | "files.delete"
+  | "diagnostics.read"
+  | "system.read"
+  | "process.exec"
+  | "device.reset"
   | "identity.read"
   | "files.list"
   | "files.read"
@@ -97,7 +115,37 @@ export interface Device {
 
 export type OverwritePolicy = "never" | "replace";
 
+export type AgentQuery =
+  { command: "hello" | "capabilities" } | { command: "apps_list"; offset: number; limit: number };
+export interface AgentDocument {
+  protocol: number;
+  request_id: string;
+  agent_version: string;
+  build: string;
+  heap_before_kib: number | null;
+  heap_after_kib: number | null;
+  data:
+    | {
+        type: "capabilities";
+        services: string[];
+        contacts: boolean;
+        calendar: boolean;
+        sms: boolean;
+      }
+    | {
+        type: "apps";
+        entries: { uid: number; caption: string; caption_truncated: boolean }[];
+        next_offset: number | null;
+      }
+    | { type: "error"; code: number };
+}
+
 export type OperationRequest =
+  | { type: "agent.query"; query: AgentQuery; confirm: boolean }
+  | { type: "agent.ping" }
+  | { type: "agent.command"; line: string; confirm: boolean }
+  | { type: "agent.put"; source: string; path: string; confirm: boolean }
+  | { type: "files.mkdir"; path: string }
   | { type: "identity.read" }
   | { type: "files.list"; path: string }
   | { type: "files.read"; path: string }
@@ -111,6 +159,9 @@ export type OperationRequest =
   | { type: "sms.read" };
 
 export type OperationData =
+  | { type: "agent_document"; response: AgentDocument }
+  | { type: "agent_reply"; reply: AgentReply }
+  | { type: "directory_created" }
   | { type: "identity"; model: string; firmware: string | null }
   | { type: "entries"; entries: { name: string; is_dir: boolean; size: number }[] }
   | { type: "file_read"; bytes: number; sha256: string }

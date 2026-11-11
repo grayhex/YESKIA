@@ -68,26 +68,38 @@ function Matrix({ matrix, developer }: { matrix: CapabilityMatrix; developer: bo
           </tr>
         </thead>
         <tbody>
-          {matrix.entries.map((e) => (
-            <tr key={e.operation}>
-              <td>
-                {t(`op.${e.operation}` as MessageKey)}
-                {developer && <span className="mono"> ({e.operation})</span>}
-              </td>
-              <td>{t(`avail.${e.availability}` as MessageKey)}</td>
-              {developer && (
-                <>
-                  <td>{e.maturity}</td>
-                  <td>
-                    {e.evidence.length === 0
-                      ? "—"
-                      : e.evidence.map((ev) => `${ev.source}: ${ev.summary}`).join("; ")}
-                  </td>
-                  <td>{e.detail ?? "—"}</td>
-                </>
-              )}
-            </tr>
-          ))}
+          {matrix.entries
+            .filter(
+              (e) =>
+                developer ||
+                ![
+                  "agent.stop",
+                  "files.delete",
+                  "process.exec",
+                  "device.reset",
+                  "system.read",
+                ].includes(e.operation),
+            )
+            .map((e) => (
+              <tr key={e.operation}>
+                <td>
+                  {t(`op.${e.operation}` as MessageKey)}
+                  {developer && <span className="mono"> ({e.operation})</span>}
+                </td>
+                <td>{t(`avail.${e.availability}` as MessageKey)}</td>
+                {developer && (
+                  <>
+                    <td>{e.maturity}</td>
+                    <td>
+                      {e.evidence.length === 0
+                        ? "—"
+                        : e.evidence.map((ev) => `${ev.source}: ${ev.summary}`).join("; ")}
+                    </td>
+                    <td>{e.detail ?? "—"}</td>
+                  </>
+                )}
+              </tr>
+            ))}
         </tbody>
       </table>
     </>

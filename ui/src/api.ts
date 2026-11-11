@@ -38,6 +38,9 @@ import { MockBackend } from "./mockBackend";
 export interface Backend {
   /** true — данные не от Rust-ядра, а из UI-заглушки (браузер/тесты). */
   readonly isUiMock: boolean;
+  agentCancelConnect(id: string): Promise<void>;
+  agentSetLab(id: string, armed: boolean, acknowledge: boolean): Promise<void>;
+  agentPackageInfo(path: string): Promise<import("./types").AgentPackage>;
   getSystemInfo(): Promise<SystemInfo>;
   listDevices(): Promise<Device[]>;
   connectDevice(id: string): Promise<Device>;
@@ -132,6 +135,11 @@ export function toErrorInfo(e: unknown): ErrorInfo {
 
 export class TauriBackend implements Backend {
   readonly isUiMock = false;
+  agentCancelConnect = (id: string) => invoke<void>("agent_cancel_connect", { id });
+  agentSetLab = (id: string, armed: boolean, acknowledge: boolean) =>
+    invoke<void>("agent_set_lab", { id, armed, acknowledge });
+  agentPackageInfo = (path: string) =>
+    invoke<import("./types").AgentPackage>("agent_package_info", { path });
   getSystemInfo = () => invoke<SystemInfo>("get_system_info");
   listDevices = () => invoke<Device[]>("list_devices");
   connectDevice = (id: string) => invoke<Device>("connect_device", { id });

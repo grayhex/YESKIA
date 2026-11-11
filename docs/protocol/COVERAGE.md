@@ -17,3 +17,15 @@
 | Файлы (запись) | AT/NPC | unsupported | unsupported | unsupported | unsupported | файлы — Mass Storage/WPD (см. STATUS.md) |
 
 Прошивки: ни одна версия прошивки не проверялась — столбца «прошивка» нет, пока нет ни одного реального отчёта.
+
+## Independent ADBian agent path
+
+Windows Bluetooth RFCOMM/SPP + upstream ADBian framing is a separate adapter; it is not
+Nokia USB NPC, USB COM, WPD or PCCS implementation evidence. Golden replies and fake
+transfers in `crates/yeskia-core/tests/adbian.rs` / `crates/yeskia-adbian/tests/adapter.rs`
+are synthetic. No physical E72 feature has been promoted from them.
+
+The optional YESKIA helper adds a versioned AppArc registry protocol source, with PIM
+flags false. [Research plans](../agent/research/README.md) cover filesystem, system APIs
+and host/phone correlation; a real PC Suite comparison is still outstanding. See the
+[acceptance ledger](../agent/ACCEPTANCE.md) before claiming hardware/protocol coverage.

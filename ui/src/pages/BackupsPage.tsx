@@ -1,3 +1,4 @@
+import { selectDeviceForOperation } from "../deviceRouting";
 import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
@@ -78,7 +79,7 @@ const splitList = (s: string) =>
 export function BackupsPage({ model }: { model: AppModel }) {
   const { t, lang } = useI18n();
   const { backend, settings } = model;
-  const device = model.devices.find((d) => d.connection === "connected") ?? null;
+  const device = selectDeviceForOperation(model.devices, "files.read") ?? null;
   const entry = (op: string) => device?.matrix?.entries.find((e) => e.operation === op);
   const deviceRead =
     !!device && !!entry("files.list") && entry("files.list")!.availability !== "unsupported";

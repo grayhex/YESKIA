@@ -1,3 +1,4 @@
+import { selectDeviceForOperation } from "../deviceRouting";
 import { useEffect, useRef, useState } from "react";
 import type { AppModel } from "../useAppModel";
 import { toErrorInfo } from "../api";
@@ -35,7 +36,10 @@ export type PersonalDomain = "contacts" | "sms" | "calendar" | "tasks";
 export function PersonalPage({ model, domain }: { model: AppModel; domain: PersonalDomain }) {
   const { c, error: localizeError } = useWorkspaceCopy();
   const { t } = useI18n();
-  const device = model.devices.find((d) => d.connection === "connected");
+  const device = selectDeviceForOperation(
+    model.devices,
+    domain === "sms" ? "sms.read" : "contacts.read",
+  );
   const value = (v: unknown): string =>
     Array.isArray(v)
       ? v.join(", ")

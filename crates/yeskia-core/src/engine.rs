@@ -60,9 +60,11 @@ impl Default for EngineConfig {
 impl EngineConfig {
     pub fn timeout_for(&self, op: Operation) -> Duration {
         match op {
-            Operation::IdentityRead => self.identity_timeout,
+            Operation::IdentityRead | Operation::DiagnosticsRead | Operation::AgentStop => {
+                self.identity_timeout
+            }
             Operation::FilesList => self.list_timeout,
-            Operation::FilesRead => self.read_timeout,
+            Operation::FilesRead | Operation::SystemRead => self.read_timeout,
             _ => self.write_timeout,
         }
     }
@@ -217,6 +219,8 @@ impl Shared {
             let mut st = self.lock();
             self.drop_connection(&mut st, device);
             drop(st);
+            let _ = self.transports[idx].disconnect(device);
+            self.cv.notify_all();
             self.diag
                 .warn("fingerprint устройства изменился; соединение закрыто");
             return Err(Error::FingerprintMismatch);
@@ -258,7 +262,7 @@ impl Shared {
                     .map(|o| {
                         vec![evidence(
                             device.origin,
-                            "probe",
+                            transport.evidence_source(),
                             &format!("read-only probe: {:?}", o.availability),
                             fp,
                         )]
@@ -320,6 +324,32 @@ fn execute_request(
 ) -> Result<OperationData> {
     ctx.checkpoint()?;
     match req {
+        OperationRequest::AgentQuery { query, confirm } => Ok(OperationData::AgentDocument {
+            response: t.agent_query(id, query, *confirm, ctx)?,
+        }),
+        OperationRequest::AgentPing => Ok(OperationData::AgentReply {
+            reply: t.agent_ping(id, ctx)?,
+        }),
+        OperationRequest::AgentCommand { line, confirm } => Ok(OperationData::AgentReply {
+            reply: t.agent_command(id, line, *confirm, ctx)?,
+        }),
+        OperationRequest::AgentPut {
+            source,
+            path,
+            confirm,
+        } => {
+            let (bytes, sha256) = t.agent_put(id, source, path, *confirm, ctx)?;
+            Ok(OperationData::Written {
+                bytes,
+                sha256,
+                verified: true,
+                replaced: false,
+            })
+        }
+        OperationRequest::FilesMkdir { path } => {
+            files(t)?.create_dir(id, path, ctx)?;
+            Ok(OperationData::DirectoryCreated)
+        }
         OperationRequest::IdentityRead => {
             let i = t.identity(id, ctx)?;
             Ok(OperationData::Identity {
@@ -350,7 +380,7 @@ fn execute_request(
             f.write(id, path, data, *overwrite, ctx)?;
             // Подтверждение записи: обратное чтение и сравнение контрольной суммы.
             ctx.checkpoint()?;
-            let back = f.read(id, path, ctx)?;
+            let back = f.read(id, path, ctx).map_err(after_write_error)?;
             let want = sha256_hex(data);
             if sha256_hex(&back) != want {
                 return Err(Error::VerificationFailed);
@@ -604,6 +634,16 @@ fn package_transfer(
     }
 }
 
+// A read-back failure occurs after writing. Even a normally precondition-like read error
+// must not conceal the uncertain outcome of that write.
+fn after_write_error(e: Error) -> Error {
+    if e.is_precondition() {
+        Error::VerificationFailed
+    } else {
+        e
+    }
+}
+
 /// Загрузка файла с компьютера на устройство с подтверждением обратным чтением (SHA-256).
 fn upload(
     t: &dyn DeviceTransport,
@@ -635,7 +675,8 @@ fn upload(
     let (bytes, want) = reader.finish();
     ctx.checkpoint()?;
     let mut hw = HashWriter::new(std::io::sink(), bytes, None);
-    f.read_to(id, path, &mut hw, ctx)?;
+    f.read_to(id, path, &mut hw, ctx)
+        .map_err(after_write_error)?;
     let (back_bytes, back_sha, _) = hw.finish()?;
     if back_bytes != bytes || back_sha != want {
         return Err(Error::VerificationFailed);
@@ -708,7 +749,11 @@ impl Engine {
             .connections
             .iter()
             // Если транспорт сейчас не смог перечислить устройства, их пропажу не утверждаем.
-            .filter(|(id, c)| !failed.contains(&c.transport) && !all.iter().any(|d| &d.id == *id))
+            .filter(|(id, c)| {
+                !failed.contains(&c.transport)
+                    && (!all.iter().any(|d| &d.id == *id)
+                        || !sh.transports[c.transport].is_present(id))
+            })
             .map(|(id, _)| id.clone())
             .collect();
         for id in lost {
@@ -894,7 +939,9 @@ impl Engine {
 
         // Безопасные пути и размеры — до очереди.
         match &mut request {
-            OperationRequest::FilesList { path }
+            OperationRequest::FilesMkdir { path }
+            | OperationRequest::AgentPut { path, .. }
+            | OperationRequest::FilesList { path }
             | OperationRequest::FilesRead { path }
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
@@ -905,6 +952,23 @@ impl Engine {
             _ => {}
         }
         match &request {
+            OperationRequest::AgentQuery { confirm, .. } if !confirm => {
+                return Err(Error::InvalidArgument("LAB_CONFIRM_REQUIRED".into()))
+            }
+            OperationRequest::AgentCommand { line, confirm } => {
+                let cmd = crate::adbian::Command::parse(line)?;
+                if cmd.changes_device() && !confirm {
+                    return Err(Error::InvalidArgument("LAB_CONFIRM_REQUIRED".into()));
+                }
+            }
+            OperationRequest::AgentPut {
+                source, confirm, ..
+            } => {
+                if !confirm {
+                    return Err(Error::InvalidArgument("LAB_CONFIRM_REQUIRED".into()));
+                }
+                validate_host_path(std::path::Path::new(source))?;
+            }
             OperationRequest::BackupCreate { dest, .. } => {
                 let p = std::path::Path::new(dest);
                 if !p.is_absolute()
@@ -1248,6 +1312,17 @@ impl OperationHandle {
             .unwrap_or_default();
 
         let (outcome, data, mut error, jstate) = match result {
+            Ok(d)
+                if matches!(&d,OperationData::AgentReply { reply } if !reply.ok)
+                    || matches!(&d,OperationData::AgentDocument { response } if matches!(response.data,yeskia_agent_protocol::Data::Error { .. })) =>
+            {
+                (
+                    Outcome::Failed,
+                    Some(d),
+                    Some(Error::OperationFailed("ADBIAN_REMOTE_REFUSED".into())),
+                    JournalState::Failed,
+                )
+            }
             Ok(d) => (Outcome::Success, Some(d), None, JournalState::Success),
             Err(Error::Cancelled) => (
                 Outcome::Cancelled,
@@ -1301,6 +1376,36 @@ impl OperationHandle {
                 }
             }
             st.pending.remove(&self.operation_id);
+        }
+        if outcome == Outcome::Success
+            && matches!(&data,Some(OperationData::AgentDocument { response }) if matches!(response.data,yeskia_agent_protocol::Data::Apps { .. }))
+        {
+            let mut st = sh.lock();
+            if let Some(conn) = st.connections.get_mut(&self.device) {
+                if let Some(entry) = conn
+                    .matrix
+                    .entries
+                    .iter_mut()
+                    .find(|e| e.operation == Operation::SystemRead)
+                {
+                    entry.availability = Availability::Available;
+                    entry.maturity = if origin == DeviceOrigin::Mock {
+                        SupportStatus::TestedOnMock
+                    } else {
+                        SupportStatus::VerifiedOnDevice
+                    };
+                    entry.detail = Some("YESKIA_APPS_REGISTRY_READ_ONLY".into());
+                    entry.evidence.push(evidence(
+                        origin,
+                        "adbian-agent:apps.registry.read",
+                        "versioned helper returned a bounded registry page",
+                        &fp,
+                    ));
+                    if entry.evidence.len() > 5 {
+                        entry.evidence.remove(0);
+                    }
+                }
+            }
         }
         error.take();
 

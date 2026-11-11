@@ -1,3 +1,4 @@
+import { selectDeviceForOperation } from "../deviceRouting";
 import { Icon } from "../components/Icon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toErrorInfo } from "../api";
@@ -71,15 +72,19 @@ function usePaneData(load: (() => Promise<PaneEntry[]>) | null, deps: unknown[])
 export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId) => void }) {
   const { t } = useI18n();
   const { backend } = model;
-  const device = model.devices.find((d) => d.connection === "connected") ?? null;
+  const [chosenDevice, setChosenDevice] = useState("");
+  const device = selectDeviceForOperation(model.devices, "files.list", chosenDevice) ?? null;
   const files = device?.matrix?.entries.find((e) => e.operation === "files.list");
   const deviceReady = !!device && files !== undefined && files.availability !== "unsupported";
   const write = device?.matrix?.entries.find((e) => e.operation === "files.write");
-  const canWrite = !!write && write.availability !== "unsupported";
+  const writableTransport = !!write && write.availability !== "unsupported";
 
   const [roots, setRoots] = useState<HostRoot[]>([]);
   const [hostPath, setHostPath] = useState<string | null>(null);
   const [devicePath, setDevicePath] = useState("/");
+  const canWrite =
+    writableTransport &&
+    !(device?.id.startsWith("adbian-") && (devicePath === "/" || /^z:/i.test(devicePath)));
   const [hostSel, setHostSel] = useState<Set<string>>(new Set());
   const [devSel, setDevSel] = useState<Set<string>>(new Set());
   const [clip, setClip] = useState<Clip | null>(null);
@@ -312,6 +317,20 @@ export function FileManagerPage({ model, go }: { model: AppModel; go: (p: PageId
         )}
       </div>
       <p>{t("fm.intro")}</p>
+      {model.devices.filter((d) => d.connection === "connected").length > 1 && (
+        <label>
+          {t("nav.connection")}
+          <select value={device?.id ?? ""} onChange={(e) => setChosenDevice(e.target.value)}>
+            {model.devices
+              .filter((d) => d.connection === "connected")
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.display_name} · {d.transport.toUpperCase()}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
       <p className="hint" style={{ marginLeft: 0 }}>
         {t("fm.shortcuts")}
       </p>

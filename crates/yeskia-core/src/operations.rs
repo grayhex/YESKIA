@@ -10,6 +10,8 @@ use std::time::Instant;
 /// Идентификаторы операций матрицы возможностей.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Operation {
+    #[serde(rename = "agent.stop")]
+    AgentStop,
     #[serde(rename = "identity.read")]
     IdentityRead,
     #[serde(rename = "files.list")]
@@ -18,6 +20,18 @@ pub enum Operation {
     FilesRead,
     #[serde(rename = "files.write")]
     FilesWrite,
+    #[serde(rename = "files.mkdir")]
+    FilesMkdir,
+    #[serde(rename = "files.delete")]
+    FilesDelete,
+    #[serde(rename = "diagnostics.read")]
+    DiagnosticsRead,
+    #[serde(rename = "system.read")]
+    SystemRead,
+    #[serde(rename = "process.exec")]
+    ProcessExec,
+    #[serde(rename = "device.reset")]
+    DeviceReset,
     #[serde(rename = "contacts.read")]
     ContactsRead,
     #[serde(rename = "contacts.write")]
@@ -36,7 +50,7 @@ pub enum Operation {
 }
 
 impl Operation {
-    pub const ALL: [Operation; 10] = [
+    pub const ALL: [Operation; 17] = [
         Operation::IdentityRead,
         Operation::FilesList,
         Operation::FilesRead,
@@ -47,10 +61,24 @@ impl Operation {
         Operation::SmsSend,
         Operation::PackagesInstall,
         Operation::PackagesTransfer,
+        Operation::FilesMkdir,
+        Operation::FilesDelete,
+        Operation::DiagnosticsRead,
+        Operation::SystemRead,
+        Operation::ProcessExec,
+        Operation::DeviceReset,
+        Operation::AgentStop,
     ];
 
     pub fn id(self) -> &'static str {
         match self {
+            Operation::AgentStop => "agent.stop",
+            Operation::FilesMkdir => "files.mkdir",
+            Operation::FilesDelete => "files.delete",
+            Operation::DiagnosticsRead => "diagnostics.read",
+            Operation::SystemRead => "system.read",
+            Operation::ProcessExec => "process.exec",
+            Operation::DeviceReset => "device.reset",
             Operation::IdentityRead => "identity.read",
             Operation::FilesList => "files.list",
             Operation::FilesRead => "files.read",
@@ -70,6 +98,11 @@ impl Operation {
         matches!(
             self,
             Operation::FilesWrite
+                | Operation::FilesMkdir
+                | Operation::FilesDelete
+                | Operation::ProcessExec
+                | Operation::DeviceReset
+                | Operation::AgentStop
                 | Operation::ContactsWrite
                 | Operation::SmsSend
                 | Operation::PackagesInstall
@@ -91,6 +124,26 @@ pub enum OverwritePolicy {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum OperationRequest {
+    #[serde(rename = "agent.query")]
+    AgentQuery {
+        query: yeskia_agent_protocol::Query,
+        confirm: bool,
+    },
+    #[serde(rename = "agent.ping")]
+    AgentPing,
+    #[serde(rename = "files.mkdir")]
+    FilesMkdir { path: String },
+    /// Lab-only, serialized in the same queue as file transfers. No command output in journal.
+    #[serde(rename = "agent.command")]
+    AgentCommand { line: String, confirm: bool },
+    /// Binary second phase of put; never tunnel it through raw command input.
+    #[serde(rename = "agent.put")]
+    AgentPut {
+        source: String,
+        path: String,
+        confirm: bool,
+    },
+
     #[serde(rename = "identity.read")]
     IdentityRead,
     #[serde(rename = "files.list")]
@@ -160,6 +213,18 @@ pub enum OperationRequest {
 impl OperationRequest {
     pub fn operation(&self) -> Operation {
         match self {
+            OperationRequest::AgentQuery { .. } => Operation::ProcessExec,
+            OperationRequest::AgentPing => Operation::DiagnosticsRead,
+            OperationRequest::FilesMkdir { .. } => Operation::FilesMkdir,
+            OperationRequest::AgentPut { .. } => Operation::FilesWrite,
+            OperationRequest::AgentCommand { line, .. } => match line.split_whitespace().next() {
+                Some("quit") => Operation::AgentStop,
+                Some("rm") => Operation::FilesDelete,
+                Some("exec") => Operation::ProcessExec,
+                Some("reboot") => Operation::DeviceReset,
+                Some("mkdir") => Operation::FilesMkdir,
+                _ => Operation::SystemRead,
+            },
             OperationRequest::IdentityRead => Operation::IdentityRead,
             OperationRequest::FilesList { .. } => Operation::FilesList,
             OperationRequest::FilesRead { .. } => Operation::FilesRead,
@@ -183,7 +248,9 @@ impl OperationRequest {
     }
     pub fn path(&self) -> Option<&str> {
         match self {
-            OperationRequest::FilesList { path }
+            OperationRequest::FilesMkdir { path }
+            | OperationRequest::AgentPut { path, .. }
+            | OperationRequest::FilesList { path }
             | OperationRequest::FilesRead { path }
             | OperationRequest::FilesWrite { path, .. }
             | OperationRequest::FilesDownload { path, .. }
@@ -206,6 +273,14 @@ pub struct FileEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationData {
+    AgentDocument {
+        response: yeskia_agent_protocol::Response,
+    },
+    AgentReply {
+        reply: crate::adbian::Reply,
+    },
+    DirectoryCreated,
+
     Identity {
         model: String,
         firmware: Option<String>,

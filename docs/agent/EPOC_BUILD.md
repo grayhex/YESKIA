@@ -27,7 +27,7 @@ python3 scripts/agent/build.py build /path/to/agent-build
 ```
 
 The wrapper refuses wrong revisions, tracked modifications, missing Nokia headers,
-missing host tools and an unconfirmed host architecture. It selects the locked nightly
+missing host tools and an unconfirmed host architecture. Device Cargo lockfiles are kept and builds use `--locked`. It selects the locked nightly
 in an untracked build launcher, leaving upstream tracked files unchanged, cleans each
 app and expects `rshelld.sisx`, `rshell.sis`, `rfprobe.sis`. `yeskia-build.json` records
 source revisions, rustc, package sizes and SHA-256, **not installation success**.
@@ -38,15 +38,15 @@ Different signing keys/timestamps may produce different SIS hashes.
 ## Verification and limitations
 
 This session is Linux x86_64 with no Nokia SDK, cross compiler, signing material or
-physical E72. Source checkouts were fetched and inspected. The device nightly selection
-and complete SIS pipeline are **not yet build-verified**. A passing `prepare` is only a
+physical E72. Source checkouts were fetched and inspected. The pinned nightly was installed on the x86_64 host and accepts the target spec (`rustc --print cfg`); this is not a cross build. Rust checks of rshelld, rshell and rfprobe also pass against this ARM target (upstream GUI macros emit an existing cfg warning). The complete C++/link/SIS pipeline is **not yet build-verified**. A passing `prepare` is only a
 source-pin check. `check` reports concrete prerequisites; resolve those on ARM64 before
 claiming reproducibility. No SIS artifacts or hardware success are fabricated.
 
 An inconsistency exists in upstream comments: `rshelld/app.conf` says not to run GUI
 and daemon together, while the current `rshell` GUI implementation/README describe a
-P&S-only panel. Audit the executable shapes and test on E72; do not infer that an old
-GUI SIS is a panel. `rfprobe` opens a separate listener and should be run separately.
+P&S-only panel. The pinned GUI device entry constructs `Viewer`, which reads P&S and has no listener;
+the old manifest comment is stale. Test coexistence on E72 separately, and do not infer
+that an older GUI SIS is also a panel. `rfprobe` opens a separate listener and should be run separately.
 
 ## Licensing and updates
 
