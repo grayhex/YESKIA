@@ -86,6 +86,16 @@ let browser;
 const checks = [];
 const errors = [];
 async function checkLayout(page, c, screen) {
+  // Readiness belongs to every screen, including the welcome branch below.
+  // Failed decodes remain visible to the brokenImages assertion.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(
+      [...document.images].map((image) =>
+        image.decode().catch(() => undefined),
+      ),
+    );
+  });
   const layout = await page.evaluate(() => {
     const main = document.querySelector("main");
     const nav = document.querySelector("nav");
@@ -194,10 +204,18 @@ try {
         reducedMotion: "reduce",
       });
       const page = await context.newPage();
+      if (c.scenario === "welcome") {
+        // Regress the welcome image-loading race even on a warm, fast runner.
+        await page.route("**/*.webp", async (route) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await route.continue();
+        });
+      }
       page.on("pageerror", (error) => errors.push(error.message));
       try {
         await page.goto(
           `${url}/tests/layout/index.html?scenario=${c.scenario}&lang=${c.lang}`,
+          { waitUntil: "domcontentloaded" },
         );
         await page.locator(".header-controls button:enabled").first().waitFor();
         if (c.scenario === "welcome") {
@@ -227,14 +245,6 @@ try {
                 .getByText("readme.txt", { exact: true })
                 .waitFor();
           }
-          await page.evaluate(async () => {
-            await document.fonts.ready;
-            await Promise.all(
-              [...document.images].map((image) =>
-                image.decode().catch(() => undefined),
-              ),
-            );
-          });
           await checkLayout(page, c, names[1]);
           if (c.scenario === "readonly") {
             assert.equal(
@@ -298,5 +308,14 @@ try {
     "",
   ];
   writeFileSync(output, lines.join(String.fromCharCode(10)));
+  if (process.env.GITHUB_ACTIONS === "true") {
+    for (const error of errors) {
+      const message = error
+        .replaceAll("%", "%25")
+        .replaceAll("\r", "%0D")
+        .replaceAll("\n", "%0A");
+      console.error(`::error title=Layout regression::${message}`);
+    }
+  }
   console.log(JSON.stringify({ checks: checks.length, errors }, null, 2));
 }
