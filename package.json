@@ -14,7 +14,7 @@
     "tauri": "tauri",
     "ui:layout": "node scripts/check-layout.mjs",
     "release:check": "node scripts/release-check.mjs",
-    "release:test": "node --test scripts/release.test.mjs scripts/release-check.test.mjs"
+    "release:test": "node --test scripts/release.test.mjs scripts/release-check.test.mjs scripts/attach-release.test.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

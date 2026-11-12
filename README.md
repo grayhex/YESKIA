@@ -6,15 +6,14 @@ Rust и React; аккаунт, сервер, Python, Gammu и Docker для за
 
 ## Сборка и установка
 
-Следующий кандидат — **0.5.0**. Готовый файл для пользователя:
-**`YESKIA_0.5.0_x64-setup.exe`**. Он устанавливает `yeskia-app.exe`, а не CLI
+Предварительный релиз — **0.5.0**. Файл для пользователя:
+[**`YESKIA_0.5.0_x64-setup.exe`**](https://github.com/grayhex/YESKIA/releases/download/0.5.0/YESKIA_0.5.0_x64-setup.exe). Он устанавливает `yeskia-app.exe`, а не CLI
 лаборатории или телефонный SIS-агент.
 
 Проверенные сборки доступны в [успешных запусках CI](https://github.com/grayhex/YESKIA/actions/workflows/ci.yml)
 как `YESKIA-Windows-Installer`. GitHub скачивает workflow artifact в ZIP, внутри
 которого один setup.exe. Артефакты CI имеют срок хранения. В опубликованном
-предварительном релизе `0.1.0` пока нет файлов; после ручной публикации новый EXE
-будет на [странице релизов](https://github.com/grayhex/YESKIA/releases).
+предварительном релизе `0.1.0` нет файлов; актуальная версия доступна на [странице релизов](https://github.com/grayhex/YESKIA/releases).
 
 Установка для текущего пользователя не требует администратора. Для обновления
 закройте YESKIA и запустите новый setup.exe: каталог установки и данные сохраняются.

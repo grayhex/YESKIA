@@ -92,3 +92,15 @@ CI и ручной выпуск используют один reusable [Windows 
 Tauri вызывается с `--no-binary-patching`: поставляется только NSIS, а ручное
 обновление YESKIA не использует Tauri updater plugin. Упаковщик сохраняет EXE
 побайтно; installed/build SHA-256 проверяется без исключений для служебных меток.
+
+## Прикрепить уже проверенный EXE
+
+Ручной workflow **Attach verified installer** принимает `source_run_id` успешного CI
+или Release artifacts и `release_tag` существующего draft/релиза. Он не пересобирает
+приложение, не создаёт релиз, не публикует draft и не меняет тег/примечания.
+Сверяются дерево исходников тега (для draft без тега — target), версия/имя приложения,
+происхождение и SHA-256 ZIP, единственный EXE и SHA-256 вложения. Чужой файл не
+перезаписывается; точно совпадающее вложение допускает повторный запуск. Токен
+GitHub Actions получает `actions: read`, `contents: write` только для этого workflow.
+Локальная read-only проверка: `SOURCE_RUN_ID=<run> RELEASE_TAG=<tag>
+GITHUB_REPOSITORY=grayhex/YESKIA node scripts/attach-release.mjs --verify-only`.
