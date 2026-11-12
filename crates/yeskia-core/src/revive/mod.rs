@@ -520,3 +520,76 @@ pub fn model_matches(id: &str, identified: &str) -> bool {
         || identified
             .eq_ignore_ascii_case(profile.name.strip_prefix("Nokia ").unwrap_or(profile.name))
 }
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Report {
+    pub schema: String,
+    pub manifest_sha256: String,
+    pub profile: crate::preparation::Profile,
+    pub profile_source: String,
+    pub stack: String,
+    pub applicability: Applicability,
+    pub components: Vec<Cached>,
+    pub progress: Progress,
+    pub hardware_status: String,
+    pub excluded: Vec<String>,
+}
+pub fn profile_scope(profile: &crate::preparation::Profile) -> String {
+    format!(
+        "{}|{}|{}|{}",
+        profile.model, profile.rm, profile.os, profile.firmware
+    )
+}
+pub fn report(
+    root: &Path,
+    store: &Workbench,
+    fingerprint: &str,
+    profile: crate::preparation::Profile,
+    stack: &str,
+) -> Result<Report> {
+    profile.validate()?;
+    if !["system-native", "j2me", "mbedtls-native", "qt"].contains(&stack) {
+        return Err(invalid("APPLICATION_STACK"));
+    }
+    let key = progress_key(fingerprint, &profile_scope(&profile));
+    let progress = store.load::<Progress>(&key)?.value;
+    let target = Target {
+        model: profile.model.clone(),
+        rm: profile.rm.clone(),
+        firmware: profile.firmware.clone(),
+        os: profile.os.clone(),
+        identity_confirmed: false,
+    };
+    Ok(Report {
+        schema: "yeskia.tls-report/1".into(),
+        manifest_sha256: manifest_version(),
+        profile,
+        profile_source: "owner-entered; firmware not device-verified".into(),
+        stack: stack.into(),
+        applicability: applicability(&target, stack),
+        components: cache_state(root)?,
+        progress,
+        hardware_status: "not-tested; manual reports are not hardware verification".into(),
+        excluded: vec![
+            "phone-identifiers".into(),
+            "fingerprint".into(),
+            "local-paths".into(),
+            "contacts".into(),
+            "credentials".into(),
+        ],
+    })
+}
+pub fn record_clock(
+    store: &Workbench,
+    key: &str,
+    revision: i64,
+    date: &str,
+) -> Result<Versioned<Progress>> {
+    clock_check(date, date)?; // Syntax/date validity only; the UI compares with local host date.
+    let mut current = store.load::<Progress>(key)?;
+    if current.revision != revision {
+        return Err(Error::OperationFailed("LOCAL_EDIT_CONFLICT_RELOAD".into()));
+    }
+    current.value.phone_clock = Some(date.into());
+    store.save(key, revision, current.value)
+}

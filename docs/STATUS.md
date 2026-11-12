@@ -1,79 +1,34 @@
-# Статусы функциональности
+# Статус YESKIA — 12 ноября 2026
 
-Статус относится к **возможности**, а не к модели телефона. Заявленная модель ничего не подтверждает.
+`implemented` — код есть; `tested-on-mock` — синтетические устройства/пакеты;
+`tested-on-host` — реальная ОС, файловая система или установленный EXE;
+`verified-on-device` — только обезличенная аппаратная проверка конкретного телефона
+и прошивки. Успех Windows CI не становится `verified-on-device`.
 
-| Статус | Значение |
-| --- | --- |
-| `implemented` | Код есть, автоматических/аппаратных подтверждений нет. |
-| `tested-on-mock` | Проверено автотестами на mock-устройстве. |
-| `tested-on-host` | Проверено на хосте (реальные Windows API/файлы), без телефона. |
-| `verified-on-device` | Подтверждено на реальном устройстве; нужна ссылка на evidence (трасса/отчёт). |
-| `unsupported` | Не поддерживается (или не подтверждено, что работает). |
+Последняя подтверждённая до аудита сборка: [CI PR #46](https://github.com/grayhex/YESKIA/actions/runs/43161511435).
+Текущая подготовка следующего кандидата: 0.1.1. [Аудит issues](ISSUE_AUDIT.md)
+содержит остатки работы и причины незакрытых задач.
 
-В коде: `SupportStatus` (`crates/yeskia-core/src/device.rs`).
-
-## Текущее состояние (фундамент, issue #1)
-
-| Возможность | Статус | Основание |
+| Возможность | Статус | Evidence / ограничения |
 | --- | --- | --- |
-| Модель устройств/операций/ошибок, `Engine` | `tested-on-mock` | `crates/yeskia-core/tests/engine.rs` |
-| Отмена, отключение во время записи, отсутствие повтора записи | `tested-on-mock` | там же |
-| SQLite-хранилище, журнал, `interrupted` после падения | `tested-on-host` | `storage::tests` (реальный файл SQLite) |
-| Редактирование IMEI/серийников | `tested-on-host` | `diagnostics::tests` |
-| Tauri-команды Rust → React | `implemented` | проверяется в CI на Windows (smoke-test + сборка); не запускалось на устройстве |
-| Реальные устройства | `implemented` / `not-tested` | WPD/MTP read-only, Mass Storage и AT реализованы; физические проверки не выполнены. PC Suite unsupported. |
-| Desktop UI: навигация, режимы, RU/EN, состояния (issue #2) | `tested-on-mock` | `ui/src/App.test.tsx` (vitest, UI-заглушка) |
-| Рендер в установленном Tauri на Windows 11, DPI 100/150% | `implemented` | скриншоты в `docs/screenshots` сняты в Chromium; ручная проверка на Windows не выполнена |
-| Матрица возможностей на соединении, evidence с fingerprint (issue #3) | `tested-on-mock` | `crates/yeskia-core/tests/engine.rs` |
-| Очередь, отмена, таймаут (в т.ч. залипший драйвер), hot unplug, partial write, несовпадение fingerprint | `tested-on-mock` | там же |
-| Безопасные пути, запрет silent overwrite, read-back SHA-256, `uncertain` | `tested-on-mock` / `tested-on-host` (пути, SQLite) | `paths::tests`, `engine.rs`, `storage::tests` |
-| Реальные адаптеры | `implemented` / `not-tested` | WPD/MTP, Mass Storage и AT: см. строки ниже; PC Suite и OBEX unsupported. |
-| Doctor: классификация PnP/WPD/COM, privacy-safe отчёт (issue #4) | `tested-on-mock` | `crates/yeskia-discovery/tests/doctor.rs` (поддельная топология) |
-| Windows-сборщик SetupAPI/CM/WPD, read-only | `implemented` | компиляция под Windows + запуск `--doctor` на раннере CI (без телефона) |
-| `PnpTransport` в Device Core: discovery, disconnect, fingerprint | `tested-on-mock` | `crates/yeskia-discovery/tests/adapter.rs` |
-| WPD/MTP листинг и identity на реальной Nokia `0421:0223`, E52/E72 | `not-tested` | нужен физический телефон, см. docs/DISCOVERY.md |
-| Иллюстрации телефонов по подтверждённой модели (перенос из s60modern) | `tested-on-mock` | `ui/src/phones/registry.test.ts`, `App.test.tsx`; права на изображения **не подтверждены**, см. docs/ASSETS.md |
-| Файловый менеджер: скачивание/загрузка, коллизии, отмена, Unicode (issue #5) | `tested-on-mock` | `crates/yeskia-core/tests/transfer.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/FileManager.test.tsx` |
-| Mass Storage: том ограничен устройством, read-back SHA-256 | `tested-on-host` | временные папки на реальной ФС; на физической карте `not-tested` |
-| WPD/MTP read-only листинг/скачивание (Windows-бэкенд) | `implemented` | компиляция под Windows; на телефоне `not-tested`, запись не заявляется |
-| Лаборатория NPC: формат отчёта v1, редактор приватных данных, анализатор журналов, scan (issue #6) | `tested-on-mock` | `crates/yeskia-lab/tests/lab.rs` (синтетические фикстуры, реплей-тесты) |
-| Реальный обезличенный кейс «USB enumeration → identify attempt» | `not-tested` | нужен собственный телефон; инструкция в `docs/protocol/OBSERVATIONS.md` |
-| Протоколы PC Suite (NPC) | `unsupported` | ни одна функция не заявляется без адаптера YESKIA, проверенного на телефоне |
-| Файловые резервные копии: create/verify/restore-plan/apply только новых (issue #7) | `tested-on-host` / `tested-on-mock` | `crates/yeskia-core/tests/backup*.rs`, `crates/yeskia-discovery/tests/files.rs`, `ui/src/Backups.test.tsx` |
-| Резервная копия с реального телефона/карты | `not-tested` | нужен физический телефон; это файловая копия, не полный backup (docs/BACKUPS.md) |
-| Библиотека пакетов, инспектор SIS/SISX/JAR/JAD и подписи (issue #8) | `tested-on-host` | `crates/yeskia-core/tests/pkg.rs`, `packages.rs`; golden-сверка со SymPort; `ui/src/Packages.test.tsx` |
-| Передача пакета на телефон (`packages.transfer`) | `tested-on-mock` | запись файла с read-back, не установка; на реальном телефоне/карте `not-tested` |
-| Установка пакетов на телефоне, доверие сертификатам телефона | `not-tested` | инспектор не утверждает совместимость (`compatible` не выдаётся) |
-| Рингтоны и подготовка медиа через внешний FFmpeg (issue #9) | `tested-on-host` | `crates/yeskia-core/tests/media.rs`, `media_jobs.rs`; без FFmpeg — `TOOL_MISSING` |
-| Анализ и предпросмотр тем S60 (.skn/.mbm/.mif/SIS) | `tested-on-host` | `crates/yeskia-core/tests/theme.rs` (темы SymPort, golden) |
-| Воспроизведение рингтона / применение темы / передача медиа на телефон | `not-tested` | нужен физический телефон; принятие темы прошивкой `unknown` |
-| AT-канал по COM (3GPP, только чтение): идентификация, число контактов/сообщений (issue #10) | `tested-on-mock` | `crates/yeskia-core/tests/at.rs` (кадрирование, ошибки, hot-unplug), `crates/yeskia-discovery/tests/serial.rs`; синтетические диалоги, не снятые с телефона |
-| AT-канал на реальном Nokia | `not-tested` | нужен собственный телефон; чек-лист в docs/protocol/AT_SERIAL.md |
-| Любой сервис протокола Nokia PC Suite (NPC) | `unsupported` | нет реальных трасс (#6); ничего не заявляется |
-| Один NSIS-установщик со встроенными уведомлениями о лицензиях (issue #11) | `tested-on-host` | задача «Windows app build + smoke» в CI; не чистая Windows |
-| Обновление через setup.exe | `not-tested` для перехода между релизами | NSIS распознаёт текущую установку; CI проверяет переустановку и `/UPDATE` той же версии; ручной переход между релизами — docs/release/MANUAL_CHECK.md |
-| Первый запуск (Welcome → поиск → возможности → файлы) | `tested-on-mock` | `ui/src/Distribution.test.tsx` |
-| Запуск на чистой Windows 11, деинсталлятор, SmartScreen, телефоны | `not-tested` | docs/release/MANUAL_CHECK.md |
+| Tauri/Rust/React, локальные настройки/SQLite, очереди, отмена, privacy | tested-on-host / tested-on-mock | Rust/UI/Windows CI, installed EXE smoke, контракты hot-unplug/timeout/uncertain writes |
+| Fluent UI, RU/EN, явная light/dark тема, логотип, DPI | tested-on-host | 343 браузерные проверки в #46; браузерные mock-снимки не являются Windows/E72 hardware run |
+| USB PnP/WPD/COM discovery и Doctor | tested-on-host / tested-on-mock | Windows API smoke и synthetic topology. Ранее пользователь сообщил E72 WPD association и listing 2 хранилищ/38 объектов; повторная приёмка текущего адаптера остаётся #4 |
+| WPD/MTP download, Mass Storage copy/read-back | tested-on-mock / tested-on-host | Fake WPD и реальные host volumes; проверка на карте/телефоне #5 не завершена |
+| Classic Bluetooth Phone class, SDP/RFCOMM | implemented; hardware not-tested | Пассивный paired cache, запрет audio/unknown class, открытие только по запросу. Native Windows build и contract tests, реальная E72 #31 |
+| ADBian files/Lab/sideload, разделение маршрутов | tested-on-mock | C:/E:/Z: probes, Z: read-only, большие чтения, put/read-back, отдельные USB/Bluetooth очереди. Физическая приёмка #32/#33 остаётся |
+| EPOC helper / собственный SIS-агент | implemented source; SIS/hardware not-tested | ARM Rust check, AppArc bridge, fake protocol. Полная SDK/C++/SIS сборка и E72 install/reboot — #30/#34/#35 |
+| Agent-side contacts/calendar/tasks/SMS | unsupported | API audit и планы не являются экспортом PIM; #34 |
+| USB OBEX/PCCS contacts/calendar/tasks reader | tested-on-mock | Rust-native framing и FakePhone fixtures; физическое чтение текущим адаптером #10/#42 |
+| COM/PDU SMS reader и AT identity/counts | tested-on-mock | Синтетические диалоги, PDU validation; нет отправки/удаления SMS |
+| Локальная книга контактов | tested-on-host / tested-on-mock | VCF/CSV/JSON, редактор, multivalue, merge preview, revision/undo, экспорт; writable Nokia provider отсутствует — #42 остаётся открытым |
+| TLS Revival | tested-on-host / tested-on-mock; E72 not-tested | Проверены официальные пины и SIS/ZIP, staged SIS/read-back, ручные состояния/инструкции, обезличенный отчёт. Автоматические privileged apply/rollback заблокированы без доказательств; #41 |
+| Подготовка E72 | tested-on-mock | Persistent scoped progress, реальные deep links и native proof hooks. Полный путь на RM-530 054.005, вызовы/SMS и аппаратная приёмка — #43 |
+| Файловый backup / verify / restore-plan | tested-on-host | Local filesystem integration; не системный/PIM backup. Телефон — только по capability/evidence |
+| Библиотека пакетов/инспектор/сертификаты | tested-on-host / tested-on-mock | Разрешённые golden fixtures, не обещает совместимость неизвестной прошивки. Передача не означает установку/доверие |
+| FFmpeg/media и просмотр тем | tested-on-host для ранее выполненных FFmpeg runs; обычный CI без FFmpeg | FFmpeg внешний; 9 real codec tests opt-in. Редактор палитры/сборка темы не реализованы — #9 |
+| NSIS EXE, установка/переустановка/UPDATE | tested-on-host | Windows runner проверяет installed app и данные. Чистая Windows, интерактивное удаление, SmartScreen и переход между выпущенными версиями — #11 |
+| Независимая аппаратная NPC-сессия / research cases | not-tested | Нет обезличенных реальных трасс/трёх cases, #6/#10/#36 |
 
-## Нативный PIM после переноса
-
-| Что | Статус | Подтверждение |
-| --- | --- | --- |
-| Контакты/календарь/задачи USB OBEX/PCCS на Rust | `tested-on-mock` | Побайтное совпадение с синтетическим FakePhone s60modern, Continue, форматы, ошибки и разбор текста. Python/Gammu удалены. |
-| SMS PDU по COM на Rust | `tested-on-mock` | GSM7/UCS-2 и повреждённые PDU; команды с сохранением статуса, без CMGF/CMGS/CMGD. |
-| Передача сертификата для установки через OPP | `tested-on-mock` | SHA-256 перед отправкой, подтверждение UI, потерянный ответ без повтора. Завершение установки и доверие подтверждаются на телефоне. |
-| Чтение/передача на E72 после Rust-переноса | `not-tested` | Нужна повторная аппаратная проверка; результат исходного Python-адаптера автоматически не переносится. |
-| Soft UI и английский текст подключения/сертификатов | `tested-on-host` | Проверки UI и браузерная проверка светлой/тёмной темы. Логотип сохранён. |
-
-## ADBian / YESKIA Agent (#30–36)
-
-| Capability | Status | Evidence / limits |
-| --- | --- | --- |
-| ADBian framing, bounded transfers, error/EOF/cancel/no replay | `tested-on-mock` | core `tests/adbian.rs`, synthetic golden fixtures |
-| Windows Classic Bluetooth paired discovery / SPP SDP / RFCOMM | `implemented` | native WinSock/Bluetooth code and Windows CI; physical E72 pending |
-| Agent FileProvider, Lab arming, shared Engine queue, sideload | `tested-on-mock` | `yeskia-adbian/tests/adapter.rs`, UI `Agent.test.tsx`; not a phone test |
-| Per-operation file/PIM transport routing | `tested-on-mock` | `ui/src/deviceRouting.test.ts`; no inferred cross-transport identity merge |
-| Versioned helper protocol / bounded AppArc-page encoding | `tested-on-mock` | `yeskia-agent-protocol` fake-system tests; PIM flags false |
-| EPOC helper AppArc bridge / SIS / physical system service | `implemented` / `not-tested` | own no_std/C++ source; no Nokia SDK/SIS build or phone evidence |
-| Agent contacts/calendar/tasks/SMS exports | `unsupported` | API audit only; separate implementation and hardware read tests remain |
-| E72 bootstrap / update / autostart / research cases | `not-tested` on hardware | [acceptance ledger](agent/ACCEPTANCE.md), [Windows check](agent/WINDOWS_E72_CHECK.md) |
+Полный список оставшихся device-проверок: [агент](agent/ACCEPTANCE.md),
+[протоколы](protocol/COVERAGE.md), [ручной релизный чек-лист](release/MANUAL_CHECK.md).

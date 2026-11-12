@@ -76,7 +76,10 @@ fn without_a_configured_key_the_source_is_unsigned_and_says_so() {
     let core = AppCore::in_memory();
     let p = package("unsigned", "0.2.0");
     let c = core.update_check(&p.installer, &p.manifest, None).unwrap();
-    assert_eq!((c.current.as_str(), c.version.as_str()), ("0.1.0", "0.2.0"));
+    assert_eq!(
+        (c.current.as_str(), c.version.as_str()),
+        (env!("CARGO_PKG_VERSION"), "0.2.0")
+    );
     assert_eq!(c.trust, Trust::UnsignedSource);
     assert!(c.limitations.iter().any(|l| l.contains("SmartScreen")));
     assert!(c
@@ -134,7 +137,7 @@ fn a_valid_signature_makes_the_source_signed_and_a_forged_one_is_rejected() {
 #[test]
 fn downgrades_replays_and_mismatches_are_refused() {
     let core = AppCore::in_memory();
-    for v in ["0.1.0", "0.0.9"] {
+    for v in [env!("CARGO_PKG_VERSION"), "0.0.9"] {
         let p = package("down", v);
         let e = core
             .update_check(&p.installer, &p.manifest, None)

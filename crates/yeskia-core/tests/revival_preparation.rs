@@ -250,3 +250,43 @@ fn prep_context_changes_invalidate_proof_and_reports_exclude_private_inputs() {
     );
     assert!(invalid.is_err());
 }
+#[test]
+fn exported_tls_report_keeps_pins_and_manual_clock_without_identifiers_or_device_proof() {
+    let tmp = Temp::new();
+    let store = Workbench::open(tmp.path()).unwrap();
+    let profile = p::Profile::default();
+    let key = revive::progress_key(
+        "private-device-fingerprint",
+        &revive::profile_scope(&profile),
+    );
+    let clock = revive::record_clock(&store, &key, 0, "2026-11-12").unwrap();
+    assert!(revive::record_clock(&store, &key, clock.revision, "2026-02-30").is_err());
+    let report = revive::report(
+        tmp.path(),
+        &store,
+        "private-device-fingerprint",
+        profile.clone(),
+        "system-native",
+    )
+    .unwrap();
+    assert_eq!(report.progress.phone_clock.as_deref(), Some("2026-11-12"));
+    assert!(!report.applicability.device_verified);
+    let raw = serde_json::to_string(&report).unwrap();
+    assert!(
+        !raw.contains("private-device-fingerprint")
+            && !raw.contains(&tmp.path().to_string_lossy().to_string())
+    );
+    assert!(raw.contains("d20d6d41c796d53f"));
+    assert!(report.hardware_status.starts_with("not-tested"));
+    assert!(revive::report(
+        tmp.path(),
+        &store,
+        "other-device",
+        p::Profile {
+            firmware: "personal-secret".into(),
+            ..profile
+        },
+        "system-native"
+    )
+    .is_err());
+}

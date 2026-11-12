@@ -20,6 +20,75 @@ import {
 export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => void }) {
   const { lang } = useI18n();
   const l = (ru: string, en: string) => (lang === "ru" ? ru : en);
+  const labels: Record<string, [string, string]> = {
+    manual: ["Ручная проверка", "Manual check"],
+    documented: ["По документации автора", "Author documented"],
+    blocked: ["Заблокировано", "Blocked"],
+    unsupported: ["Не поддерживается", "Unsupported"],
+    "qt-is-not-covered-by-system-ssl": [
+      "Системный SSL-патч не исправляет Qt.",
+      "The system SSL patch does not fix Qt.",
+    ],
+    "unknown-application-stack": [
+      "Сетевой стек приложения не определён.",
+      "The application network stack is unknown.",
+    ],
+    "symbian3-author-support; model-and-firmware-not-verified": [
+      "Symbian^3 указан автором; эта модель и прошивка не проверены.",
+      "The author lists Symbian^3; this model and firmware are unverified.",
+    ],
+    "eka1-needs-separate-bearssl-packages": [
+      "Для EKA1 нужны отдельные BearSSL-пакеты.",
+      "EKA1 needs separate BearSSL packages.",
+    ],
+    "symbian-version-mismatch": [
+      "Версия Symbian не совпадает с профилем модели.",
+      "The Symbian version conflicts with the model profile.",
+    ],
+    "rm-mismatch": [
+      "RM не совпадает с выбранной моделью.",
+      "RM conflicts with the selected model.",
+    ],
+    "identity-not-confirmed-by-device": [
+      "Модель не подтверждена чтением с телефона.",
+      "The model is not confirmed by a phone read.",
+    ],
+    "exact-firmware-not-verified": [
+      "Точная прошивка ещё не проверена.",
+      "The exact firmware is not yet verified.",
+    ],
+    "unknown-platform": [
+      "Поддержка этой платформы не определена.",
+      "Support for this platform is unknown.",
+    ],
+    "installserver-required-for-unsigned-sis": [
+      "Для SIS без подписи нужен рабочий InstallServer.",
+      "The unsigned SIS needs a working InstallServer.",
+    ],
+    "open4all-or-equivalent-rights-required; snapshot-before-system-change": [
+      "Для системного DLL нужны подтверждённые права и исходная копия до изменения.",
+      "The system DLL needs confirmed privileges and an original snapshot before changes.",
+    ],
+    "installed-reported": ["Установка SIS отмечена владельцем", "Owner reported SIS installation"],
+    "applied-reported": ["Применение DLL отмечено владельцем", "Owner reported DLL application"],
+    "restored-reported": ["Восстановление отмечено владельцем", "Owner reported restoration"],
+    "snapshot-reported": ["Исходная копия отмечена владельцем", "Owner reported original snapshot"],
+    "passed-reported": ["Успех отмечен владельцем", "Owner reported success"],
+    failed: ["Ошибка", "Failed"],
+    "not-tested": ["Не проверялось", "Not tested"],
+    "not-confirmed": ["Не подтверждено", "Not confirmed"],
+    "transferred-read-back-verified": [
+      "Файл передан и проверен обратным чтением",
+      "File staged and read-back verified",
+    ],
+    "transferred-on-mock": ["Передано только на MOCK", "Staged on MOCK only"],
+    "unknown-check-phone-before-retry": [
+      "Исход неизвестен — проверьте телефон перед повтором",
+      "Unknown outcome — inspect the phone before retrying",
+    ],
+  };
+  const status = (code: string) =>
+    labels[code] ? l(...labels[code]) : l("Нет подтверждённых данных", "No verified data");
   const api = model.backend.workbench;
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [components, setComponents] = useState<TlsComponent[]>([]);
@@ -81,6 +150,7 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
     setProgress(null);
     setConfirm(null);
     setClockChecked(false);
+    setClock("");
     setDll("");
     void Promise.all([
       api.call({ kind: "tls_state" }),
@@ -191,6 +261,9 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
         }
       },
     });
+  useEffect(() => {
+    if (progress?.value.phone_clock) setClock(progress.value.phone_clock);
+  }, [progress?.value.phone_clock]);
   const unsupported = !applies || ["unsupported", "blocked"].includes(applies.status);
   const hasSnapshot = progress?.value.snapshot?.status === "snapshot-reported";
   const sis = progress?.value.components["mbedtls-lib"]?.status === "installed-reported";
@@ -198,9 +271,27 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
     <div className="workspace-page">
       <div className="page-heading">
         <h1>TLS / HTTPS Revival</h1>
-        <button className="btn btn-secondary" onClick={() => go("preparation")}>
-          {l("Подготовка E72", "Prepare E72")}
-        </button>
+        <div className="btn-row">
+          <button
+            className="btn btn-secondary"
+            disabled={busy || !progress}
+            onClick={() =>
+              void run(async () => {
+                const report = await api.call({ kind: "tls_report", fingerprint, profile, stack });
+                const path = await model.backend.pickSavePath("YESKIA-TLS-report.json");
+                if (path) {
+                  await model.backend.savePersonalSnapshot(path, JSON.stringify(report, null, 2));
+                  setMessage(l("Отчёт сохранён: ", "Report saved: ") + path);
+                }
+              })
+            }
+          >
+            {l("Экспорт отчёта TLS", "Export TLS report")}
+          </button>
+          <button className="btn btn-secondary" onClick={() => go("preparation")}>
+            {l("Подготовка E72", "Prepare E72")}
+          </button>
+        </div>
       </div>
       <p className="hint">
         {l(
@@ -247,7 +338,7 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
           </label>
           {applies && (
             <>
-              <p className="tag">{applies.status}</p>
+              <p className="tag">{status(applies.status)}</p>
               <p>
                 {l(
                   "Точная прошивка и этот телефон ещё не проверены. Совместимость из документации автора не равна аппаратной проверке.",
@@ -256,7 +347,7 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
               </p>
               {applies.reasons.map((r) => (
                 <p className="hint" key={r}>
-                  {r}
+                  {status(r)}
                 </p>
               ))}
             </>
@@ -282,8 +373,22 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
           </label>
           <button
             className="btn btn-secondary"
-            disabled={!clock}
-            onClick={() => setClockChecked(true)}
+            disabled={!clock || busy || !progress}
+            onClick={() =>
+              void run(async () => {
+                if (!progress) return;
+                setProgress(
+                  await api.call({
+                    kind: "tls_clock",
+                    fingerprint,
+                    firmware: scope,
+                    revision: progress.revision,
+                    date: clock,
+                  }),
+                );
+                setClockChecked(true);
+              })
+            }
           >
             {l("Сравнить с датой компьютера", "Compare with computer date")}
           </button>
@@ -373,11 +478,15 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
               )}
               <p>
                 {l("Передача", "Transfer")}:{" "}
-                {progress?.value.transferred[c.id]?.status ?? l("Не выполнялась", "Not performed")}
+                {(progress?.value.transferred[c.id]
+                  ? status(progress.value.transferred[c.id].status)
+                  : undefined) ?? l("Не выполнялась", "Not performed")}
               </p>
               <p>
                 {l("Ручной отчёт", "Manual report")}:{" "}
-                {progress?.value.components[c.id]?.status ?? l("Нет", "None")}
+                {(progress?.value.components[c.id]
+                  ? status(progress.value.components[c.id].status)
+                  : undefined) ?? l("Нет", "None")}
               </p>
               {c.id === "mbedtls-lib" && (
                 <div className="btn-row">
@@ -449,7 +558,8 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
           </button>
           <p>
             {l("Снимок", "Snapshot")}:{" "}
-            {progress?.value.snapshot?.status ?? l("Не подтверждён", "Not reported")}
+            {(progress?.value.snapshot ? status(progress.value.snapshot.status) : undefined) ??
+              l("Не подтверждён", "Not reported")}
           </p>
           <button
             className="btn btn-secondary"
@@ -493,7 +603,9 @@ export function TlsPage({ model, go }: { model: AppModel; go: (id: PageId) => vo
           </p>
           <p>
             {l("Результат", "Result")}:{" "}
-            {progress?.value.phone_https?.status ?? l("Не проверялось", "Not tested")}
+            {(progress?.value.phone_https
+              ? status(progress.value.phone_https.status)
+              : undefined) ?? l("Не проверялось", "Not tested")}
           </p>
           <div className="btn-row">
             <button

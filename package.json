@@ -1,7 +1,7 @@
 {
   "name": "yeskia",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "workspaces": [
     "ui"
   ],
@@ -12,7 +12,9 @@
     "ui:lint": "npm --workspace ui run lint",
     "ui:typecheck": "npm --workspace ui run typecheck",
     "tauri": "tauri",
-    "ui:layout": "node scripts/check-layout.mjs"
+    "ui:layout": "node scripts/check-layout.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "release:test": "node --test scripts/release.test.mjs scripts/release-check.test.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

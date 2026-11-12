@@ -606,3 +606,89 @@ fn passive_discovery_never_opens_audio_peripherals_or_phones_and_names_do_not_ov
     assert!(engine.connect(&id).is_err());
     assert_eq!(opener.opened.load(Ordering::SeqCst), 1);
 }
+#[test]
+fn synthetic_c_e_z_roots_and_bluetooth_failure_leave_usb_route_usable() {
+    let (agent, phone, id) = setup();
+    {
+        let mut p = phone.lock().unwrap();
+        p.dirs.insert("Z:/".into());
+        p.files
+            .insert("Z:/rom.bin".into(), b"read-only ROM".to_vec());
+    }
+    agent.disconnect(&id).unwrap();
+    let agent = Arc::new(agent);
+    let usb = Arc::new(yeskia_core::mock::MockTransport::new());
+    let engine = Engine::new(
+        vec![agent.clone(), usb],
+        Arc::new(Storage::open_in_memory().unwrap()),
+        Arc::new(Diagnostics::new(100, None)),
+    );
+    engine.connect(&id).unwrap();
+    let usb_id = DeviceId::new(yeskia_core::mock::MOCK_DEVICE_ID);
+    engine.connect(&usb_id).unwrap();
+    let roots = engine
+        .run(&id, OperationRequest::FilesList { path: "/".into() })
+        .unwrap();
+    let Some(OperationData::Entries { entries }) = roots.data else {
+        panic!("root entries missing")
+    };
+    assert_eq!(
+        entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(),
+        ["C:", "E:", "Z:"]
+    );
+    let read = engine
+        .run(
+            &id,
+            OperationRequest::FilesRead {
+                path: "Z:/rom.bin".into(),
+            },
+        )
+        .unwrap();
+    assert_eq!(read.outcome, Outcome::Success);
+    let blocked = engine
+        .run(
+            &id,
+            OperationRequest::FilesWrite {
+                path: "Z:/rom.bin".into(),
+                data: b"mutation".to_vec(),
+                overwrite: OverwritePolicy::Replace,
+            },
+        )
+        .unwrap();
+    assert_eq!(blocked.outcome, Outcome::Failed);
+    assert!(!blocked.uncertain);
+    phone.lock().unwrap().fail_put = true;
+    let failed = engine
+        .run(
+            &id,
+            OperationRequest::FilesWrite {
+                path: "C:/Data/uncertain.bin".into(),
+                data: b"synthetic".to_vec(),
+                overwrite: OverwritePolicy::Never,
+            },
+        )
+        .unwrap();
+    assert_eq!(failed.outcome, Outcome::Failed);
+    assert!(failed.uncertain);
+    let other = engine
+        .run(
+            &usb_id,
+            OperationRequest::FilesRead {
+                path: "E:/readme.txt".into(),
+            },
+        )
+        .unwrap();
+    assert_eq!(other.outcome, Outcome::Success);
+    assert!(engine
+        .list_devices()
+        .unwrap()
+        .iter()
+        .any(|d| d.id == usb_id && d.connection == ConnectionState::Connected));
+    let p = phone.lock().unwrap();
+    assert_eq!(
+        p.commands.iter().filter(|c| c.starts_with("put ")).count(),
+        1,
+        "no replay and no ROM write"
+    );
+    assert_eq!(p.opens, 2, "no automatic reconnect");
+}

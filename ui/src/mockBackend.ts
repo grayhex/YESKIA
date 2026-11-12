@@ -1,3 +1,4 @@
+import uiPackage from "../package.json";
 import { MockWorkbench } from "./workbench";
 import type { Backend } from "./api";
 import type {
@@ -215,7 +216,7 @@ export class MockBackend implements Backend {
 
   async getSystemInfo(): Promise<SystemInfo> {
     return {
-      app_version: "0.1.0",
+      app_version: uiPackage.version,
       os: "ui-mock",
       arch: "n/a",
       is_windows: false,

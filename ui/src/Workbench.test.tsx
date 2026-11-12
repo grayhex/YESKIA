@@ -78,3 +78,23 @@ it("opens pinned TLS components with explicit unsupported auto-apply and working
   await userEvent.click(screen.getByRole("button", { name: "Prepare E72" }));
   expect(await screen.findByRole("heading", { name: "Prepare E72" })).toBeInTheDocument();
 });
+it("exports a TLS report only after choosing a path, keeping manual evidence distinct", async () => {
+  const backend = new MockBackend();
+  const save = vi.spyOn(backend as Backend, "savePersonalSnapshot").mockResolvedValue();
+  vi.spyOn(backend, "pickSavePath")
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce("C:\\TLS-report.json");
+  render(<App backend={backend} />);
+  await screen.findByText("Nokia E72 (MOCK)");
+  await userEvent.click(nav("Сертификаты"));
+  await userEvent.click(screen.getByRole("button", { name: "TLS / HTTPS Revival" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Экспорт отчёта TLS" }));
+  expect(save).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Экспорт отчёта TLS" }));
+  await waitFor(() =>
+    expect(save).toHaveBeenCalledWith(
+      "C:\\TLS-report.json",
+      expect.stringContaining('"hardware_status": "not-tested; UI MOCK"'),
+    ),
+  );
+});

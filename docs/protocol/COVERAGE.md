@@ -10,9 +10,9 @@
 | Число контактов (`AT+CPBS?`) | AT по COM | implemented / `not-tested` | implemented / `not-tested` | implemented / `not-tested` | implemented / `not-tested` | только счётчик выбранного хранилища |
 | Число сообщений (`AT+CPMS?`) | AT по COM | implemented / `not-tested` | implemented / `not-tested` | implemented / `not-tested` | implemented / `not-tested` | только счётчик |
 | Список контактов | AT по COM | unsupported | unsupported | unsupported | unsupported | следующая задача, после проверки на телефоне |
-| Календарь / задачи | — | unsupported | unsupported | unsupported | unsupported | не исследовано |
-| Чтение SMS | — | unsupported | unsupported | unsupported | unsupported | не реализовано |
-| Протокол Nokia PC Suite (NPC) — любой сервис | NPC | unsupported | unsupported | unsupported | unsupported | нет реальных трасс (#6) |
+| Контакты, календарь / задачи | USB OBEX/PCCS | implemented / not-tested | implemented / not-tested | implemented / not-tested | implemented / not-tested | Rust readers, synthetic FakePhone; физическая приёмка отсутствует |
+| Чтение SMS | COM/PDU | implemented / not-tested | implemented / not-tested | implemented / not-tested | implemented / not-tested | native PDU reader, без отправки/удаления |
+| Независимо подтверждённый аппаратный NPC-сервис | NPC | not-tested | not-tested | not-tested | not-tested | Код PCCS reader не равен real trace/device evidence, #6/#10 |
 | Запись контактов, отправка SMS, удаление, синхронизация | любой | unsupported | unsupported | unsupported | unsupported | только отдельными задачами |
 | Файлы (запись) | AT/NPC | unsupported | unsupported | unsupported | unsupported | файлы — Mass Storage/WPD (см. STATUS.md) |
 
