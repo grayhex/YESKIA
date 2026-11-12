@@ -5,8 +5,7 @@
 `verified-on-device` — только обезличенная аппаратная проверка конкретного телефона
 и прошивки. Успех Windows CI не становится `verified-on-device`.
 
-Последняя подтверждённая до аудита сборка: [CI PR #46](https://github.com/grayhex/YESKIA/actions/runs/43161511435).
-Текущая подготовка следующего кандидата: 0.5.0. [Аудит issues](ISSUE_AUDIT.md)
+Подтверждённая сборка **0.5.0**: [CI PR #47](https://github.com/grayhex/YESKIA/actions/runs/43169673961), включая полный installed/build SHA-256, runtime version/architecture и NSIS install/reinstall/UPDATE. [Аудит issues](ISSUE_AUDIT.md)
 содержит остатки работы и причины незакрытых задач.
 
 | Возможность | Статус | Evidence / ограничения |

@@ -1,0 +1,34 @@
+name: Attach verified installer
+
+# Copies a successful build to an EXISTING release. Never creates/publishes a release.
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful CI or Release artifacts run containing the installer"
+        type: string
+        required: true
+      release_tag:
+        description: "Existing draft or published release (for example 0.5.0)"
+        type: string
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/attach-release.test.mjs
+      - name: Verify source, archive and existing release; attach EXE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: node scripts/attach-release.mjs
