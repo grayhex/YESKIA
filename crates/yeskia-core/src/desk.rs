@@ -63,6 +63,17 @@ pub enum Request {
         status: String,
         confirm: bool,
     },
+    TlsReport {
+        fingerprint: String,
+        profile: p::Profile,
+        stack: String,
+    },
+    TlsClock {
+        fingerprint: String,
+        firmware: String,
+        revision: i64,
+        date: String,
+    },
     PrepProfile,
     PrepSaveProfile {
         profile: p::Profile,
@@ -152,6 +163,22 @@ pub fn execute(root: &Path, request: Request) -> Result<serde_json::Value> {
             &item,
             &status,
             confirm,
+        )?),
+        Request::TlsReport {
+            fingerprint,
+            profile,
+            stack,
+        } => json(t::report(root, &store, &fingerprint, profile, &stack)?),
+        Request::TlsClock {
+            fingerprint,
+            firmware,
+            revision,
+            date,
+        } => json(t::record_clock(
+            &store,
+            &t::progress_key(&fingerprint, &firmware),
+            revision,
+            &date,
         )?),
         Request::PrepProfile => json(store.load::<p::Profile>("bench-profile")?),
         Request::PrepSaveProfile { profile } => {

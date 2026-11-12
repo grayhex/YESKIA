@@ -54,68 +54,9 @@ jobs:
           name: YESKIA-Layout-Report
           path: docs/screenshots/fluent/layout-report.json
       - name: Скрипты релиза (уведомления, SBOM, контрольные суммы)
-        run: node --test scripts/release.test.mjs
+        run: npm run release:test
 
   windows-app:
     name: Windows app build + smoke
-    runs-on: windows-latest
     needs: [core, ui]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run ui:build
-      - name: Build Tauri shell
-        run: cargo build -p yeskia-app --release
-      - name: Smoke test (старт без окна)
-        shell: bash
-        env:
-          YESKIA_DATA_DIR: ${{ runner.temp }}/yeskia-smoke
-        run: |
-          out=$(./target/release/yeskia-app.exe --smoke-test)
-          echo "$out"
-          echo "$out" | grep -q '"mock_identify":"ok"'
-          echo "$out" | grep -q '"storage_ok":true'
-      - name: Doctor (read-only, без телефона)
-        shell: bash
-        env:
-          YESKIA_DATA_DIR: ${{ runner.temp }}/yeskia-smoke
-        run: |
-          out=$(./target/release/yeskia-app.exe --doctor)
-          echo "$out"
-          echo "$out" | grep -q '"schema": 1'
-          echo "$out" | grep -q '"os": "Windows'
-          # privacy: в отчёте нет путей/instance id
-          ! echo "$out" | grep -qiE 'usb\\\\vid_|\\\\\\\\\?\\\\'
-      - name: Лаборатория — inventory на Windows (без телефона)
-        shell: bash
-        run: |
-          out=$(cargo run -q -p yeskia-lab -- inventory)
-          echo "$out" | grep -q '"schema": "yeskia.lab.report/1"'
-          ! echo "$out" | grep -qiE 'usb\\\\vid_|\\\\\\\\\?\\\\'
-      - name: Нет сетевых клиентов и серверов в сборке приложения
-        shell: bash
-        run: |
-          tree=$(cargo tree --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc -e normal --prefix none)
-          if echo "$tree" | grep -iE '^(reqwest|hyper|hyper-util|ureq|isahc|curl|attohttpc|surf|awc|actix-web|axum|warp|tiny_http|rouille) '; then
-            echo "В сборке приложения найден HTTP-клиент или сервер"; exit 1
-          fi
-          # CSP: только IPC, без внешних адресов
-          ! grep -E 'connect-src[^"]*https?://[^i"]' src-tauri/tauri.conf.json
-      - name: Установщик для установки и обновления
-        shell: bash
-        run: bash scripts/package.sh
-      - name: Установка, повторная установка и сохранение данных
-        shell: pwsh
-        run: ./scripts/test-installer.ps1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: YESKIA-Windows-Installer
-          path: dist-release/*-setup.exe
-          if-no-files-found: error
-          retention-days: 7
+    uses: ./.github/workflows/release.yml

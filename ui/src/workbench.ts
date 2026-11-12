@@ -173,7 +173,23 @@ export interface PrepView {
   };
   progress: Versioned<PrepProgress>;
 }
+export interface TlsReport {
+  schema: string;
+  profile: Profile;
+  profile_source: string;
+  stack: string;
+  hardware_status: string;
+  manifest_sha256: string;
+  components: TlsComponent[];
+  progress: TlsProgress;
+  excluded: string[];
+}
 export interface Calls {
+  tls_report: { args: { fingerprint: string; profile: Profile; stack: string }; out: TlsReport };
+  tls_clock: {
+    args: { fingerprint: string; firmware: string; revision: number; date: string };
+    out: Versioned<TlsProgress>;
+  };
   contacts_load: { args: object; out: Versioned<Book> };
   contacts_save: { args: { revision: number; book: Book }; out: Versioned<Book> };
   contacts_undo: { args: { revision: number }; out: Versioned<Book> };
@@ -325,6 +341,37 @@ export class MockWorkbench implements WorkbenchBackend {
           firmware_verified: false,
           device_verified: false,
           automatic_apply: false,
+        };
+        break;
+      case "tls_report":
+        value = {
+          schema: "yeskia.tls-report/1",
+          profile: r.profile,
+          profile_source: "owner-entered; UI MOCK",
+          stack: r.stack,
+          hardware_status: "not-tested; UI MOCK",
+          manifest_sha256: "UI MOCK",
+          components: [],
+          progress: {
+            transferred: {},
+            components: {},
+            phone_clock: null,
+            phone_https: null,
+            snapshot: null,
+          },
+          excluded: ["phone-identifiers", "fingerprint", "local-paths", "contacts", "credentials"],
+        };
+        break;
+      case "tls_clock":
+        value = {
+          revision: 1,
+          value: {
+            transferred: {},
+            components: {},
+            phone_clock: r.date,
+            phone_https: null,
+            snapshot: null,
+          },
         };
         break;
       case "tls_progress":

@@ -10,6 +10,9 @@ $registry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\YESKIA'
 if (Test-Path $registry) { throw 'The test requires a runner without YESKIA installed.' }
 $installDir = Join-Path $env:RUNNER_TEMP 'YESKIA installer test'
 $app = Join-Path $installDir 'yeskia-app.exe'
+$builtApp = Join-Path $PWD 'target/x86_64-pc-windows-msvc/release/yeskia-app.exe'
+if (!(Test-Path $builtApp)) { throw 'Selected x64 application was not built.' }
+$builtHash = (Get-FileHash $builtApp).Hash
 $dataDir = Join-Path $env:APPDATA 'dev.yeskia.app'
 $marker = Join-Path $dataDir ('installer-test-' + [guid]::NewGuid().ToString() + '.txt')
 $previousDataDir = $env:YESKIA_DATA_DIR
@@ -19,16 +22,23 @@ function Run-Installer([string]$arguments) {
     $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
     if (!(Test-Path $app)) { throw 'Installed executable not found.' }
+    $installedHash = (Get-FileHash $app).Hash
+    if ($installedHash -ne $builtHash) { throw "Installer payload differs from the selected application: built=$builtHash installed=$installedHash" }
+    $bytes = [IO.File]::ReadAllBytes($app)
+    $pe = [BitConverter]::ToInt32($bytes, 60)
+    if ([BitConverter]::ToUInt16($bytes, $pe + 4) -ne 0x8664 -or [BitConverter]::ToUInt16($bytes, $pe + 24) -ne 0x20b -or [BitConverter]::ToUInt16($bytes, $pe + 92) -ne 2) { throw 'Installed app must be an x64 GUI PE32+ executable.' }
     $entry = Get-ItemProperty $registry
     if ($entry.DisplayVersion -ne $version) { throw 'Installed version mismatch.' }
-    foreach ($resource in @('THIRD_PARTY_NOTICES.md', 'licenses/s60modern.txt', 'licenses/PHONE_ARTWORK.md')) {
+    foreach ($resource in @('LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses/s60modern.txt', 'licenses/PHONE_ARTWORK.md')) {
         if (!(Test-Path (Join-Path $installDir $resource))) { throw "Missing installed license: $resource" }
     }
 }
 function Test-InstalledApp {
     $output = & $app --smoke-test | Out-String
     if ($LASTEXITCODE -ne 0) { throw 'Installed application smoke test failed.' }
-    if (($output | ConvertFrom-Json).storage_ok -ne $true) { throw 'Installed storage check failed.' }
+    $smoke = $output | ConvertFrom-Json
+    if ($smoke.storage_ok -ne $true) { throw 'Installed storage check failed.' }
+    if ($smoke.system.app_version -ne $version -or $smoke.system.arch -ne 'x86_64') { throw 'Installed runtime version/architecture mismatch.' }
 }
 try {
     Remove-Item Env:YESKIA_DATA_DIR -ErrorAction SilentlyContinue

@@ -34,6 +34,16 @@ struct Pkg {
     manifest: String,
 }
 
+// Test an actual future version after every release bump, rather than a fixed 0.2.0.
+fn newer_version() -> String {
+    let patch = env!("CARGO_PKG_VERSION_PATCH").parse::<u64>().unwrap() + 1;
+    format!(
+        "{}.{}.{patch}",
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR")
+    )
+}
+
 fn package(tag: &str, version: &str) -> Pkg {
     let dir = tmp(tag);
     let data: Vec<u8> = (0..50_000u32).map(|i| (i % 251) as u8).collect();
@@ -74,9 +84,10 @@ fn without_a_configured_key_the_source_is_unsigned_and_says_so() {
         "ключ издателя ещё не настроен владельцем"
     );
     let core = AppCore::in_memory();
-    let p = package("unsigned", "0.2.0");
+    let p = package("unsigned", &newer_version());
     let c = core.update_check(&p.installer, &p.manifest, None).unwrap();
-    assert_eq!((c.current.as_str(), c.version.as_str()), ("0.1.0", "0.2.0"));
+    assert_eq!(c.current, env!("CARGO_PKG_VERSION"));
+    assert_eq!(c.version, newer_version());
     assert_eq!(c.trust, Trust::UnsignedSource);
     assert!(c.limitations.iter().any(|l| l.contains("SmartScreen")));
     assert!(c
@@ -90,7 +101,7 @@ fn without_a_configured_key_the_source_is_unsigned_and_says_so() {
 fn a_valid_signature_makes_the_source_signed_and_a_forged_one_is_rejected() {
     let (kp, pk) = keypair();
     let core = AppCore::in_memory().with_update_keys(vec![pk]);
-    let p = package("signed", "0.2.0");
+    let p = package("signed", &newer_version());
     let sig = sign(&p, &kp);
     let c = core
         .update_check(&p.installer, &p.manifest, Some(&sig))
@@ -108,7 +119,7 @@ fn a_valid_signature_makes_the_source_signed_and_a_forged_one_is_rejected() {
     assert_eq!(e.code(), ErrorCode::VerificationFailed);
     // подпись чужим ключом
     let (kp2, _) = keypair();
-    let p2 = package("signed2", "0.2.0");
+    let p2 = package("signed2", &newer_version());
     let sig2 = sign(&p2, &kp2);
     assert_eq!(
         core.update_check(&p2.installer, &p2.manifest, Some(&sig2))
@@ -134,14 +145,14 @@ fn a_valid_signature_makes_the_source_signed_and_a_forged_one_is_rejected() {
 #[test]
 fn downgrades_replays_and_mismatches_are_refused() {
     let core = AppCore::in_memory();
-    for v in ["0.1.0", "0.0.9"] {
+    for v in [env!("CARGO_PKG_VERSION"), "0.0.9"] {
         let p = package("down", v);
         let e = core
             .update_check(&p.installer, &p.manifest, None)
             .unwrap_err();
         assert_eq!(e.code(), ErrorCode::InvalidArgument, "{v}");
     }
-    let p = package("hash", "0.3.0");
+    let p = package("hash", &newer_version());
     // файл подменён после выпуска манифеста
     let mut data = std::fs::read(&p.installer).unwrap();
     data[10] ^= 1;
@@ -153,7 +164,7 @@ fn downgrades_replays_and_mismatches_are_refused() {
         ErrorCode::VerificationFailed
     );
     // другое имя файла
-    let p = package("name", "0.3.0");
+    let p = package("name", &newer_version());
     let other = p.dir.join("renamed-setup.exe");
     std::fs::copy(&p.installer, &other).unwrap();
     assert!(core
@@ -166,7 +177,7 @@ fn downgrades_replays_and_mismatches_are_refused() {
     std::fs::write(&p.manifest, m).unwrap();
     assert!(core.update_check(&p.installer, &p.manifest, None).is_err());
     // не установщик, мусорный манифест, относительные пути
-    let p = package("junk", "0.4.0");
+    let p = package("junk", &newer_version());
     std::fs::write(&p.manifest, "{}").unwrap();
     assert!(core.update_check(&p.installer, &p.manifest, None).is_err());
     assert!(core.update_check("rel.exe", "rel.json", None).is_err());
@@ -188,7 +199,7 @@ fn launch_needs_confirmation_and_separate_consent_for_unsigned() {
         l2.fetch_add(1, Ordering::SeqCst);
         Ok(())
     });
-    let p = package("launch", "0.2.0");
+    let p = package("launch", &newer_version());
     assert!(
         core.update_launch(&p.installer, &p.manifest, None, false, true)
             .is_err(),
@@ -224,7 +235,7 @@ fn signed_source_needs_no_unsigned_consent() {
             n2.fetch_add(1, Ordering::SeqCst);
             Ok(())
         });
-    let p = package("sl", "0.2.0");
+    let p = package("sl", &newer_version());
     let sig = sign(&p, &kp);
     core.update_launch(&p.installer, &p.manifest, Some(&sig), true, false)
         .unwrap();
@@ -255,7 +266,7 @@ fn update_is_postponed_while_a_phone_write_is_in_progress() {
         .unwrap();
     // операция принята, но ещё не завершена
     assert_eq!(core.update_blockers(), vec!["device-operation"]);
-    let p = package("busy", "0.2.0");
+    let p = package("busy", &newer_version());
     let err = core
         .update_launch(&p.installer, &p.manifest, None, true, true)
         .unwrap_err();

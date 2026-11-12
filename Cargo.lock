@@ -4655,7 +4655,7 @@ dependencies = [
 
 [[package]]
 name = "yeskia-adbian"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "getrandom 0.2.17",
  "serde",
@@ -4676,7 +4676,7 @@ dependencies = [
 
 [[package]]
 name = "yeskia-app"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4691,7 +4691,7 @@ dependencies = [
 
 [[package]]
 name = "yeskia-core"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "encoding_rs",
  "flate2",
@@ -4711,7 +4711,7 @@ dependencies = [
 
 [[package]]
 name = "yeskia-discovery"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4721,7 +4721,7 @@ dependencies = [
 
 [[package]]
 name = "yeskia-lab"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "regex",
  "serde",

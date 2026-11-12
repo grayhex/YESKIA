@@ -44,6 +44,9 @@ InstallServer/Open4All, manual application/reboot and a phone HTTPS test. Z: is
 never a write target. ZIP staging cannot produce an installed/verified/rolled-back
 state. Snapshot/application/test/manual-restoration reports are explicitly manual.
 The phone clock comparison is also manual; host HTTPS does not test phone TLS.
+Manual phone date is persisted per profile/device scope. The TLS report exports
+versioned pins/cache validations, owner profile and separate progress states; it
+excludes fingerprint, identifiers and paths and keeps hardware status not-tested.
 
 ## Local address book
 
