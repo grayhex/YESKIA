@@ -1,5 +1,8 @@
+import { useState } from "react";
+import { Icon } from "../components/Icon";
+import { ConnectionTag } from "../components/Ui";
 import { DeviceCard } from "../components/DeviceCard";
-import { Panel, StateMessage } from "../components/Ui";
+import { StateMessage } from "../components/Ui";
 import { useI18n, type MessageKey } from "../i18n";
 import type { AppModel } from "../useAppModel";
 import type { CapabilityMatrix, Device, Operation, OperationRequest } from "../types";
@@ -153,148 +156,247 @@ export function ConnectionPage({
   developer: boolean;
   go: (page: "doctor" | "files") => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const l = (ru: string, en: string) => (lang === "ru" ? ru : en);
   const { devices, busy, result, active } = model;
-
+  const [filter, setFilter] = useState<"auto" | "bluetooth" | "usb">("auto");
+  const [selected, setSelected] = useState("");
+  const visible = devices.filter(
+    (d) =>
+      filter === "auto" ||
+      (filter === "bluetooth"
+        ? d.transport === "bluetooth"
+        : d.transport !== "bluetooth" && d.origin !== "mock"),
+  );
+  const device =
+    visible.find((d) => d.id === selected) ??
+    visible.find((d) => d.connection === "connected") ??
+    visible[0];
+  const bluetooth = devices.filter((d) => d.transport === "bluetooth").length;
+  const usb = devices.filter((d) => d.transport !== "bluetooth" && d.origin !== "mock").length;
   return (
-    <>
-      <h1>{t("conn.title")}</h1>
-      <div className="connection-guide">
-        <ol>
-          {(["connect.usb", "connect.mode", "connect.open"] as MessageKey[]).map((key, i) => (
-            <li key={key}>
-              <span>{i + 1}</span>
-              {t(key)}
-            </li>
+    <div className="connection-layout">
+      <h1 className="sr-only">{t("conn.title")}</h1>
+      <div className="transport-guides" aria-label={l("Способы подключения", "Connection methods")}>
+        <section className="transport-guide">
+          <Icon name="bluetooth" />
+          <div>
+            <h2>
+              Bluetooth <span className="tag">{bluetooth}</span>
+            </h2>
+            <p>
+              {l(
+                "Для файлов: сопрягите Nokia в Windows, запустите rshelld на телефоне и нажмите «Подключить» ниже.",
+                "For files: pair your Nokia in Windows, start rshelld on the phone and choose Connect below.",
+              )}
+            </p>
+          </div>
+        </section>
+        <section className="transport-guide">
+          <Icon name="usb" />
+          <div>
+            <h2>
+              USB <span className="tag">{usb}</span>
+            </h2>
+            <p>
+              {l(
+                "Для PIM выберите PC Suite на телефоне. MTP и накопитель дают доступ к файлам. Затем нажмите «Подключить» ниже.",
+                "For PIM, select PC Suite on the phone. MTP and mass storage provide files. Then choose Connect below.",
+              )}
+            </p>
+          </div>
+        </section>
+      </div>
+      <div className="connection-toolbar">
+        <div
+          className="segmented"
+          role="group"
+          aria-label={l("Тип подключения", "Connection type")}
+        >
+          {(
+            [
+              ["auto", l("Автоматически", "Automatic")],
+              ["bluetooth", "Bluetooth"],
+              ["usb", "USB"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>
+              {label}
+            </button>
           ))}
-        </ol>
+        </div>
+        <span className="hint">
+          {l(
+            "Обнаружение — автоматически. Соединение — по вашему запросу.",
+            "Detection is automatic. Connection starts only on your request.",
+          )}
+        </span>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => void model.refresh()}>
+          <Icon name="refresh" />
+          {t("conn.refresh")}
+        </button>
         <button className="btn btn-secondary" onClick={() => go("doctor")}>
           {t("wel.driver.doctor")}
         </button>
       </div>
-      <div className="btn-row">
-        <button className="btn btn-secondary" disabled={busy} onClick={() => model.refresh()}>
-          <svg
-            className="button-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden="true"
-          >
-            <path d="M20 7v5h-5M4 17v-5h5M5 9a8 8 0 0 1 14-2l1 1M19 15a8 8 0 0 1-14 2l-1-1" />
-          </svg>
-          {t("conn.refresh")}
-        </button>
-      </div>
-
       {active && (
-        <StateMessage
-          kind="empty"
-          title={t("conn.running", { op: t(`op.${active.request.type}` as MessageKey) })}
-        >
-          <p>
+        <div className="connection-progress" role="status">
+          <span>
+            {t("conn.running", { op: t(`op.${active.request.type}` as MessageKey) })}{" "}
             {active.progress && active.progress.total > 0
               ? t("conn.progress", { done: active.progress.done, total: active.progress.total })
               : "…"}
-          </p>
-          <button className="btn btn-secondary" onClick={() => model.cancelActive()}>
+          </span>
+          <button className="btn btn-secondary" onClick={() => void model.cancelActive()}>
             {t("conn.cancel")}
           </button>
-        </StateMessage>
+        </div>
       )}
-
-      {devices.length === 0 && (
+      {!visible.length ? (
         <StateMessage kind="empty" title={t("conn.empty")}>
-          <p>{t("conn.emptyHint")}</p>
+          <p>
+            {filter === "bluetooth"
+              ? l(
+                  "Показываются только сопряжённые устройства класса Phone. Аудиоустройства и неизвестный класс не подключаются. Проверьте Bluetooth Nokia в Windows.",
+                  "Only paired Phone-class devices are shown. Audio devices and unknown classes are never connected. Check the Nokia Bluetooth pairing in Windows.",
+                )
+              : t("conn.emptyHint")}
+          </p>
         </StateMessage>
-      )}
-
-      {devices.map((d) => {
-        const connected = d.connection === "connected";
-        return (
-          <Panel key={d.id}>
-            <DeviceCard device={d} detailed={developer} />
-            <div className="btn-row">
-              {connected ? (
+      ) : (
+        <div className="connection-split">
+          <section
+            className="panel connection-devices"
+            aria-label={l("Обнаруженные телефоны", "Detected phones")}
+          >
+            <h2>
+              {l("Телефоны", "Phones")} <span className="tag">{visible.length}</span>
+            </h2>
+            <div className="connection-device-list">
+              {visible.map((d) => (
                 <button
-                  className="btn btn-secondary"
-                  disabled={busy && !active}
-                  onClick={() => model.disconnect(d.id)}
+                  className={`record-row ${device?.id === d.id ? "selected" : ""}`}
+                  key={d.id}
+                  aria-pressed={device?.id === d.id}
+                  onClick={() => setSelected(d.id)}
                 >
-                  {t("conn.disconnect")}
+                  <strong>{d.display_name.replace(/\s*\(MOCK\)/, "")}</strong>
+                  <small>
+                    <Icon
+                      name={
+                        d.transport === "bluetooth"
+                          ? "bluetooth"
+                          : d.origin === "mock"
+                            ? "phone"
+                            : "usb"
+                      }
+                    />
+                    {d.origin === "mock" ? `MOCK · ${d.transport}` : d.transport}
+                  </small>
+                  <ConnectionTag state={d.connection} />
                 </button>
-              ) : (
-                <button className="btn" disabled={busy} onClick={() => model.connect(d.id)}>
-                  <svg
-                    className="button-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    aria-hidden="true"
-                  >
-                    <path d="M7 3v6M17 3v6M5 9h14v3a7 7 0 0 1-7 7v3M12 19a7 7 0 0 1-7-7" />
-                  </svg>
-                  {t("conn.connect")}
-                </button>
-              )}
+              ))}
             </div>
-            {connected && (
-              <>
-                {d.matrix?.entries.some(
-                  (e) => e.operation === "files.list" && e.availability !== "unsupported",
-                ) && (
-                  <button className="btn" onClick={() => go("files")}>
-                    {t("wel.s4.open")}
+          </section>
+          {device && (
+            <section
+              className="panel connection-detail"
+              aria-label={l("Выбранный телефон", "Selected phone")}
+            >
+              <div className="connection-device-header">
+                <DeviceCard device={device} />
+                <span className="tag transport-indicator">
+                  <Icon
+                    name={
+                      device.transport === "bluetooth"
+                        ? "bluetooth"
+                        : device.origin === "mock"
+                          ? "phone"
+                          : "usb"
+                    }
+                  />
+                  {device.origin === "mock" ? `MOCK · ${device.transport}` : device.transport}
+                </span>
+              </div>
+              <div className="btn-row">
+                {device.connection === "connected" ? (
+                  <button
+                    className="btn btn-secondary"
+                    disabled={busy && !active}
+                    onClick={() => void model.disconnect(device.id)}
+                  >
+                    {t("conn.disconnect")}
+                  </button>
+                ) : (
+                  <button
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void model.connect(device.id)}
+                  >
+                    <Icon name={device.transport === "bluetooth" ? "bluetooth" : "usb"} />
+                    {t("conn.connect")}
                   </button>
                 )}
-                <Actions device={d} model={model} />
-              </>
-            )}
-            {d.matrix && (
-              <details>
-                <summary>{t("conn.matrix")}</summary>
-                <Matrix matrix={d.matrix} developer={developer} />
-              </details>
-            )}
-          </Panel>
-        );
-      })}
-
+                {device.connection === "connected" &&
+                  device.matrix?.entries.some(
+                    (e) => e.operation === "files.list" && e.availability !== "unsupported",
+                  ) && (
+                    <button className="btn" onClick={() => go("files")}>
+                      {t("wel.s4.open")}
+                    </button>
+                  )}
+              </div>
+              {device.connection === "connected" && <Actions device={device} model={model} />}
+              {device.matrix && (
+                <details className="connection-matrix">
+                  <summary>{t("conn.matrix")}</summary>
+                  {developer && (
+                    <dl className="facts">
+                      <dt>{t("dev.origin")}</dt>
+                      <dd>{device.origin}</dd>
+                      <dt>{t("dev.transport")}</dt>
+                      <dd>{device.transport}</dd>
+                    </dl>
+                  )}
+                  <Matrix matrix={device.matrix} developer={developer} />
+                </details>
+              )}
+            </section>
+          )}
+        </div>
+      )}
       {result && (
-        <Panel title={t("conn.result")}>
+        <section className="panel connection-result" aria-label={t("conn.result")}>
           <p data-testid="outcome">
-            {developer
-              ? `${result.operation_id} · ${result.operation} · ${result.outcome}`
-              : `${t(`op.${result.operation}` as MessageKey)} · ${t(`result.${result.outcome}` as MessageKey)}`}
+            {t(`op.${result.operation}` as MessageKey)} ·{" "}
+            {t(`result.${result.outcome}` as MessageKey)}
             {result.origin === "mock" && " · MOCK"}
           </p>
-          {result.uncertain && (
-            <StateMessage kind="error" title={t("table.uncertain")}>
-              {t("conn.uncertain")}
-            </StateMessage>
-          )}
+          {result.uncertain && <p role="alert">{t("conn.uncertain")}</p>}
           {result.error && (
-            <p>
-              {developer && `${result.error.code}: `}
+            <p role="alert">
               {result.error.message}
               {result.error.action !== "none" && (
                 <> — {t(`action.${result.error.action}` as MessageKey)}</>
               )}
             </p>
           )}
-          {developer &&
-            result.evidence.map((e, i) => (
-              <p key={i}>
-                <em>
-                  {t("conn.evidence")}: {e.summary}
-                </em>
+          {developer && (
+            <details>
+              <summary>{l("Подробности результата", "Result details")}</summary>
+              <p>
+                {result.operation_id} · {result.operation} · {result.outcome}
               </p>
-            ))}
-          {developer && <pre className="result">{JSON.stringify(result.data, null, 2)}</pre>}
-        </Panel>
+              <pre className="result">{JSON.stringify(result.data, null, 2)}</pre>
+              {result.evidence.map((e, i) => (
+                <p key={i}>
+                  {e.source}: {e.summary}
+                </p>
+              ))}
+            </details>
+          )}
+        </section>
       )}
-    </>
+    </div>
   );
 }

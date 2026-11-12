@@ -38,7 +38,7 @@ export function DevicePage({
           </button>
         </div>
       </div>
-      <div className="workspace-scroll">
+      <div className={`workspace-scroll ${doctor ? "" : "connection-workspace"}`}>
         {doctor ? (
           <DoctorPage model={model} developer={developer} />
         ) : (

@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "YESKIA",
+        "theme": "Light",
         "width": 1500,
         "height": 900,
         "minWidth": 960,

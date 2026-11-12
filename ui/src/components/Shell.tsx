@@ -1,4 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import logo from "../assets/brand/yeskia-logo.png";
+import { pageTheme } from "./Visual";
 import { Icon, type IconName } from "./Icon";
 import type { Device } from "../types";
 import { useI18n, type Lang, type MessageKey } from "../i18n";
@@ -106,7 +108,9 @@ export function SideNav({
   return (
     <nav ref={navRef} className="side-nav" aria-label={t("navLabel")}>
       <div className="sidebar-brand">
-        <strong>YESKIA</strong>
+        <span className="brand-crop">
+          <img className="brand-image" src={logo} alt="YESKIA" width="2172" height="724" />
+        </span>
         <span>{t("appTagline")}</span>
       </div>
       {groups.map((group) => (
@@ -122,6 +126,7 @@ export function SideNav({
                       refs.current[items.indexOf(item)] = el;
                     }}
                     className="nav-item"
+                    data-tone={pageTheme(item.id).tone}
                     aria-current={item.id === current ? "page" : undefined}
                     onClick={() => onSelect(item.id)}
                     onKeyDown={(e) => onKeyDown(e, items.indexOf(item))}
@@ -161,10 +166,14 @@ export function Header({
   developer,
   lang,
   onMode,
+  theme,
+  onTheme,
   onLang,
   disabled,
 }: {
   developer: boolean;
+  theme: "light" | "dark";
+  onTheme: (theme: "light" | "dark") => void;
   lang: Lang;
   onMode: (developer: boolean) => void;
   onLang: (lang: Lang) => void;
@@ -174,11 +183,30 @@ export function Header({
   return (
     <header className="app-header">
       <div className="brand">
-        <span className="brand-wordmark">{t("appName")}</span>
+        <span className="brand-crop header-logo" aria-hidden="true">
+          <img className="brand-image" src={logo} alt="" width="2172" height="724" />
+        </span>
+        <span className="brand-wordmark visually-hidden">{t("appName")}</span>
         <span className="beta-badge">Beta</span>
         <span className="brand-tagline">{t("appTagline")}</span>
       </div>
       <div className="header-controls">
+        <div role="group" aria-label={t("theme.label")} className="segmented theme-switch">
+          <button
+            disabled={disabled}
+            aria-pressed={theme === "light"}
+            onClick={() => onTheme("light")}
+          >
+            {t("theme.light")}
+          </button>
+          <button
+            disabled={disabled}
+            aria-pressed={theme === "dark"}
+            onClick={() => onTheme("dark")}
+          >
+            {t("theme.dark")}
+          </button>
+        </div>
         <div role="group" aria-label={t("mode.label")} className="segmented">
           <button disabled={disabled} aria-pressed={!developer} onClick={() => onMode(false)}>
             {t("mode.user")}

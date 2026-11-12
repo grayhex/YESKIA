@@ -49,6 +49,7 @@ impl Opener for Fake {
         Ok(vec![Paired {
             key: "private-routing-address".into(),
             name: "laboratory candidate".into(),
+            class_of_device: 0x5a020c,
         }])
     }
     fn open(&self, _: &str, ctx: &OperationContext) -> yeskia_core::Result<Session> {
@@ -544,4 +545,64 @@ fn a_readback_limit_after_writing_is_uncertain_not_a_preflight_rejection() {
             .count(),
         1
     );
+}
+
+#[test]
+fn passive_discovery_never_opens_audio_peripherals_or_phones_and_names_do_not_override_class() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct Mixed {
+        opened: AtomicUsize,
+    }
+    impl Opener for Mixed {
+        fn paired(&self) -> yeskia_core::Result<Vec<Paired>> {
+            Ok(vec![
+                Paired {
+                    key: "audio".into(),
+                    name: "Nokia E72".into(),
+                    class_of_device: 0x240404,
+                },
+                Paired {
+                    key: "computer".into(),
+                    name: "Nokia Phone".into(),
+                    class_of_device: 0x0104,
+                },
+                Paired {
+                    key: "unknown".into(),
+                    name: "E72".into(),
+                    class_of_device: 0,
+                },
+                Paired {
+                    key: "phone".into(),
+                    name: "owner phone".into(),
+                    class_of_device: 0x5a020c,
+                },
+            ])
+        }
+        fn open(&self, _key: &str, _ctx: &OperationContext) -> yeskia_core::Result<Session> {
+            self.opened.fetch_add(1, Ordering::SeqCst);
+            Err(Error::Transport("synthetic explicit request".into()))
+        }
+    }
+    let opener = Arc::new(Mixed {
+        opened: AtomicUsize::new(0),
+    });
+    let transport = Arc::new(AdbianTransport::new(
+        opener.clone(),
+        "synthetic-salt".into(),
+    ));
+    let engine = Engine::new(
+        vec![transport],
+        Arc::new(Storage::open_in_memory().unwrap()),
+        Arc::new(Diagnostics::new(100, None)),
+    );
+    for _ in 0..5 {
+        let found = engine.list_devices().unwrap();
+        assert_eq!(found.len(), 1);
+        assert!(found[0].display_name.contains("owner phone"));
+        assert_eq!(found[0].connection, ConnectionState::Disconnected);
+    }
+    assert_eq!(opener.opened.load(Ordering::SeqCst), 0);
+    let id = engine.list_devices().unwrap()[0].id.clone();
+    assert!(engine.connect(&id).is_err());
+    assert_eq!(opener.opened.load(Ordering::SeqCst), 1);
 }

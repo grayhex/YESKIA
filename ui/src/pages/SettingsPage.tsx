@@ -41,6 +41,18 @@ export function SettingsPage({ model }: { model: AppModel }) {
         <p>{t("settings.aboutText")}</p>
         {system && (
           <dl className="facts">
+            {settings?.developer_mode && (
+              <>
+                <dt>{t("settings.platform")}</dt>
+                <dd data-testid="os">
+                  {system.os} / {system.arch}
+                </dd>
+                <dt>{t("settings.network")}</dt>
+                <dd>
+                  {system.network_required ? t("settings.networkYes") : t("settings.networkNo")}
+                </dd>
+              </>
+            )}
             <dt>{t("settings.version")}</dt>
             <dd>{system.app_version}</dd>
             <dt>{t("settings.dataDir")}</dt>

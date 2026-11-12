@@ -25,6 +25,12 @@ mod windows;
 pub struct Paired {
     pub key: String,
     pub name: String,
+    pub class_of_device: u32,
+}
+/// Bluetooth Assigned Numbers: Major Device Class 0x02 is Phone.
+/// Names, audio/rendering service bits and pairing alone cannot identify a phone.
+pub fn is_phone_class(class: u32) -> bool {
+    class & 0b11 == 0 && ((class >> 8) & 0x1f) == 0x02
 }
 pub trait Opener: Send + Sync {
     fn paired(&self) -> Result<Vec<Paired>>;
@@ -213,6 +219,9 @@ impl DiscoveryProvider for AdbianTransport {
         let mut endpoints = self.endpoints.lock().map_err(|_| locked())?;
         let mut devices = Vec::new();
         for p in paired {
+            if !is_phone_class(p.class_of_device) {
+                continue;
+            }
             let id = self.id(&p.key);
             devices.push(Device {
                 id: id.clone(),
@@ -242,6 +251,11 @@ impl DeviceTransport for AdbianTransport {
             .get(id)
             .cloned()
             .ok_or_else(|| Error::DeviceNotFound("ADBIAN_CANDIDATE".into()))?;
+        if !is_phone_class(endpoint.class_of_device) {
+            return Err(Error::CapabilityUnsupported(
+                "BLUETOOTH_PHONE_CLASS_REQUIRED".into(),
+            ));
+        }
         let ctx = ctx_connect();
         {
             let mut connecting = self.connecting.lock().map_err(|_| locked())?;

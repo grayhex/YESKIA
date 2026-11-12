@@ -3,6 +3,7 @@ const paths = {
   up: "M12 20V4m-6 6 6-6 6 6",
   phone: "M7 2h10v20H7ZM10 5h4M11 19h2",
   computer: "M3 4h18v13H3ZM8 21h8M12 17v4",
+  bluetooth: "M7 7l10 10-5 5V2l5 5L7 17",
   usb: "M12 21V3m-3 3 3-3 3 3M12 15l-5-4V8m5 10 5-5V9M5 6h4v2H5ZM15 7h4v2h-4",
   contacts:
     "M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 3a4 4 0 0 1 0 8M22 21v-3a4 4 0 0 0-3-4",

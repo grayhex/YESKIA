@@ -9,7 +9,7 @@ import type { Operation } from "../types";
 
 export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => void }) {
   const { t, lang } = useI18n();
-  const { devices, sessionJournal, system } = model;
+  const { devices, sessionJournal } = model;
   const selected = devices.find((d) => d.connection === "connected") ?? devices[0];
   const isMock = selected?.origin === "mock";
   const matrix = selected?.matrix ?? null;
@@ -34,11 +34,16 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
   return (
     <>
       <div className="page-heading home-heading">
-        <button className="btn btn-secondary" onClick={() => go("preparation")}>
-          {lang === "ru" ? "Подготовка E72" : "Prepare E72"}
-        </button>
         <h1>{t("home.title")}</h1>
         <div className="btn-row">
+          {model.system && model.settings?.developer_mode && (
+            <button className="btn btn-secondary" onClick={() => go("settings")}>
+              {t("home.system")}
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={() => go("preparation")}>
+            {lang === "ru" ? "Подготовка E72" : "Prepare E72"}
+          </button>
           <button className="btn btn-secondary" onClick={() => go("connection")}>
             <Icon name="usb" />
             {t("nav.connection")}
@@ -188,18 +193,6 @@ export function HomePage({ model, go }: { model: AppModel; go: (p: PageId) => vo
           )}
         </Panel>
       </div>
-      {system && model.settings?.developer_mode && (
-        <Panel title={t("home.system")}>
-          <dl className="facts">
-            <dt>{t("settings.platform")}</dt>
-            <dd data-testid="os">
-              {system.os} / {system.arch}
-            </dd>
-            <dt>{t("settings.network")}</dt>
-            <dd>{system.network_required ? t("settings.networkYes") : t("settings.networkNo")}</dd>
-          </dl>
-        </Panel>
-      )}
     </>
   );
 }
