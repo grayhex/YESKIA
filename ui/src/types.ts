@@ -219,6 +219,7 @@ export interface SystemInfo {
 }
 
 export interface Settings {
+  theme: "light" | "dark";
   language: string;
   developer_mode: boolean;
   use_mock_device: boolean;

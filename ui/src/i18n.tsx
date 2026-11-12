@@ -3,6 +3,9 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Lang = "ru" | "en";
 
 const ru = {
+  "theme.label": "Тема оформления",
+  "theme.light": "Светлая",
+  "theme.dark": "Тёмная",
   "nav.preparation": "Подготовка E72",
   "nav.tls": "TLS / HTTPS Revival",
   "home.openFiles": "Открыть файлы",
@@ -650,6 +653,9 @@ const ru = {
 export type MessageKey = keyof typeof ru;
 
 const en: Record<MessageKey, string> = {
+  "theme.label": "Appearance",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
   "nav.preparation": "Prepare E72",
   "nav.tls": "TLS / HTTPS Revival",
   "home.openFiles": "Open files",

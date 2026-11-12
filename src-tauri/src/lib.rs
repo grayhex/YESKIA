@@ -2,6 +2,7 @@
 //! Команды строго типизированы: ошибки — `ErrorInfo` с кодом.
 
 use std::sync::Arc;
+use tauri::Manager;
 use yeskia_core::app::{AppCore, SmokeReport};
 use yeskia_core::app::{AudioPreview, HostJobRequest, HostJobResult, ThemeSource};
 use yeskia_core::backup::BackupInfo;
@@ -140,6 +141,7 @@ fn get_settings(state: tauri::State<'_, State>) -> Cmd<Settings> {
 
 #[tauri::command]
 fn save_settings(
+    window: tauri::WebviewWindow,
     state: tauri::State<'_, State>,
     agent: tauri::State<'_, AgentState>,
     settings: Settings,
@@ -147,7 +149,24 @@ fn save_settings(
     if !settings.developer_mode {
         agent.0.disarm_all();
     }
-    state.0.save_settings(&settings).map_err(|e| e.to_info())
+    let saved = state.0.save_settings(&settings).map_err(|e| e.to_info())?;
+    apply_window_theme(&window, &state.0, saved.theme);
+    Ok(saved)
+}
+fn apply_window_theme(
+    window: &tauri::WebviewWindow,
+    core: &AppCore,
+    theme: yeskia_core::storage::ThemePreference,
+) {
+    let theme = match theme {
+        yeskia_core::storage::ThemePreference::Light => tauri::Theme::Light,
+        yeskia_core::storage::ThemePreference::Dark => tauri::Theme::Dark,
+    };
+    if window.set_theme(Some(theme)).is_err() {
+        core.engine
+            .diagnostics()
+            .warn("NATIVE_WINDOW_THEME_UPDATE_FAILED");
+    }
 }
 
 #[tauri::command]
@@ -771,6 +790,15 @@ pub fn run() {
         .manage(NativeState(native))
         .manage(AgentState(agent))
         .manage(WorkbenchState::default())
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let core = app.state::<State>();
+                if let Ok(settings) = core.0.get_settings() {
+                    apply_window_theme(&window, &core.0, settings.theme);
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             local_workbench,
             preparation,

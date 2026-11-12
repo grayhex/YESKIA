@@ -16,6 +16,7 @@ class LayoutBackend extends MockBackend {
   }
   async listDevices() {
     const devices = await super.listDevices();
+    if(scenario==="multiple") return devices.flatMap(device=>["bluetooth","pc_suite","mtp","mass_storage"].map((transport,index)=>({...device,id:`synthetic-route-${index}`,display_name:`Nokia E72 · route ${index+1} (MOCK)`,transport:transport as typeof device.transport})));
     if (scenario === "agent") return devices.map(device => ({...device,id:"adbian-synthetic-layout",display_name:"Synthetic E72 · preview",transport:"bluetooth" as const,identified_model:null}));
     if (scenario !== "readonly") return devices;
     return devices.map((device) => ({
@@ -33,11 +34,12 @@ class LayoutBackend extends MockBackend {
   }
 }
 const backend = new LayoutBackend();
+backend.settings.theme=params.get("theme")==="dark"?"dark":"light";
 backend.settings.language = params.get("lang") === "en" ? "en" : "ru";
 backend.settings.use_mock_device = scenario !== "empty";
 backend.settings.onboarded = scenario !== "welcome";
-backend.settings.developer_mode = scenario === "agent";
-if (["connected", "readonly", "long", "agent"].includes(scenario)) await backend.connectDevice("mock-e72");
+backend.settings.developer_mode = ["agent","multiple"].includes(scenario);
+if (["connected", "readonly", "long", "agent","multiple"].includes(scenario)) await backend.connectDevice("mock-e72");
 if (scenario === "long") {
   for (let i = 0; i < 100; i++) {
     const name = `file-${i.toString().padStart(3, "0")}.jpg`;

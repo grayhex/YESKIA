@@ -332,7 +332,9 @@ impl Opener for WindowsBluetooth {
         let p = BLUETOOTH_DEVICE_SEARCH_PARAMS {
             dwSize: size_of::<BLUETOOTH_DEVICE_SEARCH_PARAMS>() as u32,
             fReturnAuthenticated: true.into(),
-            fReturnRemembered: true.into(),
+            fReturnRemembered: false.into(),
+            fIssueInquiry: false.into(),
+            fReturnConnected: true.into(),
             ..Default::default()
         };
         let mut info = BLUETOOTH_DEVICE_INFO {
@@ -360,7 +362,7 @@ impl Opener for WindowsBluetooth {
         let _guard = Find(h);
         let mut out = Vec::new();
         loop {
-            if info.fAuthenticated.as_bool() {
+            if info.fAuthenticated.as_bool() && super::is_phone_class(info.ulClassofDevice) {
                 let end = info
                     .szName
                     .iter()
@@ -369,6 +371,7 @@ impl Opener for WindowsBluetooth {
                 out.push(Paired {
                     key: format!("{:012x}", unsafe { info.Address.Anonymous.ullLong }),
                     name: String::from_utf16_lossy(&info.szName[..end]),
+                    class_of_device: info.ulClassofDevice,
                 });
             }
             info.dwSize = size_of::<BLUETOOTH_DEVICE_INFO>() as u32;
@@ -379,6 +382,16 @@ impl Opener for WindowsBluetooth {
         Ok(out)
     }
     fn open(&self, key: &str, ctx: &OperationContext) -> Result<Session> {
+        // Revalidate cached local pairing/class before any active SDP or RFCOMM call.
+        if !self
+            .paired()?
+            .iter()
+            .any(|p| p.key == key && super::is_phone_class(p.class_of_device))
+        {
+            return Err(Error::CapabilityUnsupported(
+                "BLUETOOTH_PHONE_CLASS_REQUIRED".into(),
+            ));
+        }
         let addr = address(key)?;
         let mut candidates = sdp(addr, ctx).unwrap_or_default();
         ctx.checkpoint()?;

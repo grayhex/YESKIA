@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Backend } from "./api";
 import { VisualProvider } from "./components/Visual";
 import { Icon } from "./components/Icon";
@@ -57,8 +57,24 @@ export function App({ backend }: { backend: Backend }) {
         ? "nav.tls"
         : nav.find((n) => n.id === current)!.label;
 
+  const appearance = model.settings?.theme ?? "light";
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("theme-changing");
+    root.dataset.theme = appearance;
+    let next = 0;
+    const frame = requestAnimationFrame(() => {
+      next = requestAnimationFrame(() => root.classList.remove("theme-changing"));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(next);
+      root.classList.remove("theme-changing");
+    };
+  }, [appearance]);
   useEffect(() => {
     document.documentElement.lang = lang;
+
     document.title = `${t(currentLabel)} — YESKIA`;
   });
 
@@ -83,6 +99,8 @@ export function App({ backend }: { backend: Backend }) {
       <div className="shell">
         <Header
           developer={developer}
+          theme={model.settings?.theme ?? "light"}
+          onTheme={(theme) => model.updateSettings({ theme })}
           lang={lang}
           disabled={!model.settings || model.busy}
           onMode={(d) => model.updateSettings({ developer_mode: d })}

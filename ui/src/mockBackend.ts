@@ -114,6 +114,7 @@ export class MockBackend implements Backend {
   private connected = false;
   private matrix: CapabilityMatrix | null = null;
   settings: Settings = {
+    theme: "light",
     language: "ru",
     developer_mode: false,
     use_mock_device: true,

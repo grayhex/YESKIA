@@ -68,6 +68,7 @@ for (const [width, height] of [
   for (const theme of ["light", "dark"]) for (const lang of ["ru", "en"]) {
     cases.push({width,height,theme,lang,scenario:"agent",scale:1,pages:[agentPage]});
   }
+  for(const theme of ["light","dark"]) for(const lang of ["ru","en"]) cases.push({width,height,theme,lang,scenario:"multiple",scale:1,pages:[pages[1]]});
   for (const scenario of ["readonly", "long"])
     cases.push({
       width,
@@ -139,7 +140,20 @@ async function checkLayout(page, c, screen) {
   assert.equal(layout.bodyY, 0, `${screen}: shell overflows vertically`);
   assert.equal(layout.mainX, 0, `${screen}: main overflows horizontally`);
   assert.deepEqual(layout.brokenImages, [], `${screen}: missing images`);
+  if(screen==="Connection" && c.scale===1) {
+    const scrolls=await page.locator(".connection-workspace,.connection-detail").evaluateAll(elements=>elements.map(el=>el.scrollHeight-el.clientHeight));
+    assert.ok(scrolls.every(value=>value<=2),`${c.width} ${c.lang} ${c.scenario}: default connection panels should fit (${scrolls})`);
+  }
+
   assert.equal(layout.missingIcons, 0, `${screen}: empty SVG`);
+  const appearance=await page.evaluate(()=>({theme:document.documentElement.dataset.theme,color:getComputedStyle(document.documentElement).colorScheme}));
+  assert.equal(appearance.theme,c.theme,`${screen}: selected theme must override OS preference`);
+  assert.equal(appearance.color,c.theme,`${screen}: native controls must use the selected theme`);
+  if(c.theme==="dark") {
+    const pale=await page.locator(".btn-secondary,.segmented button[aria-pressed=true],.nav-item[aria-current]").evaluateAll(es=>es.filter(e=>{const rgb=getComputedStyle(e).backgroundColor.match(/\d+/g)?.map(Number);return rgb&&rgb[0]>220&&rgb[1]>220&&rgb[2]>220&&(rgb.length<4||rgb[3]>0);}).map(e=>e.textContent));
+    assert.deepEqual(pale,[],`${screen}: dark controls have light backgrounds`);
+  }
+
   assert.equal(
     await page.locator("nav .nav-item > svg").count(),
     await page.locator("nav .nav-item").count(),
@@ -158,8 +172,8 @@ async function checkLayout(page, c, screen) {
     );
     assert.equal(
       await page.locator(".brand img, .sidebar-brand img").count(),
-      0,
-      "branding must remain text",
+      2,
+      "the user logo must be present in header and sidebar",
     );
   }
   if (c.scale === 1 && !["Preparation", "TLS Revival", "Contact editor"].includes(screen)) {
@@ -197,6 +211,23 @@ try {
       (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
     args: ["--no-sandbox"],
   });
+  // Exercise the first dark frame with motion enabled, independently of static layouts.
+  {
+    const context=await browser.newContext({viewport:{width:1366,height:768},colorScheme:"dark",reducedMotion:"no-preference"});
+    const page=await context.newPage();
+    try {
+      await page.goto(`${url}/tests/layout/index.html?scenario=connected&lang=en&theme=light`);
+      await page.getByRole("button",{name:"Dark",exact:true}).waitFor();
+      await page.waitForFunction(()=>!document.querySelector(".theme-switch button")?.disabled);
+      assert.equal(await page.locator("html").getAttribute("data-theme"),"light","initial preference must stay light on a dark OS");
+      await page.evaluate(()=>{window.__themeFrame=new Promise(resolve=>{const observer=new MutationObserver(()=>{if(document.documentElement.dataset.theme!=="dark")return;observer.disconnect();resolve([...document.querySelectorAll(".btn-secondary,.segmented button[aria-pressed=true],.nav-item[aria-current]")].map(e=>({text:e.textContent,bg:getComputedStyle(e).backgroundColor})));});observer.observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});});});
+      await page.getByRole("button",{name:"Dark",exact:true}).click();
+      const controls=await page.evaluate(()=>window.__themeFrame);
+      assert.ok(controls.length>0,"theme frame must include controls");
+      assert.ok(controls.every(c=>{const v=c.bg.match(/\d+/g)?.map(Number);return !v||v.length===4&&v[3]===0||v.slice(0,3).some(n=>n<180);}),"theme transition must not show white buttons");
+      checks.push({screen:"Theme first frame",width:1366,height:768,theme:"dark",osTheme:"dark",controls});
+    } finally {await context.close();}
+  }
   async function worker() {
     while (cases.length) {
       const c = cases.shift();
@@ -220,7 +251,7 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       try {
         await page.goto(
-          `${url}/tests/layout/index.html?scenario=${c.scenario}&lang=${c.lang}`,
+          `${url}/tests/layout/index.html?scenario=${c.scenario}&lang=${c.lang}&theme=${c.theme}`,
           { waitUntil: "domcontentloaded" },
         );
         await page.locator(".header-controls button:enabled").first().waitFor();

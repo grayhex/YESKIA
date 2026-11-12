@@ -37,26 +37,24 @@
   --header-gradient: linear-gradient(110deg, #12315a, #19477d 65%, #376c9e);
   --shadow: 0 2px 8px rgb(16 48 99 / 4%);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --surface: #242a35;
-    --surface-alt: #191f29;
-    --surface-sunken: #2d3543;
-    --border: #3a4658;
-    --border-strong: #7f91aa;
-    --text: #edf2fa;
-    --text-muted: #afbdd1;
-    --nk-blue-tint: #293f62;
-    --ok: #8edbb6;
-    --ok-bg: #213e32;
-    --warn: #f0d18a;
-    --warn-bg: #403721;
-    --danger: #ffb2ba;
-    --danger-bg: #492b33;
-    --focus: #90baff;
-    --shadow: 0 2px 8px rgb(0 0 0 / 12%);
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #242a35;
+  --surface-alt: #191f29;
+  --surface-sunken: #2d3543;
+  --border: #3a4658;
+  --border-strong: #7f91aa;
+  --text: #edf2fa;
+  --text-muted: #afbdd1;
+  --nk-blue-tint: #293f62;
+  --ok: #8edbb6;
+  --ok-bg: #213e32;
+  --warn: #f0d18a;
+  --warn-bg: #403721;
+  --danger: #ffb2ba;
+  --danger-bg: #492b33;
+  --focus: #90baff;
+  --shadow: 0 2px 8px rgb(0 0 0 / 12%);
 }
 
 /* Quiet semantic accents, sampled from the reference's icon treatments. */
@@ -79,24 +77,22 @@
   --warn-bg: #fbf7ed;
   --header-gradient: linear-gradient(112deg, #2c394d, #354b63 65%, #4b647c);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent-blue: #a1b9da;
-    --accent-blue-bg: #2c3b50;
-    --accent-green: #9bc8b7;
-    --accent-green-bg: #293e38;
-    --accent-purple: #c3addd;
-    --accent-purple-bg: #3b334a;
-    --accent-amber: #d5bd8c;
-    --accent-amber-bg: #423c2e;
-    --accent-red: #dda6ad;
-    --accent-red-bg: #48343b;
-    --accent-neutral: #b0bbca;
-    --accent-neutral-bg: #303945;
-    --ok: #9bc8b7;
-    --ok-bg: #293e38;
-    --mock: #d8c89d;
-    --warn-bg: #39362c;
-    --header-gradient: linear-gradient(112deg, #263141, #304054 65%, #3d5064);
-  }
+:root[data-theme="dark"] {
+  --accent-blue: #a1b9da;
+  --accent-blue-bg: #2c3b50;
+  --accent-green: #9bc8b7;
+  --accent-green-bg: #293e38;
+  --accent-purple: #c3addd;
+  --accent-purple-bg: #3b334a;
+  --accent-amber: #d5bd8c;
+  --accent-amber-bg: #423c2e;
+  --accent-red: #dda6ad;
+  --accent-red-bg: #48343b;
+  --accent-neutral: #b0bbca;
+  --accent-neutral-bg: #303945;
+  --ok: #9bc8b7;
+  --ok-bg: #293e38;
+  --mock: #d8c89d;
+  --warn-bg: #39362c;
+  --header-gradient: linear-gradient(112deg, #263141, #304054 65%, #3d5064);
 }

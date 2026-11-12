@@ -91,9 +91,18 @@ pub fn default_backup_root_for(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    #[default]
+    Light,
+    Dark,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    pub theme: ThemePreference,
     pub language: String,
     /// Режим «Разработчик»: журнал операций, матрица возможностей, evidence.
     pub developer_mode: bool,
@@ -110,6 +119,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            theme: ThemePreference::Light,
             language: "ru".into(),
             developer_mode: false,
             use_mock_device: false,
@@ -394,7 +404,11 @@ mod tests {
     fn settings_roundtrip_and_default() {
         let s = Storage::open_in_memory().unwrap();
         assert_eq!(s.load_settings().unwrap(), Settings::default());
+        let legacy: Settings =
+            serde_json::from_str(r#"{"language":"ru","onboarded":true}"#).unwrap();
+        assert_eq!(legacy.theme, ThemePreference::Light);
         let new = Settings {
+            theme: ThemePreference::Dark,
             language: "en".into(),
             developer_mode: true,
             use_mock_device: true,

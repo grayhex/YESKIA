@@ -21,6 +21,7 @@ const themes: Record<PageId, { icon: IconName; tone: AccentTone }> = {
   journal: { icon: "activity", tone: "blue" },
   settings: { icon: "settings", tone: "neutral" },
 };
+export const pageTheme = (page: PageId) => themes[page];
 const VisualContext = createContext(themes.home);
 export function VisualProvider({ page, children }: { page: PageId; children: ReactNode }) {
   return <VisualContext.Provider value={themes[page]}>{children}</VisualContext.Provider>;

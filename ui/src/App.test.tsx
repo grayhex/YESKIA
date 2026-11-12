@@ -21,7 +21,7 @@ describe("Главная", () => {
     await open();
     expect(screen.getByText(/Демо-режим/)).toBeInTheDocument();
     expect(screen.getByText("YESKIA", { selector: ".brand-wordmark" })).toBeInTheDocument();
-    expect(screen.queryByRole("img", { name: "YESKIA" })).toBeNull();
+    expect(screen.getByRole("img", { name: "YESKIA" })).toBeInTheDocument();
     expect(screen.getAllByText("MOCK").length).toBeGreaterThan(0);
     expect(screen.getByText("демо-данные")).toBeInTheDocument();
   });

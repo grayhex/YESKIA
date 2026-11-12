@@ -1,0 +1,22 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { App } from "./App";
+import { MockBackend } from "./mockBackend";
+it("defaults to light, persists explicit dark choice and restores it on reopening", async () => {
+  const backend = new MockBackend();
+  const connect = vi.spyOn(backend, "connectDevice");
+  const save = vi.spyOn(backend, "saveSettings");
+  const first = render(<App backend={backend} />);
+  await screen.findByText("Nokia E72 (MOCK)");
+  expect(document.documentElement).toHaveAttribute("data-theme", "light");
+  expect(screen.getByRole("button", { name: "Светлая" })).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(screen.getByRole("button", { name: "Тёмная" }));
+  await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "dark"));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({ theme: "dark" }));
+  expect(connect).not.toHaveBeenCalled();
+  first.unmount();
+  render(<App backend={backend} />);
+  await screen.findByText("Nokia E72 (MOCK)");
+  await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "dark"));
+  expect(screen.getByRole("button", { name: "Тёмная" })).toHaveAttribute("aria-pressed", "true");
+});
