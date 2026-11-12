@@ -1,8 +1,8 @@
-# YESKIA 0.1.1 — кандидат для проверки
+# YESKIA 0.5.0 — кандидат для проверки
 
 Windows 11 x64, WebView2; Rust/Node/Python не нужны для установленного приложения.
 Версия собирается явно как AMD64 Windows GUI `yeskia-app.exe`; пользователь скачивает
-один `YESKIA_0.1.1_x64-setup.exe`. Сначала используйте успешный CI artifact; пустой
+один `YESKIA_0.5.0_x64-setup.exe`. Сначала используйте успешный CI artifact; пустой
 prerelease 0.1.0 не содержит установщика. Публикация нового GitHub Release ручная.
 
 ## Проверка на стенде владельца
@@ -36,7 +36,7 @@ npm run release:check
 npm run release:test
 bash scripts/package.sh
 # target/x86_64-pc-windows-msvc/release/yeskia-app.exe
-# dist-release/YESKIA_0.1.1_x64-setup.exe
+# dist-release/YESKIA_0.5.0_x64-setup.exe
 ```
 
 CI проверяет installed executable/hash/version/architecture, повторную установку,

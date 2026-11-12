@@ -22,7 +22,8 @@ function Run-Installer([string]$arguments) {
     $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
     if (!(Test-Path $app)) { throw 'Installed executable not found.' }
-    if ((Get-FileHash $app).Hash -ne $builtHash) { throw 'Installer payload differs from the selected application.' }
+    $installedHash = (Get-FileHash $app).Hash
+    if ($installedHash -ne $builtHash) { throw "Installer payload differs from the selected application: built=$builtHash installed=$installedHash" }
     $bytes = [IO.File]::ReadAllBytes($app)
     $pe = [BitConverter]::ToInt32($bytes, 60)
     if ([BitConverter]::ToUInt16($bytes, $pe + 4) -ne 0x8664 -or [BitConverter]::ToUInt16($bytes, $pe + 24) -ne 0x20b -or [BitConverter]::ToUInt16($bytes, $pe + 92) -ne 2) { throw 'Installed app must be an x64 GUI PE32+ executable.' }

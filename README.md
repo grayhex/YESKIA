@@ -6,8 +6,8 @@ Rust и React; аккаунт, сервер, Python, Gammu и Docker для за
 
 ## Сборка и установка
 
-Следующий кандидат — **0.1.1**. Готовый файл для пользователя:
-**`YESKIA_0.1.1_x64-setup.exe`**. Он устанавливает `yeskia-app.exe`, а не CLI
+Следующий кандидат — **0.5.0**. Готовый файл для пользователя:
+**`YESKIA_0.5.0_x64-setup.exe`**. Он устанавливает `yeskia-app.exe`, а не CLI
 лаборатории или телефонный SIS-агент.
 
 Проверенные сборки доступны в [успешных запусках CI](https://github.com/grayhex/YESKIA/actions/workflows/ci.yml)
@@ -68,7 +68,7 @@ npm run tauri dev
 npm run release:check
 npm run release:test
 bash scripts/package.sh
-# dist-release/YESKIA_0.1.1_x64-setup.exe
+# dist-release/YESKIA_0.5.0_x64-setup.exe
 ```
 
 Упаковка явно выбирает `x86_64-pc-windows-msvc` и `yeskia-app`. Проверяются версии

@@ -6,7 +6,7 @@ members = ["crates/yeskia-core", "crates/yeskia-discovery", "crates/yeskia-lab",
 default-members = ["crates/yeskia-core", "crates/yeskia-discovery", "crates/yeskia-lab", "crates/yeskia-adbian", "crates/yeskia-agent-protocol"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.5.0"
 edition = "2021"
 license = "MIT"
 rust-version = "1.80"

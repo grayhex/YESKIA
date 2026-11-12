@@ -57,7 +57,7 @@ NSIS определяет существующую установку и пре�
   тестового файла в каталоге данных. Это проверка той же версии; переход между двумя
   выпущенными версиями остаётся отдельным пунктом ручного чек-листа.
 - Ручной `release.yml` принимает ожидаемую уже закоммиченную версию и собирает
-  тот же EXE, без публикации. Кандидат 0.1.1; prerelease 0.1.0 пока не содержит assets.
+  тот же EXE, без публикации. Кандидат 0.5.0; prerelease 0.1.0 пока не содержит assets.
 - Для выпуска измените версию в `src-tauri/tauri.conf.json` и `workspace.package.version`
   в `Cargo.toml`, актуализируйте lock-файлы и версии npm при необходимости. Не задавайте
   другую версию только в имени артефакта.
@@ -74,17 +74,21 @@ NSIS определяет существующую установку и пре�
 данные из старой portable-папки автоматически: сохраните её `data` и резервные копии
 перед переходом на установленную версию.
 
-## Проверка целевого EXE перед выпуском 0.1.1
+## Проверка целевого EXE перед выпуском 0.5.0
 
-- `npm run release:check`: Cargo/npm/Tauri/lock версии 0.1.1 и binary `yeskia-app`.
+- `npm run release:check`: Cargo/npm/Tauri/lock версии 0.5.0 и binary `yeskia-app`.
 - Явный target `x86_64-pc-windows-msvc`; старые EXE/NSIS outputs очищаются перед сборкой.
 - PE header приложения обязан быть AMD64 + PE32+ + Windows GUI subsystem.
   Сам NSIS stub может быть x86 — его разрядность не подменяет проверку приложения.
 - Сборка: `target/x86_64-pc-windows-msvc/release/yeskia-app.exe`.
-- Результат: один `dist-release/YESKIA_0.1.1_x64-setup.exe`.
+- Результат: один `dist-release/YESKIA_0.5.0_x64-setup.exe`.
 - Установленное приложение должно побайтно совпадать с собранным, а smoke-report
   содержать правильные `system.app_version` и `system.arch`.
 - Release workflow ничего не публикует. До ручного прикрепления EXE к GitHub Release
   используйте артефакт успешного CI, а не пустой релиз 0.1.0.
 
 CI и ручной выпуск используют один reusable [Windows workflow](https://github.com/grayhex/YESKIA/blob/main/.github/workflows/release.yml), поэтому PR проверяет именно релизный путь.
+
+Tauri вызывается с `--no-binary-patching`: поставляется только NSIS, а ручное
+обновление YESKIA не использует Tauri updater plugin. Упаковщик сохраняет EXE
+побайтно; installed/build SHA-256 проверяется без исключений для служебных меток.

@@ -105,7 +105,7 @@ test("packaging requires the fresh selected x64 application and emits only one s
     writeFileSync(join(root,"bin/node"),`#!/bin/sh\nif [ "$1" = scripts/release.mjs ]; then printf 'test licenses' > build-support/THIRD_PARTY_NOTICES.md; else exec ${shellQuote(process.execPath)} "$@"; fi\n`);
     const metadata={packages:[{name:"yeskia-app",version,targets:[{name:"yeskia-app",kind:["bin"],src_path:"/repo/src-tauri/src/main.rs"}]}]};
     writeFileSync(join(root,"bin/cargo"),`#!/bin/sh\nprintf '%s' ${shellQuote(JSON.stringify(metadata))}\n`);
-    writeFileSync(join(root,"bin/npm"),`#!/bin/sh\n[ "$*" = "run tauri build -- --ci --target x86_64-pc-windows-msvc --bundles nsis --config scripts/installer.conf.json -- --locked --bin yeskia-app" ] || exit 2\ntest -s build-support/THIRD_PARTY_NOTICES.md || exit 3\ncp expected.exe ${rel}/yeskia-app.exe\nprintf 'fresh installer' > ${rel}/bundle/nsis/YESKIA_${version}_x64-setup.exe\n`);
+    writeFileSync(join(root,"bin/npm"),`#!/bin/sh\n[ "$*" = "run tauri build -- --ci --no-binary-patching --target x86_64-pc-windows-msvc --bundles nsis --config scripts/installer.conf.json -- --locked --bin yeskia-app" ] || exit 2\ntest -s build-support/THIRD_PARTY_NOTICES.md || exit 3\ncp expected.exe ${rel}/yeskia-app.exe\nprintf 'fresh installer' > ${rel}/bundle/nsis/YESKIA_${version}_x64-setup.exe\n`);
     for(const f of ["node","npm","cargo"])chmodSync(join(root,"bin",f),0o755);
     const env={...process.env,PATH:join(root,"bin")+":"+process.env.PATH};
     execFileSync("bash",["scripts/package.sh"],{cwd:root,env});

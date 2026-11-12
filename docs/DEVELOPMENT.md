@@ -53,5 +53,5 @@ YESKIA_REQUIRE_FFMPEG=1 cargo test -p yeskia-core --test media --test media_jobs
 единственный binary target `src-tauri/src/main.rs` / `yeskia-app`. `package.sh`
 выбирает `x86_64-pc-windows-msvc`, `--locked --bin yeskia-app` и проверяет PE32+,
 AMD64, Windows GUI subsystem. Пути: `target/x86_64-pc-windows-msvc/release/yeskia-app.exe`
-и `dist-release/YESKIA_0.1.1_x64-setup.exe`. Пакет без свежего целевого EXE не выпускается.
+и `dist-release/YESKIA_0.5.0_x64-setup.exe`. Пакет без свежего целевого EXE не выпускается.
 CI дополнительно сравнивает SHA-256 установленного EXE с собранным и проверяет runtime-версию.
